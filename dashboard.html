@@ -325,8 +325,7 @@ window.sauvegarderStructure = async function(){
 };
 
 window.ouvrirStructure = function(id){
-  // TODO: ouvrir l'app principale pour cette structure
-  alert('🚧 L\'app de gestion pour cette structure arrive dans la prochaine étape !');
+  window.location.href = 'structure.html?id=' + encodeURIComponent(id);
 };
 
 window.seDeconnecter = async function(){

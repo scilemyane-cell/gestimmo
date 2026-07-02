@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ma structure — GestImmo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0e1a;--bg2:#111827;--bg3:#1a2235;--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--accent:#3b82f6;--green:#10b981;--red:#ef4444;--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.12)}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+#loader{display:flex;position:fixed;inset:0;background:var(--bg);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+#app{display:none}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.btn-back{background:rgba(255,255,255,.06);border:none;color:var(--text2);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.2s}
+.btn-back:hover{background:rgba(255,255,255,.1);color:var(--text)}
+.struct-name{font-size:16px;font-weight:800}
+.struct-type{font-size:11px;color:var(--text3)}
+.user-menu{display:flex;align-items:center;gap:12px}
+.user-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:white}
+.btn-deconnexion{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s}
+.btn-deconnexion:hover{background:rgba(239,68,68,.2)}
+
+.tabs{display:flex;gap:4px;padding:0 24px;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto}
+.tab-btn{background:none;border:none;color:var(--text3);padding:14px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.2s}
+.tab-btn:hover{color:var(--text2)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-btn .soon{font-size:9px;background:rgba(255,255,255,.08);color:var(--text3);padding:1px 6px;border-radius:100px;margin-left:6px;vertical-align:middle}
+
+.main{max-width:1100px;margin:0 auto;padding:28px 24px}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+.section-title{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.btn-add{background:var(--accent);border:none;color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s}
+.btn-add:hover{background:#2563eb}
+
+.logements-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.logement-card{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:20px;position:relative}
+.logement-color-bar{width:36px;height:4px;border-radius:4px;margin-bottom:12px}
+.logement-name{font-size:16px;font-weight:700;margin-bottom:4px}
+.logement-adresse{font-size:12px;color:var(--text3);margin-bottom:14px;min-height:16px}
+.logement-stats{display:flex;gap:18px;padding-top:12px;border-top:1px solid var(--border)}
+.logement-stat-val{font-size:15px;font-weight:700}
+.logement-stat-label{font-size:10px;color:var(--text3);margin-top:2px}
+.logement-actions{position:absolute;top:16px;right:16px;display:flex;gap:6px}
+.icon-btn{background:rgba(255,255,255,.06);border:none;color:var(--text2);width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:.2s}
+.icon-btn:hover{background:rgba(255,255,255,.12);color:var(--text)}
+.icon-btn.danger:hover{background:rgba(239,68,68,.15);color:#fca5a5}
+
+.empty-state{text-align:center;padding:60px 20px;background:var(--bg2);border:2px dashed var(--border2);border-radius:20px}
+.empty-state .icon{font-size:48px;margin-bottom:16px}
+.empty-state h3{font-size:18px;font-weight:700;margin-bottom:8px}
+.empty-state p{font-size:14px;color:var(--text2);margin-bottom:24px;max-width:400px;margin-left:auto;margin-right:auto}
+
+.soon-panel{text-align:center;padding:70px 20px;background:var(--bg2);border-radius:20px;border:1px solid var(--border)}
+.soon-panel .icon{font-size:44px;margin-bottom:14px;opacity:.6}
+.soon-panel h3{font-size:17px;font-weight:700;margin-bottom:6px}
+.soon-panel p{font-size:13px;color:var(--text3)}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal-card{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:32px;width:460px;max-width:100%;max-height:90vh;overflow-y:auto;position:relative}
+.modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.06);border:none;color:var(--text2);font-size:18px;cursor:pointer;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.modal-title{font-size:20px;font-weight:800;margin-bottom:24px}
+.form-group{margin-bottom:16px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.form-group input,.form-group select{width:100%;padding:11px 14px;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:14px;outline:none;transition:.2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent);background:rgba(59,130,246,.06)}
+.colors-grid{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.color-option{width:30px;height:30px;border-radius:50%;cursor:pointer;transition:.2s;border:3px solid transparent}
+.color-option.selected{border-color:white;transform:scale(1.1)}
+.btn-save{width:100%;padding:13px;border:none;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:white;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;transition:.2s}
+.btn-save:hover{opacity:.9}
+.btn-save:disabled{opacity:.6;cursor:not-allowed}
+
+@media(max-width:480px){
+  .main{padding:16px 12px}
+  .form-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="spinner"></div>
+  <div style="font-size:14px;color:var(--text2)">Chargement...</div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="btn-back" onclick="window.location.href='dashboard.html'">←</button>
+      <div>
+        <div class="struct-name" id="struct-title">—</div>
+        <div class="struct-type" id="struct-subtitle">—</div>
+      </div>
+    </div>
+    <div class="user-menu">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <button class="btn-deconnexion" onclick="seDeconnecter()">Déconnexion</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="logements" onclick="ouvrirOnglet('logements')">🏠 Logements</button>
+    <button class="tab-btn" data-tab="locataires" onclick="ouvrirOnglet('locataires')">👥 Locataires<span class="soon">bientôt</span></button>
+    <button class="tab-btn" data-tab="depenses" onclick="ouvrirOnglet('depenses')">🧾 Dépenses<span class="soon">bientôt</span></button>
+    <button class="tab-btn" data-tab="charges" onclick="ouvrirOnglet('charges')">🔁 Charges récurrentes<span class="soon">bientôt</span></button>
+    <button class="tab-btn" data-tab="rentabilite" onclick="ouvrirOnglet('rentabilite')">📈 Rentabilité<span class="soon">bientôt</span></button>
+    <button class="tab-btn" data-tab="financement" onclick="ouvrirOnglet('financement')">🏦 Financement<span class="soon">bientôt</span></button>
+    <button class="tab-btn" data-tab="patrimoine" onclick="ouvrirOnglet('patrimoine')">🏛️ Patrimoine<span class="soon">bientôt</span></button>
+  </div>
+
+  <div class="main">
+
+    <div class="tab-content active" id="tab-logements">
+      <div class="section-title">
+        Logements de la structure
+        <button class="btn-add" onclick="ouvrirModalLogement()">+ Ajouter un logement</button>
+      </div>
+      <div class="logements-grid" id="logements-grid"><!-- Chargement... --></div>
+    </div>
+
+    <div class="tab-content" id="tab-locataires">
+      <div class="soon-panel"><div class="icon">👥</div><h3>Locataires & quittances</h3><p>Cette fonctionnalité arrive dans une prochaine étape.</p></div>
+    </div>
+    <div class="tab-content" id="tab-depenses">
+      <div class="soon-panel"><div class="icon">🧾</div><h3>Suivi des dépenses</h3><p>Cette fonctionnalité arrive dans une prochaine étape.</p></div>
+    </div>
+    <div class="tab-content" id="tab-charges">
+      <div class="soon-panel"><div class="icon">🔁</div><h3>Charges récurrentes</h3><p>Cette fonctionnalité arrive dans une prochaine étape.</p></div>
+    </div>
+    <div class="tab-content" id="tab-rentabilite">
+      <div class="soon-panel"><div class="icon">📈</div><h3>Rapport de rentabilité</h3><p>Cette fonctionnalité arrive dans une prochaine étape.</p></div>
+    </div>
+    <div class="tab-content" id="tab-financement">
+      <div class="soon-panel"><div class="icon">🏦</div><h3>Financement & amortissement</h3><p>Cette fonctionnalité arrive dans une prochaine étape.</p></div>
+    </div>
+    <div class="tab-content" id="tab-patrimoine">
+      <div class="soon-panel"><div class="icon">🏛️</div><h3>Vue patrimoine</h3><p>Cette fonctionnalité arrive dans une prochaine étape.</p></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL LOGEMENT -->
+<div class="modal-overlay" id="modal-logement">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModalLogement()">×</button>
+    <div class="modal-title" id="modal-logement-title">Nouveau logement</div>
+
+    <div class="form-group">
+      <label>Nom du logement</label>
+      <input type="text" id="log-nom" placeholder="ex: Logement A, T2 rue de la Paix...">
+    </div>
+    <div class="form-group">
+      <label>Adresse</label>
+      <input type="text" id="log-adresse" placeholder="ex: 12 rue de la Paix, 85300 Soullans">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Surface (m²)</label>
+        <input type="number" id="log-surface" placeholder="ex: 45">
+      </div>
+      <div class="form-group">
+        <label>Loyer mensuel HC (€)</label>
+        <input type="number" id="log-loyer" placeholder="ex: 550">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Couleur</label>
+      <div class="colors-grid" id="colors-grid-log">
+        <div class="color-option selected" data-color="#3b82f6" style="background:#3b82f6" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#10b981" style="background:#10b981" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#8b5cf6" style="background:#8b5cf6" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#f59e0b" style="background:#f59e0b" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#ef4444" style="background:#ef4444" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#ec4899" style="background:#ec4899" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#06b6d4" style="background:#06b6d4" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#84cc16" style="background:#84cc16" onclick="selectionnerCouleurLog(this)"></div>
+      </div>
+    </div>
+
+    <button class="btn-save" id="btn-save-logement" onclick="sauvegarderLogement()">✓ Enregistrer</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, collection, addDoc, updateDoc, deleteDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
+  authDomain: "gestimmo-app.firebaseapp.com",
+  projectId: "gestimmo-app",
+  storageBucket: "gestimmo-app.firebasestorage.app",
+  messagingSenderId: "658875106145",
+  appId: "1:658875106145:web:8d797303b2168efbe6bb20"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const params = new URLSearchParams(window.location.search);
+const structureId = params.get('id');
+
+let currentUser = null;
+window.editingLogementId = null;
+
+if(!structureId){
+  window.location.href = 'dashboard.html';
+}
+
+onAuthStateChanged(auth, async user => {
+  if(!user){
+    window.location.href = 'index.html';
+    return;
+  }
+  currentUser = user;
+  await chargerStructure();
+});
+
+async function chargerStructure(){
+  const nom = currentUser.displayName || currentUser.email.split('@')[0];
+  const initiales = nom.split(' ').map(p=>p[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('user-avatar').textContent = initiales;
+
+  const structRef = doc(db, 'users', currentUser.uid, 'structures', structureId);
+  const snap = await getDoc(structRef);
+  if(!snap.exists()){
+    alert("Structure introuvable.");
+    window.location.href = 'dashboard.html';
+    return;
+  }
+  const s = snap.data();
+  const types = {LMNP:'LMNP', SCI_IR:'SCI-IR', SCI_IS:'SCI-IS', LMP:'LMP', NU_IR:'Location nue', NOM_PROPRE:'Nom propre'};
+  document.getElementById('struct-title').textContent = s.nom;
+  document.getElementById('struct-subtitle').textContent = `${types[s.type]||s.type} · ${s.adresse||'Adresse non renseignée'}`;
+
+  await chargerLogements();
+
+  document.getElementById('loader').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+async function chargerLogements(){
+  const grid = document.getElementById('logements-grid');
+  try {
+    const snap = await getDocs(collection(db, 'users', currentUser.uid, 'structures', structureId, 'logements'));
+    if(snap.empty){
+      grid.innerHTML = `
+        <div class="empty-state" style="grid-column:1/-1">
+          <div class="icon">🏠</div>
+          <h3>Aucun logement pour l'instant</h3>
+          <p>Ajoutez les logements de cette structure pour commencer à suivre locataires, loyers et dépenses.</p>
+          <button class="btn-add" onclick="ouvrirModalLogement()">+ Ajouter mon premier logement</button>
+        </div>`;
+      return;
+    }
+    let html = '';
+    snap.forEach(d => {
+      const l = d.data();
+      const surfaceTxt = l.surface ? `${l.surface} m²` : '—';
+      const loyerTxt = l.loyer ? `${l.loyer} €` : '0 €';
+      html += `
+        <div class="logement-card" style="border-color:${l.couleur}33">
+          <div class="logement-actions">
+            <button class="icon-btn" onclick="editerLogement('${d.id}')" title="Modifier">✎</button>
+            <button class="icon-btn danger" onclick="supprimerLogement('${d.id}')" title="Supprimer">🗑</button>
+          </div>
+          <div class="logement-color-bar" style="background:${l.couleur}"></div>
+          <div class="logement-name">${l.nom}</div>
+          <div class="logement-adresse">${l.adresse||'Adresse non renseignée'}</div>
+          <div class="logement-stats">
+            <div>
+              <div class="logement-stat-val" style="color:${l.couleur}">${surfaceTxt}</div>
+              <div class="logement-stat-label">Surface</div>
+            </div>
+            <div>
+              <div class="logement-stat-val" style="color:${l.couleur}">${loyerTxt}</div>
+              <div class="logement-stat-label">Loyer HC/mois</div>
+            </div>
+          </div>
+        </div>`;
+    });
+    grid.innerHTML = html;
+  } catch(e){
+    console.error('Erreur chargement logements:', e);
+    grid.innerHTML = '<p style="color:var(--text3);padding:20px">Erreur de chargement.</p>';
+  }
+}
+
+window.sauvegarderLogement = async function(){
+  const nom = document.getElementById('log-nom').value.trim();
+  if(!nom){ alert('Le nom du logement est obligatoire.'); return; }
+  const couleur = document.querySelector('#colors-grid-log .color-option.selected')?.dataset.color || '#3b82f6';
+  const btn = document.getElementById('btn-save-logement');
+  btn.disabled = true; btn.textContent = '⏳ Enregistrement...';
+  try {
+    const data = {
+      nom,
+      adresse: document.getElementById('log-adresse').value.trim(),
+      surface: parseFloat(document.getElementById('log-surface').value) || null,
+      loyer: parseFloat(document.getElementById('log-loyer').value) || null,
+      couleur,
+      actif: true,
+    };
+    if(window.editingLogementId){
+      await updateDoc(doc(db, 'users', currentUser.uid, 'structures', structureId, 'logements', window.editingLogementId), data);
+    } else {
+      data.createdAt = new Date().toISOString();
+      await addDoc(collection(db, 'users', currentUser.uid, 'structures', structureId, 'logements'), data);
+    }
+    fermerModalLogement();
+    await chargerLogements();
+  } catch(e){
+    alert('Erreur: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '✓ Enregistrer';
+  }
+};
+
+window.editerLogement = async function(id){
+  const snap = await getDoc(doc(db, 'users', currentUser.uid, 'structures', structureId, 'logements', id));
+  if(!snap.exists()) return;
+  const l = snap.data();
+  window.editingLogementId = id;
+  document.getElementById('modal-logement-title').textContent = 'Modifier le logement';
+  document.getElementById('log-nom').value = l.nom || '';
+  document.getElementById('log-adresse').value = l.adresse || '';
+  document.getElementById('log-surface').value = l.surface || '';
+  document.getElementById('log-loyer').value = l.loyer || '';
+  document.querySelectorAll('#colors-grid-log .color-option').forEach(e=>{
+    e.classList.toggle('selected', e.dataset.color === (l.couleur||'#3b82f6'));
+  });
+  document.getElementById('modal-logement').classList.add('open');
+};
+
+window.supprimerLogement = async function(id){
+  if(!confirm('Supprimer ce logement ? Cette action est irréversible.')) return;
+  try {
+    await deleteDoc(doc(db, 'users', currentUser.uid, 'structures', structureId, 'logements', id));
+    await chargerLogements();
+  } catch(e){
+    alert('Erreur: ' + e.message);
+  }
+};
+
+window.seDeconnecter = async function(){
+  await signOut(auth);
+  window.location.href = 'index.html';
+};
+</script>
+
+<script>
+function ouvrirOnglet(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+function ouvrirModalLogement(){
+  window.editingLogementId = null;
+  document.getElementById('modal-logement-title').textContent = 'Nouveau logement';
+  document.getElementById('log-nom').value='';
+  document.getElementById('log-adresse').value='';
+  document.getElementById('log-surface').value='';
+  document.getElementById('log-loyer').value='';
+  document.querySelectorAll('#colors-grid-log .color-option').forEach((e,i)=>e.classList.toggle('selected', i===0));
+  document.getElementById('modal-logement').classList.add('open');
+}
+function fermerModalLogement(){
+  document.getElementById('modal-logement').classList.remove('open');
+}
+function selectionnerCouleurLog(el){
+  document.querySelectorAll('#colors-grid-log .color-option').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+document.getElementById('modal-logement').addEventListener('click', function(e){
+  if(e.target===this) fermerModalLogement();
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') fermerModalLogement(); });
+</script>
+</body>
+</html>
