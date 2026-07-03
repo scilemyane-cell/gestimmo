@@ -1252,6 +1252,13 @@ const CTX_CONFIG={
     ]
   }
 };
+// Entrée par défaut immédiatement disponible pour la structure GestImmo en cours
+// (remplacée par les vraies infos dès que startApp() a chargé la structure — évite
+// tout crash si du code s'exécute avant, comme LOC_LOGEMENTS ci-dessous).
+CTX_CONFIG[CTX] = {
+  nom:'Chargement…', sousTitre:'', couleur:'#63b3ed', gmail:'', driveFolderName:'',
+  hasBudgetTravaux:true, defaultLogements:[]
+};
 
 // Logements stockés en localStorage — jamais en dur dans le code
 function loadLogements(){
@@ -1780,7 +1787,8 @@ function clearUpload(isEdit){
 // ── NAVIGATION (groupes + sous-onglets) ────────────────────────────────────
 function getTabGroups(){
   const paramGroup={id:'parametres',label:'⚙️ Paramètres',tabs:['parametres']};
-  if(!CTX_CONFIG[CTX].hasBudgetTravaux){return[
+  const hasBudgetTravaux = CTX_CONFIG[CTX] ? CTX_CONFIG[CTX].hasBudgetTravaux : true;
+  if(!hasBudgetTravaux){return[
     {id:'comptabilite',label:'🧾 Comptabilité',tabs:['factures','annuel','saisie','charges-recurrentes']},
     {id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']},
     {id:'financement',label:'💰 Financement',tabs:['financement']},
