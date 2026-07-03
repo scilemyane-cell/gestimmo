@@ -6,48 +6,57 @@
 <title>Ma structure — GestImmo</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0a0e1a;--bg2:#111827;--bg3:#1a2235;--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--accent:#3b82f6;--green:#10b981;--red:#ef4444;--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.12)}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+:root{
+  --bg:#0a0e1a;--bg2:#111827;--bg3:#1a2235;
+  --border:rgba(99,179,237,0.13);--border2:rgba(99,179,237,0.32);
+  --accent:#63b3ed;--accent2:#4299e1;--accent3:#2b6cb0;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --green:#68d391;--orange:#f6ad55;--red:#fc8181;--purple:#b794f4;--teal:#4fd1c5;
+  --font:'Segoe UI',system-ui,sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh}
 
 #loader{display:flex;position:fixed;inset:0;background:var(--bg);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:16px}
 .spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 #app{display:none}
-.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
-.topbar-left{display:flex;align-items:center;gap:14px}
-.btn-back{background:rgba(255,255,255,.06);border:none;color:var(--text2);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.2s}
+.header{background:linear-gradient(135deg,#0f1d35 0%,#0a0e1a 100%);border-bottom:1px solid var(--border2);padding:18px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.header-left{display:flex;align-items:center;gap:14px}
+.btn-back{background:rgba(255,255,255,.06);border:none;color:var(--text2);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}
 .btn-back:hover{background:rgba(255,255,255,.1);color:var(--text)}
-.struct-name{font-size:16px;font-weight:800}
-.struct-type{font-size:11px;color:var(--text3)}
-.user-menu{display:flex;align-items:center;gap:12px}
-.user-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:white}
-.btn-deconnexion{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s}
-.btn-deconnexion:hover{background:rgba(239,68,68,.2)}
+.header-left h1{font-size:19px;font-weight:600;color:var(--accent);letter-spacing:.4px}
+.header-left p{font-size:11px;color:var(--text2);margin-top:3px}
+.header-right{display:flex;gap:8px;align-items:center}
+.badge{background:rgba(99,179,237,0.1);border:1px solid var(--border2);border-radius:6px;padding:4px 11px;font-size:11px;color:var(--accent);cursor:pointer;transition:.2s}
+.badge:hover{background:rgba(99,179,237,.2)}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#63b3ed,#b794f4);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0a0e1a}
+.btn-deconnexion{background:rgba(252,129,129,.1);border:1px solid rgba(252,129,129,.4);color:var(--red);padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;transition:.2s}
+.btn-deconnexion:hover{background:rgba(252,129,129,.2)}
 
-.tabs{display:flex;gap:4px;padding:0 24px;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto}
-.tab-btn{background:none;border:none;color:var(--text3);padding:14px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.2s}
-.tab-btn:hover{color:var(--text2)}
-.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tabs{display:flex;gap:2px;padding:14px 28px 0;border-bottom:1px solid var(--border);background:var(--bg);overflow-x:auto}
+.tab-btn{padding:9px 20px;border-radius:8px 8px 0 0;cursor:pointer;font-size:12px;font-weight:500;color:var(--text2);border:1px solid transparent;border-bottom:none;transition:all .2s;background:none;white-space:nowrap}
+.tab-btn:hover{color:var(--text);background:var(--bg3)}
+.tab-btn.active{background:var(--bg2);color:var(--accent);border-color:var(--border2);border-bottom:1px solid var(--bg2);position:relative;top:1px}
 .tab-btn .soon{font-size:9px;background:rgba(255,255,255,.08);color:var(--text3);padding:1px 6px;border-radius:100px;margin-left:6px;vertical-align:middle}
 
-.main{max-width:1100px;margin:0 auto;padding:28px 24px}
+.main{max-width:1100px;margin:0 auto;padding:24px 28px}
 .tab-content{display:none}
 .tab-content.active{display:block}
 
-.section-title{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
-.btn-add{background:var(--accent);border:none;color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s}
-.btn-add:hover{background:#2563eb}
+.section-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.btn-add{background:var(--accent3);border:1px solid var(--accent2);color:var(--text);padding:8px 18px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s}
+.btn-add:hover{background:var(--accent2)}
 
-.logements-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
-.logement-card{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:20px;position:relative}
-.logement-color-bar{width:36px;height:4px;border-radius:4px;margin-bottom:12px}
-.logement-name{font-size:16px;font-weight:700;margin-bottom:4px}
-.logement-adresse{font-size:12px;color:var(--text3);margin-bottom:14px;min-height:16px}
-.logement-stats{display:flex;gap:18px;padding-top:12px;border-top:1px solid var(--border)}
-.logement-stat-val{font-size:15px;font-weight:700}
+.logements-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.logement-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden}
+.logement-color-bar{position:absolute;top:0;left:0;right:0;height:2px;margin:0}
+.logement-name{font-size:12px;font-weight:600;margin-bottom:12px}
+.logement-adresse{font-size:11px;color:var(--text2);margin-bottom:10px;min-height:14px}
+.logement-stats{display:flex;gap:18px;padding-top:10px;border-top:1px solid var(--border)}
+.logement-stat-val{font-size:14px;font-weight:600}
 .logement-stat-label{font-size:10px;color:var(--text3);margin-top:2px}
-.logement-actions{position:absolute;top:16px;right:16px;display:flex;gap:6px}
+.logement-actions{position:absolute;top:14px;right:14px;display:flex;gap:6px}
 .icon-btn{background:rgba(255,255,255,.06);border:none;color:var(--text2);width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:.2s}
 .icon-btn:hover{background:rgba(255,255,255,.12);color:var(--text)}
 .icon-btn.danger:hover{background:rgba(239,68,68,.15);color:#fca5a5}
@@ -62,46 +71,47 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .soon-panel h3{font-size:17px;font-weight:700;margin-bottom:6px}
 .soon-panel p{font-size:13px;color:var(--text3)}
 
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center;padding:20px}
 .modal-overlay.open{display:flex}
-.modal-card{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:32px;width:460px;max-width:100%;max-height:90vh;overflow-y:auto;position:relative}
+.modal-card{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:28px;width:460px;max-width:100%;max-height:90vh;overflow-y:auto;position:relative}
 .modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.06);border:none;color:var(--text2);font-size:18px;cursor:pointer;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center}
-.modal-title{font-size:20px;font-weight:800;margin-bottom:24px}
-.form-group{margin-bottom:16px}
+.modal-title{font-size:15px;font-weight:600;color:var(--accent);margin-bottom:20px}
+.form-group{margin-bottom:14px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-.form-group input,.form-group select{width:100%;padding:11px 14px;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:14px;outline:none;transition:.2s}
-.form-group input:focus,.form-group select:focus{border-color:var(--accent);background:rgba(59,130,246,.06)}
+.form-group label{display:block;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+.form-group input,.form-group select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent2)}
 .colors-grid{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
-.color-option{width:30px;height:30px;border-radius:50%;cursor:pointer;transition:.2s;border:3px solid transparent}
+.color-option{width:26px;height:26px;border-radius:50%;cursor:pointer;transition:.2s;border:3px solid transparent}
 .color-option.selected{border-color:white;transform:scale(1.1)}
-.btn-save{width:100%;padding:13px;border:none;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:white;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;transition:.2s}
-.btn-save:hover{opacity:.9}
+.btn-save{width:100%;background:var(--accent3);border:1px solid var(--accent2);border-radius:8px;padding:11px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;margin-top:6px;transition:all .2s}
+.btn-save:hover{background:var(--accent2)}
 .btn-save:disabled{opacity:.6;cursor:not-allowed}
 
-.locataire-group{margin-bottom:24px}
-.locataire-group-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;padding-left:2px}
-.locataire-card{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.locataire-group{margin-bottom:20px}
+.locataire-group-title{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;padding-left:2px}
+.locataire-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .locataire-info{display:flex;flex-direction:column;gap:2px}
-.locataire-nom{font-size:15px;font-weight:700}
-.locataire-meta{font-size:12px;color:var(--text3)}
+.locataire-nom{font-size:13px;font-weight:600;color:var(--text)}
+.locataire-meta{font-size:11px;color:var(--text3)}
 .locataire-actions{display:flex;gap:6px;flex-wrap:wrap}
-.btn-mini{background:rgba(255,255,255,.06);border:1px solid var(--border2);color:var(--text2);padding:7px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s;white-space:nowrap}
-.btn-mini:hover{background:rgba(255,255,255,.12);color:var(--text)}
-.btn-mini.quittance{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3);color:#34d399}
-.btn-mini.quittance:hover{background:rgba(16,185,129,.2)}
+.btn-mini{background:rgba(99,179,237,.1);border:1px solid var(--border2);color:var(--accent);padding:5px 11px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;transition:.2s;white-space:nowrap}
+.btn-mini:hover{background:rgba(99,179,237,.2)}
+.btn-mini.quittance{background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.4);color:var(--green)}
+.btn-mini.quittance:hover{background:rgba(104,211,145,.2)}
 
-.kpi-card{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:16px}
-.kpi-card .val{font-size:20px;font-weight:800}
-.kpi-card .lbl{font-size:11px;color:var(--text3);margin-top:4px}
-.filter-chip{background:rgba(255,255,255,.05);border:1px solid var(--border2);color:var(--text2);padding:6px 14px;border-radius:100px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s}
-.filter-chip.active{background:var(--accent);border-color:var(--accent);color:white}
-.depense-row{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.depense-cat-badge{display:inline-block;padding:2px 10px;border-radius:100px;font-size:10px;font-weight:700;color:#0a0e1a;white-space:nowrap}
+.kpi-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kpi-color,var(--accent))}
+.kpi-card .val{font-size:21px;font-weight:600;color:var(--kpi-color,var(--text))}
+.kpi-card .lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-top:7px}
+.filter-chip{background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 14px;border-radius:100px;font-size:11px;font-weight:600;cursor:pointer;transition:.2s}
+.filter-chip.active{background:var(--accent3);border-color:var(--accent2);color:var(--text)}
+.depense-row{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.depense-cat-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:10px;font-weight:600;color:#0a0e1a;white-space:nowrap}
 .depense-info{flex:1;min-width:200px}
-.depense-four{font-weight:700;font-size:14px}
+.depense-four{font-weight:600;font-size:12px;color:var(--text)}
 .depense-meta{font-size:11px;color:var(--text3);margin-top:2px}
-.depense-montant{font-size:16px;font-weight:800;white-space:nowrap}
+.depense-montant{font-size:14px;font-weight:600;color:var(--accent);white-space:nowrap}
 .depense-actions{display:flex;gap:6px}
 
 @media(max-width:480px){
@@ -120,24 +130,25 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 </div>
 
 <div id="app">
-  <div class="topbar">
-    <div class="topbar-left">
+  <div class="header">
+    <div class="header-left">
       <button class="btn-back" onclick="window.location.href='dashboard.html'">←</button>
       <div>
-        <div class="struct-name" id="struct-title">—</div>
-        <div class="struct-type" id="struct-subtitle">—</div>
+        <h1 id="struct-title">—</h1>
+        <p id="struct-subtitle">—</p>
       </div>
     </div>
-    <div class="user-menu">
+    <div class="header-right">
+      <div class="badge" id="badge-date"></div>
       <div class="user-avatar" id="user-avatar">?</div>
-      <button class="btn-deconnexion" onclick="seDeconnecter()">Déconnexion</button>
+      <div class="badge" style="color:var(--red)" onclick="seDeconnecter()">🔒 Déconnexion</div>
     </div>
   </div>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="logements" onclick="ouvrirOnglet('logements')">🏠 Logements</button>
-    <button class="tab-btn" data-tab="locataires" onclick="ouvrirOnglet('locataires')">👥 Locataires<span class="soon">bientôt</span></button>
-    <button class="tab-btn" data-tab="depenses" onclick="ouvrirOnglet('depenses')">🧾 Dépenses<span class="soon">bientôt</span></button>
+    <button class="tab-btn" data-tab="locataires" onclick="ouvrirOnglet('locataires')">👥 Locataires</button>
+    <button class="tab-btn" data-tab="depenses" onclick="ouvrirOnglet('depenses')">🧾 Dépenses</button>
     <button class="tab-btn" data-tab="charges" onclick="ouvrirOnglet('charges')">🔁 Charges récurrentes<span class="soon">bientôt</span></button>
     <button class="tab-btn" data-tab="rentabilite" onclick="ouvrirOnglet('rentabilite')">📈 Rentabilité<span class="soon">bientôt</span></button>
     <button class="tab-btn" data-tab="financement" onclick="ouvrirOnglet('financement')">🏦 Financement<span class="soon">bientôt</span></button>
@@ -213,14 +224,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div class="form-group">
       <label>Couleur</label>
       <div class="colors-grid" id="colors-grid-log">
-        <div class="color-option selected" data-color="#3b82f6" style="background:#3b82f6" onclick="selectionnerCouleurLog(this)"></div>
-        <div class="color-option" data-color="#10b981" style="background:#10b981" onclick="selectionnerCouleurLog(this)"></div>
-        <div class="color-option" data-color="#8b5cf6" style="background:#8b5cf6" onclick="selectionnerCouleurLog(this)"></div>
-        <div class="color-option" data-color="#f59e0b" style="background:#f59e0b" onclick="selectionnerCouleurLog(this)"></div>
-        <div class="color-option" data-color="#ef4444" style="background:#ef4444" onclick="selectionnerCouleurLog(this)"></div>
-        <div class="color-option" data-color="#ec4899" style="background:#ec4899" onclick="selectionnerCouleurLog(this)"></div>
-        <div class="color-option" data-color="#06b6d4" style="background:#06b6d4" onclick="selectionnerCouleurLog(this)"></div>
-        <div class="color-option" data-color="#84cc16" style="background:#84cc16" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option selected" data-color="#63b3ed" style="background:#63b3ed" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#68d391" style="background:#68d391" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#f6ad55" style="background:#f6ad55" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#b794f4" style="background:#b794f4" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#fc8181" style="background:#fc8181" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#4fd1c5" style="background:#4fd1c5" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#f687b3" style="background:#f687b3" onclick="selectionnerCouleurLog(this)"></div>
+        <div class="color-option" data-color="#fbd38d" style="background:#fbd38d" onclick="selectionnerCouleurLog(this)"></div>
       </div>
     </div>
 
@@ -376,6 +387,7 @@ async function chargerStructure(){
   const nom = currentUser.displayName || currentUser.email.split('@')[0];
   const initiales = nom.split(' ').map(p=>p[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('user-avatar').textContent = initiales;
+  document.getElementById('badge-date').textContent = new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'});
 
   const structRef = doc(db, 'users', currentUser.uid, 'structures', structureId);
   const snap = await getDoc(structRef);
@@ -448,7 +460,7 @@ async function chargerLogements(){
 window.sauvegarderLogement = async function(){
   const nom = document.getElementById('log-nom').value.trim();
   if(!nom){ alert('Le nom du logement est obligatoire.'); return; }
-  const couleur = document.querySelector('#colors-grid-log .color-option.selected')?.dataset.color || '#3b82f6';
+  const couleur = document.querySelector('#colors-grid-log .color-option.selected')?.dataset.color || '#63b3ed';
   const btn = document.getElementById('btn-save-logement');
   btn.disabled = true; btn.textContent = '⏳ Enregistrement...';
   try {
@@ -486,7 +498,7 @@ window.editerLogement = async function(id){
   document.getElementById('log-surface').value = l.surface || '';
   document.getElementById('log-loyer').value = l.loyer || '';
   document.querySelectorAll('#colors-grid-log .color-option').forEach(e=>{
-    e.classList.toggle('selected', e.dataset.color === (l.couleur||'#3b82f6'));
+    e.classList.toggle('selected', e.dataset.color === (l.couleur||'#63b3ed'));
   });
   document.getElementById('modal-logement').classList.add('open');
 };
