@@ -1340,12 +1340,13 @@ const CAT_TRAVAUX=CATEGORIES.filter(c=>c.type==='travaux').map(c=>c.name);
 const CAT_FONCTIONNEMENT=CATEGORIES.filter(c=>c.type==='fonctionnement').map(c=>c.name);
 const CAT_HORS_RENTABILITE=CATEGORIES.filter(c=>c.type==='hors_rentabilite').map(c=>c.name);
 function getCatType(name){const c=CATEGORIES.find(x=>x.name===name);return c?c.type:'travaux';}
-const LOGS=[
-  {key:"Logement A",prevKey:"A",color:"#63b3ed"},
-  {key:"Logement B",prevKey:"B",color:"#68d391"},
-  {key:"Logement C",prevKey:"C",color:"#f6ad55"},
-  {key:"Commun",prevKey:"com",color:"#b794f4"}
-];
+let LOGS=[];
+function refreshLOGS(){
+  LOGS=[
+    ...getLogementsActifs().map(l=>({key:l.label, prevKey:l.key, color:l.color})),
+    {key:"Commun", prevKey:"com", color:"#b794f4"}
+  ];
+}
 
 let editIdx=null;
 let editLocId=null;
@@ -1470,7 +1471,9 @@ function initBudget(){
 function addBudgetRow(catName){
   const d=loadData();
   if(!d.budget[catName])d.budget[catName]=[];
-  d.budget[catName].push({desc:"",a:0,b:0,c:0,com:0});
+  const row={desc:""};
+  LOGS.forEach(l=>{row[l.prevKey]=0;});
+  d.budget[catName].push(row);
   saveBudget(d.budget);renderBudget();
 }
 function removeBudgetRow(catName,idx){
@@ -1521,16 +1524,23 @@ function getReelTotals(factures){
 // Totaux TTC par catégorie ET logement (pour tableau miroir)
 function getReelMatrix(factures){
   const matrix={};
-  CATEGORIES.forEach(cat=>{matrix[cat.name]={A:0,B:0,C:0,com:0,total:0};});
+  const nLogs=LOGS.length-1; // hors "Commun"
+  CATEGORIES.forEach(cat=>{
+    const row={com:0,total:0};
+    LOGS.forEach(l=>{ if(l.prevKey!=='com') row[l.prevKey]=0; });
+    matrix[cat.name]=row;
+  });
   factures.forEach(f=>{
     if(f.inclus===false)return;
     const ttc=+f.ttc||0;
     if(!matrix[f.cat])return;
     if(f.log==='Commun'){
-      matrix[f.cat].A+=ttc/3;matrix[f.cat].B+=ttc/3;matrix[f.cat].C+=ttc/3;matrix[f.cat].com+=ttc;
-    } else if(f.log==='Logement A'){matrix[f.cat].A+=ttc;}
-    else if(f.log==='Logement B'){matrix[f.cat].B+=ttc;}
-    else if(f.log==='Logement C'){matrix[f.cat].C+=ttc;}
+      if(nLogs>0) LOGS.forEach(l=>{ if(l.prevKey!=='com') matrix[f.cat][l.prevKey]+=ttc/nLogs; });
+      matrix[f.cat].com+=ttc;
+    } else {
+      const l=LOGS.find(x=>x.key===f.log);
+      if(l&&l.prevKey!=='com') matrix[f.cat][l.prevKey]+=ttc;
+    }
     matrix[f.cat].total+=ttc;
   });
   return matrix;
@@ -2039,14 +2049,17 @@ function renderLogements(){
 function renderBudget(){
   const{budget}=loadData();
   const grid=document.getElementById('budget-grid');
-  while(grid.children.length>6)grid.removeChild(grid.lastChild);
+  grid.style.gridTemplateColumns=`210px repeat(${LOGS.length},1fr) 110px`;
+  grid.innerHTML='<div class="bg-th">Description</div>'+
+    LOGS.map(l=>`<div class="bg-th" style="text-align:right">${l.key} TTC</div>`).join('')+
+    '<div class="bg-th" style="text-align:right">Total TTC</div>';
   CATEGORIES.forEach(cat=>{
     const hdr=document.createElement('div');hdr.className='bg-cat-hdr';hdr.style.color=cat.color;
     hdr.innerHTML=`<span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>${cat.name}`;
     grid.appendChild(hdr);
     const rows=budget[cat.name]||[];
     rows.forEach((row,idx)=>{
-      [{field:'desc',cls:'desc'},{field:'a'},{field:'b'},{field:'c'},{field:'com'}].forEach(col=>{
+      [{field:'desc',cls:'desc'},...LOGS.map(l=>({field:l.prevKey}))].forEach(col=>{
         const td=document.createElement('div');td.className='bg-td'+(col.cls?' '+col.cls:'');
         const inp=document.createElement('input');
         inp.type=col.cls==='desc'?'text':'number';
@@ -2057,7 +2070,7 @@ function renderBudget(){
         td.appendChild(inp);grid.appendChild(td);
       });
       const tdTot=document.createElement('div');tdTot.className='bg-td';tdTot.style.textAlign='right';tdTot.style.color='var(--text2)';tdTot.style.fontSize='11px';tdTot.style.display='flex';tdTot.style.alignItems='center';tdTot.style.justifyContent='flex-end';tdTot.style.gap='8px';
-      const tot=(+row.a||0)+(+row.b||0)+(+row.c||0)+(+row.com||0);
+      const tot=LOGS.reduce((s,l)=>s+(+row[l.prevKey]||0),0);
       const span=document.createElement('span');span.textContent=tot>0?fmt(tot):'—';tdTot.appendChild(span);
       if(rows.length>1){const btn=document.createElement('button');btn.textContent='−';btn.title='Supprimer ce poste';btn.style.cssText='background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.4);border-radius:4px;color:#fc8181;cursor:pointer;font-size:12px;font-weight:700;padding:1px 7px;line-height:1.4;flex-shrink:0';btn.onclick=()=>removeBudgetRow(cat.name,idx);tdTot.appendChild(btn);}
       grid.appendChild(tdTot);
@@ -2066,11 +2079,14 @@ function renderBudget(){
     const addRow=document.createElement('div');addRow.className='bg-cat-hdr';addRow.style.cssText='grid-column:1/-1;background:transparent;border-top:none;padding:6px 12px;justify-content:flex-start';
     const addBtn=document.createElement('button');addBtn.textContent='+ Ajouter un poste';addBtn.style.cssText='background:rgba(99,179,237,.08);border:1px dashed rgba(99,179,237,.4);border-radius:6px;color:#63b3ed;cursor:pointer;font-size:11px;font-weight:500;padding:4px 14px;transition:all .2s';addBtn.onmouseover=()=>addBtn.style.background='rgba(99,179,237,.16)';addBtn.onmouseout=()=>addBtn.style.background='rgba(99,179,237,.08)';addBtn.onclick=()=>addBudgetRow(cat.name);addRow.appendChild(addBtn);grid.appendChild(addRow);
     const stDiv=document.createElement('div');stDiv.className='bg-subtotal';
-    ['Sous-total','Log. A','Log. B','Log. C','Commun','Total'].forEach((lbl,i)=>{
+    ['Sous-total',...LOGS.map(l=>l.key),'Total'].forEach((lbl,i)=>{
       const td=document.createElement('div');td.className='bg-td';td.style.textAlign=i===0?'left':'right';
       if(i===0){td.textContent='Sous-total '+cat.name;}
-      else{const fields=['a','b','c','com'];const rows2=budget[cat.name]||[];
-        const s=i===5?rows2.reduce((sum,r)=>sum+(+r.a||0)+(+r.b||0)+(+r.c||0)+(+r.com||0),0):rows2.reduce((sum,r)=>sum+(+r[fields[i-1]]||0),0);
+      else if(i===LOGS.length+1){const rows2=budget[cat.name]||[];
+        const s=rows2.reduce((sum,r)=>sum+LOGS.reduce((s2,l)=>s2+(+r[l.prevKey]||0),0),0);
+        td.textContent=s>0?fmt(s):'—';}
+      else{const l=LOGS[i-1];const rows2=budget[cat.name]||[];
+        const s=rows2.reduce((sum,r)=>sum+(+r[l.prevKey]||0),0);
         td.textContent=s>0?fmt(s):'—';}
       stDiv.appendChild(td);
     });
@@ -2090,13 +2106,17 @@ function renderReelGrid(){
   const matrix=getReelMatrix(factures);
   const grid=document.getElementById('reel-grid');
   if(!grid)return;
-  // Garder les 6 en-têtes
-  while(grid.children.length>6)grid.removeChild(grid.lastChild);
+  grid.style.gridTemplateColumns=`210px repeat(${LOGS.length},1fr) 110px`;
+  grid.innerHTML='<div class="bg-th">Catégorie</div>'+
+    LOGS.map(l=>`<div class="bg-th" style="text-align:right">${l.key} TTC</div>`).join('')+
+    '<div class="bg-th" style="text-align:right">Total TTC</div>';
 
-  let totA=0,totB=0,totC=0,totCom=0,totAll=0;
+  const totals=LOGS.map(()=>0);
+  let totAll=0;
   CATEGORIES.forEach(cat=>{
-    const m=matrix[cat.name]||{A:0,B:0,C:0,com:0,total:0};
-    totA+=m.A;totB+=m.B;totC+=m.C;totCom+=m.com;totAll+=m.total;
+    const m=matrix[cat.name]||{};
+    LOGS.forEach((l,i)=>{ totals[i]+=m[l.prevKey]||0; });
+    totAll+=m.total||0;
 
     // En-tête catégorie
     const hdr=document.createElement('div');hdr.className='bg-cat-hdr';
@@ -2106,7 +2126,7 @@ function renderReelGrid(){
     grid.appendChild(hdr);
 
     // Valeurs
-    [{v:m.A},{v:m.B},{v:m.C},{v:m.com},{v:m.total,bold:true}].forEach(({v,bold})=>{
+    [...LOGS.map(l=>({v:m[l.prevKey]||0})),{v:m.total||0,bold:true}].forEach(({v,bold})=>{
       const td=document.createElement('div');td.className='bg-td';td.style.textAlign='right';
       td.style.color=bold?'var(--accent)':(v>0?'var(--text)':'var(--text3)');
       if(bold)td.style.fontWeight='600';
@@ -2116,8 +2136,8 @@ function renderReelGrid(){
 
   // Ligne total général
   const totDiv=document.createElement('div');
-  totDiv.style.cssText='grid-column:1/-1;display:grid;grid-template-columns:210px repeat(4,1fr) 110px;background:rgba(99,179,237,0.1);border-top:2px solid var(--border2)';
-  [{t:'TOTAL GÉNÉRAL',align:'left'},{v:totA},{v:totB},{v:totC},{v:totCom},{v:totAll,bold:true}].forEach(({t,v,align,bold})=>{
+  totDiv.style.cssText=`grid-column:1/-1;display:grid;grid-template-columns:210px repeat(${LOGS.length},1fr) 110px;background:rgba(99,179,237,0.1);border-top:2px solid var(--border2)`;
+  [{t:'TOTAL GÉNÉRAL',align:'left'},...totals.map(v=>({v})),{v:totAll,bold:true}].forEach(({t,v,align,bold})=>{
     const td=document.createElement('div');td.className='bg-td';
     td.style.textAlign=align||'right';td.style.fontWeight='700';td.style.color='var(--accent)';td.style.fontSize='12px';
     td.textContent=t||(v>0?fmt(v):'—');totDiv.appendChild(td);
@@ -2127,7 +2147,7 @@ function renderReelGrid(){
   // Note répartition commun
   const note=document.createElement('div');
   note.style.cssText='grid-column:1/-1;padding:6px 14px;font-size:10px;color:var(--text3);font-style:italic;border-top:1px solid var(--border)';
-  note.textContent='* Les dépenses "Commun" sont réparties automatiquement à 1/3 sur chaque logement (colonne Log. A/B/C). La colonne Commun affiche le montant brut total.';
+  note.textContent='* Les dépenses "Commun" sont réparties automatiquement à parts égales sur chaque logement. La colonne Commun affiche le montant brut total.';
   grid.appendChild(note);
 }
 
@@ -2535,13 +2555,13 @@ function updateFinancement(){
 function renderDashboard(){
   const{budget}=loadData();
   const{byCat,byLog}=getBudgetTotals(budget);
-  const LOGS_KEYS=[{k:'A',label:'Log. A',color:'#63b3ed'},{k:'B',label:'Log. B',color:'#68d391'},{k:'C',label:'Log. C',color:'#f6ad55'},{k:'com',label:'Commun',color:'#b794f4'}];
+  const LOGS_KEYS=LOGS.map(l=>({k:l.prevKey,label:l.key,color:l.color}));
 
   // KPI
   const total=Object.values(byCat).reduce((s,v)=>s+v,0);
   const maxCat=CATEGORIES.reduce((mx,c)=>byCat[c.name]>byCat[mx.name]?c:mx,CATEGORIES[0]);
-  const maxLog=LOGS_KEYS.reduce((mx,l)=>byLog[l.k]>byLog[mx.k]?l:mx,LOGS_KEYS[0]);
-  const nbPostes=Object.values(budget).reduce((s,rows)=>s+rows.filter(r=>r.desc||r.a||r.b||r.c||r.com).length,0);
+  const maxLog=LOGS_KEYS.length?LOGS_KEYS.reduce((mx,l)=>byLog[l.k]>byLog[mx.k]?l:mx,LOGS_KEYS[0]):{label:'—',k:''};
+  const nbPostes=Object.values(budget).reduce((s,rows)=>s+rows.filter(r=>r.desc||LOGS.some(l=>r[l.prevKey])).length,0);
   document.getElementById('dash-kpi').innerHTML=`
     <div class="kpi" style="--kpi-color:#63b3ed"><div class="kpi-label">Budget total TTC</div><div class="kpi-val">${fmt(total)}</div><div class="kpi-sub">tous logements</div></div>
     <div class="kpi" style="--kpi-color:#f6ad55"><div class="kpi-label">Poste le + lourd</div><div class="kpi-val" style="font-size:14px;padding-top:4px">${maxCat.name.split('/')[0].trim()}</div><div class="kpi-sub">${fmt(byCat[maxCat.name])}</div></div>
@@ -2588,8 +2608,9 @@ function renderDashboard(){
   const allPostes=[];
   CATEGORIES.forEach(cat=>{
     (budget[cat.name]||[]).forEach(row=>{
-      const tot=(+row.a||0)+(+row.b||0)+(+row.c||0)+(+row.com||0);
-      if(tot>0)allPostes.push({cat:cat.name,color:CATEGORIES.find(c=>c.name===cat.name)?.color,desc:row.desc||'—',a:+row.a||0,b:+row.b||0,c:+row.c||0,com:+row.com||0,tot});
+      const parLog={};let tot=0;
+      LOGS.forEach(l=>{const v=+row[l.prevKey]||0;parLog[l.prevKey]=v;tot+=v;});
+      if(tot>0)allPostes.push({cat:cat.name,color:CATEGORIES.find(c=>c.name===cat.name)?.color,desc:row.desc||'—',parLog,tot});
     });
   });
   allPostes.sort((a,b)=>b.tot-a.tot);
@@ -2619,15 +2640,18 @@ function renderDashboard(){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8',font:{size:9},boxWidth:8}}},scales:{x:{stacked:true,ticks:{color:'#64748b',font:{size:10}},grid:{display:false}},y:{stacked:true,ticks:{color:'#64748b',font:{size:9},callback:v=>fmt(v)},grid:{color:'rgba(255,255,255,0.05)'}}}}
   });
 
-  // Tableau top postes
+  // Tableau top postes — en-tête dynamique
+  const theadRow=document.querySelector('#dash-top-table thead tr');
+  if(theadRow){
+    theadRow.innerHTML='<th>#</th><th>Catégorie</th><th>Poste</th>'+
+      LOGS.map(l=>`<th style="text-align:right">${l.key}</th>`).join('')+
+      '<th style="text-align:right">Total TTC</th>';
+  }
   document.getElementById('dash-top-tbody').innerHTML=allPostes.map((p,i)=>`<tr>
     <td style="color:var(--text3);font-weight:600">${i+1}</td>
     <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:${p.color};display:inline-block"></span>${p.cat}</span></td>
     <td style="font-weight:500">${p.desc}</td>
-    <td style="text-align:right;color:var(--cat1)">${p.a>0?fmt(p.a):'—'}</td>
-    <td style="text-align:right;color:var(--cat2)">${p.b>0?fmt(p.b):'—'}</td>
-    <td style="text-align:right;color:var(--cat3)">${p.c>0?fmt(p.c):'—'}</td>
-    <td style="text-align:right;color:var(--purple)">${p.com>0?fmt(p.com):'—'}</td>
+    ${LOGS.map(l=>`<td style="text-align:right;color:${l.color}">${p.parLog[l.prevKey]>0?fmt(p.parLog[l.prevKey]):'—'}</td>`).join('')}
     <td style="text-align:right;font-weight:700;color:var(--accent)">${fmt(p.tot)}</td>
   </tr>`).join('');
 }
@@ -9718,6 +9742,7 @@ window._authReady.then(async () => {
 
   document.getElementById('badge-date').textContent=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
   initContexteUI();
+  refreshLOGS();
   initSelects();
   prefillCreditLogementA();
   prefillCreditLogementB();
