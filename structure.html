@@ -17,6 +17,10 @@ window._structureId = new URLSearchParams(window.location.search).get('id');
 if(!window._structureId){
   window.location.href = 'dashboard.html';
 }
+// Crée la Promise tout de suite (résolue plus tard par le script Firebase, qui est différé).
+// Sans ça, tout script classique plus bas qui fait window._authReady.then(...) plante,
+// car le script type="module" n'a pas encore eu le temps de s'exécuter.
+window._authReady = new Promise((resolve) => { window._authReadyResolve = resolve; });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -64,42 +68,40 @@ window._appDataDoc = function(){
 };
 
 // Attend que l'utilisateur soit authentifié (session déjà ouverte via index.html/dashboard.html)
-window._authReady = new Promise((resolve) => {
-  onAuthStateChanged(auth, async (user) => {
-    if(!user){
-      window.location.href = 'index.html';
-      return;
+onAuthStateChanged(auth, async (user) => {
+  if(!user){
+    window.location.href = 'index.html';
+    return;
+  }
+  window._currentUid = user.uid;
+  window._currentUserEmail = user.email;
+
+  // Charge les infos de la structure (nom, adresse, type) pour personnaliser l'app
+  try {
+    const structSnap = await getDoc(doc(db, 'users', user.uid, 'structures', window._structureId));
+    window._structureInfo = structSnap.exists() ? structSnap.data() : { nom: 'Ma structure', adresse: '' };
+  } catch(e){
+    window._structureInfo = { nom: 'Ma structure', adresse: '' };
+  }
+
+  // Synchro temps réel : recharge le localStorage si changement depuis un autre appareil
+  onSnapshot(window._appDataDoc(), (snap) => {
+    if(snap.exists() && window._remoteUpdate){
+      const d = snap.data();
+      const k = (key) => window._structureId + '_' + key;
+      if(d.budget) localStorage.setItem(k('budget3'), JSON.stringify(d.budget));
+      if(d.factures) localStorage.setItem(k('factures3'), JSON.stringify(d.factures));
+      if(d.fin) localStorage.setItem(k('fin4'), JSON.stringify(d.fin));
+      if(d.locataires) localStorage.setItem(k('locataires'), JSON.stringify(d.locataires));
+      if(d.logements) localStorage.setItem(k('logements_config'), JSON.stringify(d.logements));
+      if(d.projection) localStorage.setItem(k('projection'), JSON.stringify(d.projection));
+      if(d.fc) localStorage.setItem(k('fc'), JSON.stringify(d.fc));
+      window._remoteUpdate = false;
     }
-    window._currentUid = user.uid;
-    window._currentUserEmail = user.email;
-
-    // Charge les infos de la structure (nom, adresse, type) pour personnaliser l'app
-    try {
-      const structSnap = await getDoc(doc(db, 'users', user.uid, 'structures', window._structureId));
-      window._structureInfo = structSnap.exists() ? structSnap.data() : { nom: 'Ma structure', adresse: '' };
-    } catch(e){
-      window._structureInfo = { nom: 'Ma structure', adresse: '' };
-    }
-
-    // Synchro temps réel : recharge le localStorage si changement depuis un autre appareil
-    onSnapshot(window._appDataDoc(), (snap) => {
-      if(snap.exists() && window._remoteUpdate){
-        const d = snap.data();
-        const k = (key) => window._structureId + '_' + key;
-        if(d.budget) localStorage.setItem(k('budget3'), JSON.stringify(d.budget));
-        if(d.factures) localStorage.setItem(k('factures3'), JSON.stringify(d.factures));
-        if(d.fin) localStorage.setItem(k('fin4'), JSON.stringify(d.fin));
-        if(d.locataires) localStorage.setItem(k('locataires'), JSON.stringify(d.locataires));
-        if(d.logements) localStorage.setItem(k('logements_config'), JSON.stringify(d.logements));
-        if(d.projection) localStorage.setItem(k('projection'), JSON.stringify(d.projection));
-        if(d.fc) localStorage.setItem(k('fc'), JSON.stringify(d.fc));
-        window._remoteUpdate = false;
-      }
-      window._remoteUpdate = true;
-    });
-
-    resolve(user);
+    window._remoteUpdate = true;
   });
+
+  window._authReadyResolve(user);
 });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
