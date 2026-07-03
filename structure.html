@@ -9717,6 +9717,7 @@ window._authReady.then(async () => {
   };
 
   document.getElementById('badge-date').textContent=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  initContexteUI();
   initSelects();
   prefillCreditLogementA();
   prefillCreditLogementB();
