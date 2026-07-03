@@ -79,9 +79,36 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .btn-save:hover{opacity:.9}
 .btn-save:disabled{opacity:.6;cursor:not-allowed}
 
+.locataire-group{margin-bottom:24px}
+.locataire-group-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;padding-left:2px}
+.locataire-card{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.locataire-info{display:flex;flex-direction:column;gap:2px}
+.locataire-nom{font-size:15px;font-weight:700}
+.locataire-meta{font-size:12px;color:var(--text3)}
+.locataire-actions{display:flex;gap:6px;flex-wrap:wrap}
+.btn-mini{background:rgba(255,255,255,.06);border:1px solid var(--border2);color:var(--text2);padding:7px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s;white-space:nowrap}
+.btn-mini:hover{background:rgba(255,255,255,.12);color:var(--text)}
+.btn-mini.quittance{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3);color:#34d399}
+.btn-mini.quittance:hover{background:rgba(16,185,129,.2)}
+
+.kpi-card{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:16px}
+.kpi-card .val{font-size:20px;font-weight:800}
+.kpi-card .lbl{font-size:11px;color:var(--text3);margin-top:4px}
+.filter-chip{background:rgba(255,255,255,.05);border:1px solid var(--border2);color:var(--text2);padding:6px 14px;border-radius:100px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s}
+.filter-chip.active{background:var(--accent);border-color:var(--accent);color:white}
+.depense-row{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.depense-cat-badge{display:inline-block;padding:2px 10px;border-radius:100px;font-size:10px;font-weight:700;color:#0a0e1a;white-space:nowrap}
+.depense-info{flex:1;min-width:200px}
+.depense-four{font-weight:700;font-size:14px}
+.depense-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.depense-montant{font-size:16px;font-weight:800;white-space:nowrap}
+.depense-actions{display:flex;gap:6px}
+
 @media(max-width:480px){
   .main{padding:16px 12px}
   .form-row{grid-template-columns:1fr}
+  .locataire-card{flex-direction:column;align-items:flex-start}
+  .depense-row{flex-direction:column;align-items:flex-start}
 }
 </style>
 </head>
@@ -128,10 +155,20 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     </div>
 
     <div class="tab-content" id="tab-locataires">
-      <div class="soon-panel"><div class="icon">👥</div><h3>Locataires & quittances</h3><p>Cette fonctionnalité arrive dans une prochaine étape.</p></div>
+      <div class="section-title">
+        Locataires
+        <button class="btn-add" onclick="ouvrirModalLocataire()">+ Ajouter un locataire</button>
+      </div>
+      <div id="locataires-list"><!-- Chargement... --></div>
     </div>
     <div class="tab-content" id="tab-depenses">
-      <div class="soon-panel"><div class="icon">🧾</div><h3>Suivi des dépenses</h3><p>Cette fonctionnalité arrive dans une prochaine étape.</p></div>
+      <div class="section-title">
+        Dépenses
+        <button class="btn-add" onclick="ouvrirModalDepense()">+ Ajouter une dépense</button>
+      </div>
+      <div class="kpi-grid" id="dep-kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px"></div>
+      <div class="depenses-filters" id="dep-filters" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap"></div>
+      <div id="depenses-list"><!-- Chargement... --></div>
     </div>
     <div class="tab-content" id="tab-charges">
       <div class="soon-panel"><div class="icon">🔁</div><h3>Charges récurrentes</h3><p>Cette fonctionnalité arrive dans une prochaine étape.</p></div>
@@ -191,6 +228,114 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   </div>
 </div>
 
+<!-- MODAL LOCATAIRE -->
+<div class="modal-overlay" id="modal-locataire">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModalLocataire()">×</button>
+    <div class="modal-title" id="modal-locataire-title">Nouveau locataire</div>
+
+    <div class="form-group">
+      <label>Nom du locataire</label>
+      <input type="text" id="loc-nom" placeholder="ex: Jean Dupont">
+    </div>
+    <div class="form-group">
+      <label>Logement</label>
+      <select id="loc-logement"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Loyer hors charges (€)</label>
+        <input type="number" id="loc-loyer" placeholder="ex: 550">
+      </div>
+      <div class="form-group">
+        <label>Provision charges (€)</label>
+        <input type="number" id="loc-charges" placeholder="ex: 40">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Date d'entrée</label>
+      <input type="date" id="loc-date-entree">
+    </div>
+
+    <button class="btn-save" id="btn-save-locataire" onclick="sauvegarderLocataire()">✓ Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL QUITTANCE -->
+<div class="modal-overlay" id="modal-quittance">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModalQuittance()">×</button>
+    <div class="modal-title">Générer une quittance</div>
+
+    <div class="form-group">
+      <label>Mois de la quittance</label>
+      <input type="month" id="qui-mois">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Montant réglé (€)</label>
+        <input type="number" id="qui-montant" placeholder="Laisser vide = montant théorique">
+      </div>
+      <div class="form-group">
+        <label>Date de paiement</label>
+        <input type="date" id="qui-date-paiement">
+      </div>
+    </div>
+
+    <button class="btn-save" onclick="genererQuittancePDF()">📄 Générer et imprimer</button>
+  </div>
+</div>
+
+<!-- MODAL DEPENSE -->
+<div class="modal-overlay" id="modal-depense">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModalDepense()">×</button>
+    <div class="modal-title" id="modal-depense-title">Nouvelle dépense</div>
+
+    <div class="form-group">
+      <label>Fournisseur</label>
+      <input type="text" id="dep-fournisseur" placeholder="ex: Leroy Merlin, Plombier Dupont...">
+    </div>
+    <div class="form-group">
+      <label>Catégorie</label>
+      <select id="dep-categorie"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Montant TTC (€)</label>
+        <input type="number" id="dep-ttc" placeholder="ex: 250">
+      </div>
+      <div class="form-group">
+        <label>TVA (%)</label>
+        <input type="number" id="dep-tva" value="20">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="dep-date">
+      </div>
+      <div class="form-group">
+        <label>Logement (optionnel)</label>
+        <select id="dep-logement"><option value="">— Non rattaché —</option></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Statut</label>
+      <select id="dep-statut">
+        <option value="regle">Réglée</option>
+        <option value="a_regler">À régler</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Description (optionnel)</label>
+      <input type="text" id="dep-desc" placeholder="Détail de la dépense">
+    </div>
+
+    <button class="btn-save" id="btn-save-depense" onclick="sauvegarderDepense()">✓ Enregistrer</button>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -240,11 +385,14 @@ async function chargerStructure(){
     return;
   }
   const s = snap.data();
+  window.structureData = s;
   const types = {LMNP:'LMNP', SCI_IR:'SCI-IR', SCI_IS:'SCI-IS', LMP:'LMP', NU_IR:'Location nue', NOM_PROPRE:'Nom propre'};
   document.getElementById('struct-title').textContent = s.nom;
   document.getElementById('struct-subtitle').textContent = `${types[s.type]||s.type} · ${s.adresse||'Adresse non renseignée'}`;
 
   await chargerLogements();
+  await chargerLocataires();
+  await chargerDepenses();
 
   document.getElementById('loader').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -353,6 +501,449 @@ window.supprimerLogement = async function(id){
   }
 };
 
+// ── LOCATAIRES ──────────────────────────────────────────────────────────
+let cachedLogements = [];
+let cachedLocataires = [];
+
+async function chargerLocataires(){
+  const list = document.getElementById('locataires-list');
+  try {
+    const logSnap = await getDocs(collection(db, 'users', currentUser.uid, 'structures', structureId, 'logements'));
+    cachedLogements = [];
+    logSnap.forEach(d => cachedLogements.push({ id: d.id, ...d.data() }));
+
+    const locSnap = await getDocs(collection(db, 'users', currentUser.uid, 'structures', structureId, 'locataires'));
+    cachedLocataires = [];
+    locSnap.forEach(d => cachedLocataires.push({ id: d.id, ...d.data() }));
+
+    if(cachedLogements.length === 0){
+      list.innerHTML = `<div class="empty-state"><div class="icon">🏠</div><h3>Ajoutez d'abord un logement</h3><p>Les locataires se rattachent à un logement — créez-en un dans l'onglet Logements.</p></div>`;
+      return;
+    }
+    if(cachedLocataires.length === 0){
+      list.innerHTML = `<div class="empty-state"><div class="icon">👥</div><h3>Aucun locataire pour l'instant</h3><p>Ajoutez vos locataires pour suivre les loyers et générer des quittances.</p><button class="btn-add" onclick="ouvrirModalLocataire()">+ Ajouter mon premier locataire</button></div>`;
+      return;
+    }
+
+    let html = '';
+    cachedLogements.forEach(lg => {
+      const locsDuLog = cachedLocataires.filter(l => l.logementId === lg.id);
+      if(locsDuLog.length === 0) return;
+      html += `<div class="locataire-group"><div class="locataire-group-title" style="color:${lg.couleur}">${lg.nom}</div>`;
+      locsDuLog.forEach(l => {
+        const total = (parseFloat(l.loyerHC)||0) + (parseFloat(l.charges)||0);
+        html += `
+          <div class="locataire-card">
+            <div class="locataire-info">
+              <div class="locataire-nom">${l.nom}</div>
+              <div class="locataire-meta">${total.toFixed(2)} € / mois · entrée le ${l.dateEntree ? new Date(l.dateEntree).toLocaleDateString('fr-FR') : '—'}</div>
+            </div>
+            <div class="locataire-actions">
+              <button class="btn-mini quittance" onclick="ouvrirModalQuittance('${l.id}')">📄 Quittance</button>
+              <button class="btn-mini" onclick="editerLocataire('${l.id}')">✎ Modifier</button>
+              <button class="btn-mini" onclick="supprimerLocataire('${l.id}')">🗑</button>
+            </div>
+          </div>`;
+      });
+      html += `</div>`;
+    });
+    const sansLogement = cachedLocataires.filter(l => !cachedLogements.find(lg => lg.id === l.logementId));
+    if(html === '' ) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">👥</div><h3>Aucun locataire pour l'instant</h3><p>Ajoutez vos locataires pour suivre les loyers et générer des quittances.</p><button class="btn-add" onclick="ouvrirModalLocataire()">+ Ajouter mon premier locataire</button></div>`;
+    } else {
+      list.innerHTML = html;
+    }
+  } catch(e){
+    console.error('Erreur chargement locataires:', e);
+    list.innerHTML = '<p style="color:var(--text3);padding:20px">Erreur de chargement.</p>';
+  }
+}
+
+window.ouvrirModalLocataire = function(){
+  window.editingLocataireId = null;
+  document.getElementById('modal-locataire-title').textContent = 'Nouveau locataire';
+  document.getElementById('loc-nom').value = '';
+  document.getElementById('loc-loyer').value = '';
+  document.getElementById('loc-charges').value = '';
+  document.getElementById('loc-date-entree').value = '';
+  const sel = document.getElementById('loc-logement');
+  sel.innerHTML = cachedLogements.map(lg => `<option value="${lg.id}">${lg.nom}</option>`).join('');
+  document.getElementById('modal-locataire').classList.add('open');
+};
+window.fermerModalLocataire = function(){
+  document.getElementById('modal-locataire').classList.remove('open');
+};
+
+window.editerLocataire = function(id){
+  const l = cachedLocataires.find(x => x.id === id);
+  if(!l) return;
+  window.editingLocataireId = id;
+  document.getElementById('modal-locataire-title').textContent = 'Modifier le locataire';
+  const sel = document.getElementById('loc-logement');
+  sel.innerHTML = cachedLogements.map(lg => `<option value="${lg.id}" ${lg.id===l.logementId?'selected':''}>${lg.nom}</option>`).join('');
+  document.getElementById('loc-nom').value = l.nom || '';
+  document.getElementById('loc-loyer').value = l.loyerHC || '';
+  document.getElementById('loc-charges').value = l.charges || '';
+  document.getElementById('loc-date-entree').value = l.dateEntree || '';
+  document.getElementById('modal-locataire').classList.add('open');
+};
+
+window.sauvegarderLocataire = async function(){
+  const nom = document.getElementById('loc-nom').value.trim();
+  if(!nom){ alert('Le nom du locataire est obligatoire.'); return; }
+  const btn = document.getElementById('btn-save-locataire');
+  btn.disabled = true; btn.textContent = '⏳ Enregistrement...';
+  try {
+    const data = {
+      nom,
+      logementId: document.getElementById('loc-logement').value,
+      loyerHC: parseFloat(document.getElementById('loc-loyer').value) || 0,
+      charges: parseFloat(document.getElementById('loc-charges').value) || 0,
+      dateEntree: document.getElementById('loc-date-entree').value || null,
+    };
+    if(window.editingLocataireId){
+      await updateDoc(doc(db, 'users', currentUser.uid, 'structures', structureId, 'locataires', window.editingLocataireId), data);
+    } else {
+      data.paiements = {};
+      await addDoc(collection(db, 'users', currentUser.uid, 'structures', structureId, 'locataires'), data);
+    }
+    fermerModalLocataire();
+    await chargerLocataires();
+  } catch(e){
+    alert('Erreur: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '✓ Enregistrer';
+  }
+};
+
+window.supprimerLocataire = async function(id){
+  if(!confirm('Supprimer ce locataire ? Cette action est irréversible.')) return;
+  try {
+    await deleteDoc(doc(db, 'users', currentUser.uid, 'structures', structureId, 'locataires', id));
+    await chargerLocataires();
+  } catch(e){
+    alert('Erreur: ' + e.message);
+  }
+};
+
+// ── QUITTANCES ──────────────────────────────────────────────────────────
+let quittanceLocId = null;
+
+window.ouvrirModalQuittance = function(locId){
+  quittanceLocId = locId;
+  const now = new Date();
+  document.getElementById('qui-mois').value = now.toISOString().slice(0,7);
+  document.getElementById('qui-montant').value = '';
+  document.getElementById('qui-date-paiement').value = now.toISOString().slice(0,10);
+  document.getElementById('modal-quittance').classList.add('open');
+};
+window.fermerModalQuittance = function(){
+  document.getElementById('modal-quittance').classList.remove('open');
+};
+
+function nombreEnLettres(n){
+  n = Math.round(Math.abs(n)*100)/100;
+  const euros = Math.floor(n);
+  const centimes = Math.round((n-euros)*100);
+  const unites=['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf'];
+  const dizaines=['','dix','vingt','trente','quarante','cinquante','soixante','soixante-dix','quatre-vingt','quatre-vingt-dix'];
+  function convert(num){
+    if(num<20) return unites[num];
+    if(num<100){
+      const d=Math.floor(num/10), u=num%10;
+      if(d===7||d===9) return dizaines[d-1]+(u===0?'-dix':'-'+unites[10+u]);
+      if(u===0) return dizaines[d]+(d===8?'s':'');
+      if(u===1&&d!==8) return dizaines[d]+'-et-un';
+      return dizaines[d]+'-'+unites[u];
+    }
+    if(num<1000){
+      const c=Math.floor(num/100), r=num%100;
+      return (c>1?unites[c]+' cents':'cent')+(r?' '+convert(r):'');
+    }
+    const mi=Math.floor(num/1000), r=num%1000;
+    return (mi>1?convert(mi)+' mille':'mille')+(r?' '+convert(r):'');
+  }
+  let txt = convert(euros)+' euro'+(euros===0||euros>1?'s':'');
+  if(centimes>0) txt += ' et '+convert(centimes)+' centime'+(centimes>1?'s':'');
+  return txt.charAt(0).toUpperCase()+txt.slice(1);
+}
+
+window.genererQuittancePDF = async function(){
+  const l = cachedLocataires.find(x => x.id === quittanceLocId);
+  if(!l) return;
+  const lg = cachedLogements.find(x => x.id === l.logementId);
+  const mk = document.getElementById('qui-mois').value;
+  if(!mk){ alert('Sélectionne un mois.'); return; }
+  const [yy, mm] = mk.split('-');
+  const moisNom = new Date(+yy, +mm-1, 1).toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+  const debutMois = new Date(+yy, +mm-1, 1).toLocaleDateString('fr-FR');
+  const finMois = new Date(+yy, +mm, 0).toLocaleDateString('fr-FR');
+
+  const montantTheo = (parseFloat(l.loyerHC)||0) + (parseFloat(l.charges)||0);
+  const montantSaisi = document.getElementById('qui-montant').value;
+  const totalReel = montantSaisi ? parseFloat(montantSaisi) : montantTheo;
+  const datePaiementInput = document.getElementById('qui-date-paiement').value;
+  const datePaiement = datePaiementInput ? new Date(datePaiementInput).toLocaleDateString('fr-FR') : '—';
+  const dateEmission = new Date().toLocaleDateString('fr-FR');
+  const montantLettres = nombreEnLettres(totalReel);
+
+  const s = window.structureData || {};
+  const nomBailleur = s.nom || 'Bailleur';
+  const adresseBailleur = s.adresse || '';
+  const emailBailleur = currentUser.email;
+  const adresseLogement = lg ? (lg.adresse || lg.nom) : '—';
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+  <title>Quittance ${moisNom}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a202c;padding:30px 40px;font-size:13px;line-height:1.6;max-width:700px;margin:0 auto}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2b6cb0;padding-bottom:14px;margin-bottom:22px}
+    .header h1{font-size:20px;color:#2b6cb0;margin:0 0 4px;font-weight:800;letter-spacing:.5px}
+    .header p{font-size:11px;color:#718096;margin:2px 0}
+    .box{background:#ebf8ff;border:1px solid #bee3f8;border-radius:10px;padding:16px 20px;margin-bottom:18px}
+    .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2e8f0;font-size:13px}
+    .row:last-child{border-bottom:none}
+    .row.total{font-weight:700;font-size:15px;color:#2b6cb0;border-top:2px solid #bee3f8;padding-top:10px;margin-top:6px}
+    .lettres{font-style:italic;color:#4a5568;margin:12px 0;padding:10px 14px;background:#f7fafc;border-left:3px solid #2b6cb0;border-radius:4px;font-size:12px}
+    .signature{margin-top:44px;display:flex;justify-content:flex-end;text-align:center}
+    .mentions{margin-top:30px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:9px;color:#a0aec0;line-height:1.6}
+    @media print{ @page{size:A4 portrait;margin:15mm 20mm} body{padding:0;max-width:100%} }
+  </style></head><body>
+    <div class="header">
+      <div>
+        <h1>QUITTANCE DE LOYER</h1>
+        <p style="font-weight:600;font-size:12px">${nomBailleur}</p>
+        <p>${adresseBailleur}</p>
+        <p>${emailBailleur}</p>
+      </div>
+      <div style="text-align:right">
+        <p>Période : <b>${moisNom}</b></p>
+        <p>Du ${debutMois} au ${finMois}</p>
+        <p style="font-size:11px;color:#4a5568">Émise le : ${dateEmission}</p>
+      </div>
+    </div>
+    <p style="margin-bottom:14px"><b>${nomBailleur}</b>, propriétaire du logement désigné ci-dessous, déclare avoir reçu de :</p>
+    <div class="box">
+      <div class="row"><span>Locataire</span><span><b>${l.nom||'—'}</b></span></div>
+      <div class="row"><span>Logement</span><span>${adresseLogement}</span></div>
+      <div class="row"><span>Loyer hors charges</span><span>${(l.loyerHC||0).toFixed(2)} €</span></div>
+      <div class="row"><span>Provision pour charges</span><span>${(l.charges||0).toFixed(2)} €</span></div>
+      <div class="row total"><span>Total réglé</span><span>${totalReel.toFixed(2)} €</span></div>
+      <div class="row"><span>Date de paiement</span><span>${datePaiement}</span></div>
+    </div>
+    <p class="lettres">Soit la somme de : <b>${montantLettres}</b>.</p>
+    <p style="margin-bottom:14px">La présente quittance est délivrée au titre du loyer et des charges pour la période sus-indiquée, conformément à l'article 21 de la loi n°89-462 du 6 juillet 1989.</p>
+    <div class="signature">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <p>Fait le ${dateEmission}</p>
+        <div style="height:60px"></div>
+        <div style="border-top:1px solid #2d3748;padding-top:8px;min-width:220px;text-align:center">
+          <p style="font-size:11px;color:#4a5568">Le bailleur — ${nomBailleur}</p>
+        </div>
+      </div>
+    </div>
+    <div class="mentions">Cette quittance annule tous les reçus qui auraient pu être établis précédemment en cas de versements partiels. Elle est à conserver par le locataire sans limitation de durée.</div>
+    <script>window.onload=function(){window.print()}<\/script>
+  </body></html>`;
+
+  // Enregistrer le paiement dans Firestore
+  try {
+    const paiements = l.paiements || {};
+    paiements[mk] = { montant: totalReel, date: datePaiementInput || null };
+    await updateDoc(doc(db, 'users', currentUser.uid, 'structures', structureId, 'locataires', l.id), { paiements });
+  } catch(e){ console.error('Erreur enregistrement paiement:', e); }
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  fermerModalQuittance();
+  await chargerLocataires();
+};
+
+// ── DÉPENSES ────────────────────────────────────────────────────────────
+const CATEGORIES = [
+  // Travaux (investissement — non inclus dans la rentabilité nette)
+  {name:"Administratif / Honoraires",color:"#63b3ed",type:"travaux"},
+  {name:"Raccordements",color:"#68d391",type:"travaux"},
+  {name:"Gros Œuvre / Maçonnerie",color:"#f6ad55",type:"travaux"},
+  {name:"Charpente / Couverture / Zinguerie",color:"#b794f4",type:"travaux"},
+  {name:"Enduit / Façade",color:"#fc8181",type:"travaux"},
+  {name:"Menuiseries extérieures",color:"#4fd1c5",type:"travaux"},
+  {name:"Aménagement intérieur",color:"#f687b3",type:"travaux"},
+  {name:"Sanitaire — Plomberie",color:"#38bdf8",type:"travaux"},
+  {name:"Sanitaire — Chauffage",color:"#fb923c",type:"travaux"},
+  {name:"Sanitaire — VMC / Ventilation",color:"#a3e635",type:"travaux"},
+  {name:"Aménagement extérieur",color:"#86efac",type:"travaux"},
+  {name:"Divers / Imprévus",color:"#fbd38d",type:"travaux"},
+  // Fonctionnement (charges récurrentes — comptent dans la rentabilité nette)
+  {name:"Assurance PNO / GLI",color:"#f56565",type:"fonctionnement"},
+  {name:"Comptable / Expert-comptable",color:"#ed8936",type:"fonctionnement"},
+  {name:"Frais de gestion locative",color:"#ecc94b",type:"fonctionnement"},
+  {name:"Taxe foncière",color:"#48bb78",type:"fonctionnement"},
+  {name:"CFE / Impôts professionnels",color:"#38b2ac",type:"fonctionnement"},
+  {name:"Charges de copropriété",color:"#4299e1",type:"fonctionnement"},
+  {name:"Entretien courant / Petites réparations",color:"#667eea",type:"fonctionnement"},
+  {name:"Eau (abonnement / consommation)",color:"#9f7aea",type:"fonctionnement"},
+  {name:"Électricité (parties communes)",color:"#ed64a6",type:"fonctionnement"},
+  {name:"Frais bancaires",color:"#a0aec0",type:"fonctionnement"},
+  {name:"Frais de gestion divers",color:"#cbd5e0",type:"fonctionnement"},
+  // Hors rentabilité (exclu du calcul — prêts, flux perso)
+  {name:"Mensualité de prêt (voir Financement)",color:"#718096",type:"hors_rentabilite"},
+  {name:"Virement interne / rééquilibrage personnel",color:"#a0aec0",type:"hors_rentabilite"},
+  {name:"Apport personnel / Remboursement associé",color:"#a0aec0",type:"hors_rentabilite"},
+];
+function getCat(name){ return CATEGORIES.find(c => c.name === name) || {color:'#718096', type:'fonctionnement'}; }
+const TYPE_LABELS = {travaux:'Travaux', fonctionnement:'Fonctionnement', hors_rentabilite:'Hors rentabilité'};
+
+let cachedDepenses = [];
+let depFilterType = 'all';
+
+async function chargerDepenses(){
+  const list = document.getElementById('depenses-list');
+  try {
+    const snap = await getDocs(collection(db, 'users', currentUser.uid, 'structures', structureId, 'depenses'));
+    cachedDepenses = [];
+    snap.forEach(d => cachedDepenses.push({ id: d.id, ...d.data() }));
+    cachedDepenses.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    renderDepensesKPI();
+    renderDepensesFilters();
+    renderDepensesList();
+  } catch(e){
+    console.error('Erreur chargement dépenses:', e);
+    list.innerHTML = '<p style="color:var(--text3);padding:20px">Erreur de chargement.</p>';
+  }
+}
+
+function renderDepensesKPI(){
+  const totals = { travaux:0, fonctionnement:0, hors_rentabilite:0 };
+  cachedDepenses.forEach(d => {
+    const t = getCat(d.categorie).type;
+    totals[t] = (totals[t]||0) + (parseFloat(d.ttc)||0);
+  });
+  document.getElementById('dep-kpi-grid').innerHTML = `
+    <div class="kpi-card"><div class="val" style="color:#f6ad55">${totals.travaux.toFixed(2)} €</div><div class="lbl">Travaux (hors rentabilité)</div></div>
+    <div class="kpi-card"><div class="val" style="color:#4299e1">${totals.fonctionnement.toFixed(2)} €</div><div class="lbl">Fonctionnement (compte dans la rentabilité)</div></div>
+    <div class="kpi-card"><div class="val" style="color:#a0aec0">${totals.hors_rentabilite.toFixed(2)} €</div><div class="lbl">Hors rentabilité (prêts, flux perso)</div></div>
+  `;
+}
+
+function renderDepensesFilters(){
+  const types = ['all','travaux','fonctionnement','hors_rentabilite'];
+  document.getElementById('dep-filters').innerHTML = types.map(t => `
+    <button class="filter-chip ${depFilterType===t?'active':''}" onclick="filtrerDepenses('${t}')">${t==='all'?'Toutes':TYPE_LABELS[t]}</button>
+  `).join('');
+}
+window.filtrerDepenses = function(t){ depFilterType = t; renderDepensesFilters(); renderDepensesList(); };
+
+function renderDepensesList(){
+  const list = document.getElementById('depenses-list');
+  const filtered = depFilterType === 'all' ? cachedDepenses : cachedDepenses.filter(d => getCat(d.categorie).type === depFilterType);
+  if(filtered.length === 0){
+    list.innerHTML = `<div class="empty-state"><div class="icon">🧾</div><h3>Aucune dépense${depFilterType!=='all'?' dans cette catégorie':''}</h3><p>Ajoutez vos factures et dépenses pour suivre le budget de la structure.</p></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(d => {
+    const cat = getCat(d.categorie);
+    const lg = cachedLogements.find(x => x.id === d.logementId);
+    return `
+      <div class="depense-row">
+        <div class="depense-info">
+          <div class="depense-four">${d.fournisseur || '—'}</div>
+          <div class="depense-meta">
+            <span class="depense-cat-badge" style="background:${cat.color}">${d.categorie}</span>
+            ${d.date ? new Date(d.date).toLocaleDateString('fr-FR') : ''}
+            ${lg ? ' · ' + lg.nom : ''}
+            ${d.statut === 'a_regler' ? ' · <span style="color:#f6ad55">à régler</span>' : ''}
+          </div>
+        </div>
+        <div class="depense-montant">${(parseFloat(d.ttc)||0).toFixed(2)} €</div>
+        <div class="depense-actions">
+          <button class="btn-mini" onclick="editerDepense('${d.id}')">✎</button>
+          <button class="btn-mini" onclick="supprimerDepense('${d.id}')">🗑</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+window.ouvrirModalDepense = function(){
+  window.editingDepenseId = null;
+  document.getElementById('modal-depense-title').textContent = 'Nouvelle dépense';
+  document.getElementById('dep-fournisseur').value = '';
+  document.getElementById('dep-ttc').value = '';
+  document.getElementById('dep-tva').value = '20';
+  document.getElementById('dep-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('dep-statut').value = 'regle';
+  document.getElementById('dep-desc').value = '';
+  const selCat = document.getElementById('dep-categorie');
+  selCat.innerHTML = CATEGORIES.map(c => `<option value="${c.name}">${TYPE_LABELS[c.type]} — ${c.name}</option>`).join('');
+  const selLog = document.getElementById('dep-logement');
+  selLog.innerHTML = '<option value="">— Non rattaché —</option>' + cachedLogements.map(lg => `<option value="${lg.id}">${lg.nom}</option>`).join('');
+  document.getElementById('modal-depense').classList.add('open');
+};
+window.fermerModalDepense = function(){ document.getElementById('modal-depense').classList.remove('open'); };
+
+window.editerDepense = function(id){
+  const d = cachedDepenses.find(x => x.id === id);
+  if(!d) return;
+  window.editingDepenseId = id;
+  document.getElementById('modal-depense-title').textContent = 'Modifier la dépense';
+  const selCat = document.getElementById('dep-categorie');
+  selCat.innerHTML = CATEGORIES.map(c => `<option value="${c.name}" ${c.name===d.categorie?'selected':''}>${TYPE_LABELS[c.type]} — ${c.name}</option>`).join('');
+  const selLog = document.getElementById('dep-logement');
+  selLog.innerHTML = '<option value="">— Non rattaché —</option>' + cachedLogements.map(lg => `<option value="${lg.id}" ${lg.id===d.logementId?'selected':''}>${lg.nom}</option>`).join('');
+  document.getElementById('dep-fournisseur').value = d.fournisseur || '';
+  document.getElementById('dep-ttc').value = d.ttc || '';
+  document.getElementById('dep-tva').value = d.tva || 20;
+  document.getElementById('dep-date').value = d.date || '';
+  document.getElementById('dep-statut').value = d.statut || 'regle';
+  document.getElementById('dep-desc').value = d.desc || '';
+  document.getElementById('modal-depense').classList.add('open');
+};
+
+window.sauvegarderDepense = async function(){
+  const fournisseur = document.getElementById('dep-fournisseur').value.trim();
+  const ttc = parseFloat(document.getElementById('dep-ttc').value) || 0;
+  if(!fournisseur || ttc <= 0){ alert('Fournisseur et montant TTC sont obligatoires.'); return; }
+  const btn = document.getElementById('btn-save-depense');
+  btn.disabled = true; btn.textContent = '⏳ Enregistrement...';
+  try {
+    const tva = parseFloat(document.getElementById('dep-tva').value) || 0;
+    const data = {
+      fournisseur,
+      categorie: document.getElementById('dep-categorie').value,
+      ttc,
+      tva,
+      ht: +(ttc / (1 + tva/100)).toFixed(2),
+      date: document.getElementById('dep-date').value || null,
+      logementId: document.getElementById('dep-logement').value || null,
+      statut: document.getElementById('dep-statut').value,
+      desc: document.getElementById('dep-desc').value.trim(),
+    };
+    if(window.editingDepenseId){
+      await updateDoc(doc(db, 'users', currentUser.uid, 'structures', structureId, 'depenses', window.editingDepenseId), data);
+    } else {
+      await addDoc(collection(db, 'users', currentUser.uid, 'structures', structureId, 'depenses'), data);
+    }
+    fermerModalDepense();
+    await chargerDepenses();
+  } catch(e){
+    alert('Erreur: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '✓ Enregistrer';
+  }
+};
+
+window.supprimerDepense = async function(id){
+  if(!confirm('Supprimer cette dépense ? Cette action est irréversible.')) return;
+  try {
+    await deleteDoc(doc(db, 'users', currentUser.uid, 'structures', structureId, 'depenses', id));
+    await chargerDepenses();
+  } catch(e){
+    alert('Erreur: ' + e.message);
+  }
+};
+
 window.seDeconnecter = async function(){
   await signOut(auth);
   window.location.href = 'index.html';
@@ -385,7 +976,18 @@ function selectionnerCouleurLog(el){
 document.getElementById('modal-logement').addEventListener('click', function(e){
   if(e.target===this) fermerModalLogement();
 });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') fermerModalLogement(); });
+document.getElementById('modal-locataire').addEventListener('click', function(e){
+  if(e.target===this) fermerModalLocataire();
+});
+document.getElementById('modal-quittance').addEventListener('click', function(e){
+  if(e.target===this) fermerModalQuittance();
+});
+document.getElementById('modal-depense').addEventListener('click', function(e){
+  if(e.target===this) fermerModalDepense();
+});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ fermerModalLogement(); fermerModalLocataire(); fermerModalQuittance(); fermerModalDepense(); }
+});
 </script>
 </body>
 </html>
