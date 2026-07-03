@@ -184,7 +184,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
@@ -268,8 +268,11 @@ async function chargerStructures(uid){
       const s = d.data();
       html += `
         <div class="structure-card" onclick="ouvrirStructure('${d.id}')" style="border-color:${s.couleur}33">
-          <div class="structure-type-badge" style="background:${s.couleur}22;color:${s.couleur}">
-            ${types[s.type]||s.type}
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="structure-type-badge" style="background:${s.couleur}22;color:${s.couleur}">
+              ${types[s.type]||s.type}
+            </div>
+            <button onclick="event.stopPropagation();ouvrirModalStructure('${d.id}')" title="Modifier" style="background:rgba(255,255,255,.06);border:none;color:var(--text2);width:26px;height:26px;border-radius:7px;cursor:pointer;font-size:12px;flex-shrink:0">✎</button>
           </div>
           <div class="structure-name">${s.nom}</div>
           <div class="structure-meta">${s.adresse||'Adresse non renseignée'}</div>
@@ -296,31 +299,37 @@ async function chargerStructures(uid){
   }
 }
 
-// ── CRÉER STRUCTURE ───────────────────────────────────────────────────
+// ── CRÉER / MODIFIER STRUCTURE ───────────────────────────────────────────
+window._editingStructureId = null;
 window.sauvegarderStructure = async function(){
   const nom = document.getElementById('struct-nom').value.trim();
   if(!nom){ alert('Le nom de la structure est obligatoire.'); return; }
   const type = document.querySelector('.type-option.selected')?.dataset.type || 'LMNP';
   const couleur = document.querySelector('.color-option.selected')?.dataset.color || '#3b82f6';
   const btn = document.getElementById('btn-save-structure');
-  btn.disabled = true; btn.textContent = '⏳ Création...';
+  btn.disabled = true; btn.textContent = window._editingStructureId ? '⏳ Enregistrement...' : '⏳ Création...';
   try {
-    await addDoc(collection(db, 'users', currentUser.uid, 'structures'), {
+    const data = {
       nom,
       type,
       couleur,
       adresse: document.getElementById('struct-adresse').value.trim(),
       siret: document.getElementById('struct-siret').value.trim(),
       email: document.getElementById('struct-email').value.trim(),
-      createdAt: new Date().toISOString(),
-      logements: [],
-    });
+    };
+    if(window._editingStructureId){
+      await updateDoc(doc(db, 'users', currentUser.uid, 'structures', window._editingStructureId), data);
+    } else {
+      data.createdAt = new Date().toISOString();
+      data.logements = [];
+      await addDoc(collection(db, 'users', currentUser.uid, 'structures'), data);
+    }
     fermerModalStructure();
     await chargerStructures(currentUser.uid);
   } catch(e){
     alert('Erreur: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = '✓ Créer la structure';
+    btn.disabled = false; btn.textContent = window._editingStructureId ? '✓ Enregistrer' : '✓ Créer la structure';
   }
 };
 
@@ -335,15 +344,43 @@ window.seDeconnecter = async function(){
 </script>
 
 <script>
-function ouvrirModalStructure(){
+async function ouvrirModalStructure(id){
+  window._editingStructureId = id || null;
+  const title = document.querySelector('#modal-structure .modal-title');
+  const sub = document.querySelector('#modal-structure .modal-sub');
+  const btn = document.getElementById('btn-save-structure');
+  if(id){
+    if(title) title.textContent = 'Modifier la structure';
+    if(sub) sub.textContent = 'Mets à jour les informations de ta structure';
+    if(btn) btn.textContent = '✓ Enregistrer';
+    try {
+      const snap = await getDoc(doc(db, 'users', currentUser.uid, 'structures', id));
+      if(snap.exists()){
+        const s = snap.data();
+        document.getElementById('struct-nom').value = s.nom || '';
+        document.getElementById('struct-adresse').value = s.adresse || '';
+        document.getElementById('struct-siret').value = s.siret || '';
+        document.getElementById('struct-email').value = s.email || '';
+        document.querySelectorAll('.type-option').forEach(e=>e.classList.toggle('selected', e.dataset.type === s.type));
+        document.querySelectorAll('.color-option').forEach(e=>e.classList.toggle('selected', e.dataset.color === s.couleur));
+      }
+    } catch(e){ console.error('Erreur chargement structure:', e); }
+  } else {
+    if(title) title.textContent = 'Nouvelle structure';
+    if(sub) sub.textContent = 'Créez votre SCI, LMNP, ou autre structure locative';
+    if(btn) btn.textContent = '✓ Créer la structure';
+  }
   document.getElementById('modal-structure').classList.add('open');
 }
 function fermerModalStructure(){
+  window._editingStructureId = null;
   document.getElementById('modal-structure').classList.remove('open');
   document.getElementById('struct-nom').value='';
   document.getElementById('struct-adresse').value='';
   document.getElementById('struct-siret').value='';
   document.getElementById('struct-email').value='';
+  document.querySelectorAll('.type-option').forEach((e,i)=>e.classList.toggle('selected', i===0));
+  document.querySelectorAll('.color-option').forEach((e,i)=>e.classList.toggle('selected', i===0));
 }
 function selectionnerType(el){
   document.querySelectorAll('.type-option').forEach(e=>e.classList.remove('selected'));

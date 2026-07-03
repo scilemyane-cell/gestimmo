@@ -671,46 +671,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
   <!-- Financement -->
   <div class="section-title">Financement du projet — par logement</div>
-  <div class="table-wrap" style="padding:22px 24px 20px;margin-bottom:24px">
-    <div style="display:grid;grid-template-columns:150px repeat(3,1fr) 140px;gap:0;margin-bottom:20px">
-      <div style="padding:8px 12px;border-bottom:1px solid var(--border2)"></div>
-      <div style="padding:8px 12px;font-size:11px;font-weight:600;color:#63b3ed;text-align:center;border-bottom:1px solid var(--border2)">Logement A</div>
-      <div style="padding:8px 12px;font-size:11px;font-weight:600;color:#68d391;text-align:center;border-bottom:1px solid var(--border2)">Logement B</div>
-      <div style="padding:8px 12px;font-size:11px;font-weight:600;color:#f6ad55;text-align:center;border-bottom:1px solid var(--border2)">Logement C</div>
-      <div style="padding:8px 12px;font-size:11px;font-weight:600;color:var(--teal);text-align:center;border-bottom:1px solid var(--border2)">Total</div>
-      <!-- Crédit -->
-      <div style="padding:10px 12px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center">Crédit banque</div>
-      <div style="padding:6px 10px;border-bottom:1px solid var(--border)"><input type="number" id="fin-credit-A" placeholder="0" step="1000" onchange="saveFinancement();updateFinancement()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:#63b3ed;font-size:13px;font-weight:600;font-family:var(--font);outline:none;width:100%;text-align:right"></div>
-      <div style="padding:6px 10px;border-bottom:1px solid var(--border)"><input type="number" id="fin-credit-B" placeholder="0" step="1000" onchange="saveFinancement();updateFinancement()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:#63b3ed;font-size:13px;font-weight:600;font-family:var(--font);outline:none;width:100%;text-align:right"></div>
-      <div style="padding:6px 10px;border-bottom:1px solid var(--border)"><input type="number" id="fin-credit-C" placeholder="0" step="1000" onchange="saveFinancement();updateFinancement()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:#63b3ed;font-size:13px;font-weight:600;font-family:var(--font);outline:none;width:100%;text-align:right"></div>
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:#63b3ed;text-align:right;display:flex;align-items:center;justify-content:flex-end" id="fin-credit-total">—</div>
-      <!-- Apport -->
-      <div style="padding:10px 12px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center">Apport</div>
-      <div style="padding:6px 10px;border-bottom:1px solid var(--border)"><input type="number" id="fin-apport-A" placeholder="0" step="1000" onchange="saveFinancement();updateFinancement()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:#68d391;font-size:13px;font-weight:600;font-family:var(--font);outline:none;width:100%;text-align:right"></div>
-      <div style="padding:6px 10px;border-bottom:1px solid var(--border)"><input type="number" id="fin-apport-B" placeholder="0" step="1000" onchange="saveFinancement();updateFinancement()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:#68d391;font-size:13px;font-weight:600;font-family:var(--font);outline:none;width:100%;text-align:right"></div>
-      <div style="padding:6px 10px;border-bottom:1px solid var(--border)"><input type="number" id="fin-apport-C" placeholder="0" step="1000" onchange="saveFinancement();updateFinancement()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:#68d391;font-size:13px;font-weight:600;font-family:var(--font);outline:none;width:100%;text-align:right"></div>
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:#68d391;text-align:right;display:flex;align-items:center;justify-content:flex-end" id="fin-apport-total">—</div>
-      <!-- Total financement -->
-      <div style="padding:10px 12px;font-size:11px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border);display:flex;align-items:center">Total financement</div>
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--teal);text-align:right" id="fin-total-A">—</div>
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--teal);text-align:right" id="fin-total-B">—</div>
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--teal);text-align:right" id="fin-total-C">—</div>
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:14px;font-weight:700;color:var(--teal);text-align:right" id="fin-total-global">—</div>
-      <!-- Budget prévu -->
-      <div style="padding:10px 12px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center">Budget prévu</div>
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);text-align:right" id="fin-budget-A">—</div>
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);text-align:right" id="fin-budget-B">—</div>
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);text-align:right" id="fin-budget-C">—</div>
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);text-align:right" id="fin-budget-global">—</div>
-      <!-- Reste -->
-      <div style="padding:10px 12px;font-size:11px;font-weight:600;color:var(--text);display:flex;align-items:center">Reste de crédit</div>
-      <div style="padding:10px 12px;font-size:13px;font-weight:700;text-align:right" id="fin-reste-A">—</div>
-      <div style="padding:10px 12px;font-size:13px;font-weight:700;text-align:right" id="fin-reste-B">—</div>
-      <div style="padding:10px 12px;font-size:13px;font-weight:700;text-align:right" id="fin-reste-C">—</div>
-      <div style="padding:10px 12px;font-size:14px;font-weight:700;text-align:right" id="fin-reste-global">—</div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px" id="fin-bars"></div>
-  </div>
+  <div class="table-wrap" style="padding:22px 24px 20px;margin-bottom:24px" id="fin-table-wrap"></div>
 
   <!-- Jauge globale -->
   <div class="section-title">Budget global — répartition TTC</div>
@@ -2490,38 +2451,80 @@ function loadFinancement(){
   try{return JSON.parse(localStorage.getItem(ctxKey('fin4'))||'{}');}catch(e){return{};}
 }
 function saveFinancement(){
-  const d={};
-  ['A','B','C'].forEach(l=>{
-    d['credit_'+l]=parseFloat(document.getElementById('fin-credit-'+l).value)||0;
-    d['apport_'+l]=parseFloat(document.getElementById('fin-apport-'+l).value)||0;
+  const d=loadFinancement();
+  LOGS.forEach(l=>{
+    const credEl=document.getElementById('fin-credit-'+l.prevKey);
+    const apEl=document.getElementById('fin-apport-'+l.prevKey);
+    if(credEl) d['credit_'+l.prevKey]=parseFloat(credEl.value)||0;
+    if(apEl) d['apport_'+l.prevKey]=parseFloat(apEl.value)||0;
   });
   localStorage.setItem(ctxKey('fin4'),JSON.stringify(d));
   syncToCloud();
 }
 function initFinancement(){
+  const wrap=document.getElementById('fin-table-wrap');
+  if(!wrap)return;
   const fin=loadFinancement();
-  ['A','B','C'].forEach(l=>{
-    document.getElementById('fin-credit-'+l).value=fin['credit_'+l]||'';
-    document.getElementById('fin-apport-'+l).value=fin['apport_'+l]||'';
+  const n=LOGS.length;
+  let html=`<div style="display:grid;grid-template-columns:150px repeat(${n},1fr) 140px;gap:0;margin-bottom:20px" id="fin-grid">`;
+  html+=`<div style="padding:8px 12px;border-bottom:1px solid var(--border2)"></div>`;
+  LOGS.forEach(l=>{
+    html+=`<div style="padding:8px 12px;font-size:11px;font-weight:600;color:${l.color};text-align:center;border-bottom:1px solid var(--border2)">${l.key}</div>`;
+  });
+  html+=`<div style="padding:8px 12px;font-size:11px;font-weight:600;color:var(--teal);text-align:center;border-bottom:1px solid var(--border2)">Total</div>`;
+  // Crédit
+  html+=`<div style="padding:10px 12px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center">Crédit banque</div>`;
+  LOGS.forEach(l=>{
+    html+=`<div style="padding:6px 10px;border-bottom:1px solid var(--border)"><input type="number" id="fin-credit-${l.prevKey}" placeholder="0" step="1000" onchange="saveFinancement();updateFinancement()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:#63b3ed;font-size:13px;font-weight:600;font-family:var(--font);outline:none;width:100%;text-align:right"></div>`;
+  });
+  html+=`<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:#63b3ed;text-align:right;display:flex;align-items:center;justify-content:flex-end" id="fin-credit-total">—</div>`;
+  // Apport
+  html+=`<div style="padding:10px 12px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center">Apport</div>`;
+  LOGS.forEach(l=>{
+    html+=`<div style="padding:6px 10px;border-bottom:1px solid var(--border)"><input type="number" id="fin-apport-${l.prevKey}" placeholder="0" step="1000" onchange="saveFinancement();updateFinancement()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:#68d391;font-size:13px;font-weight:600;font-family:var(--font);outline:none;width:100%;text-align:right"></div>`;
+  });
+  html+=`<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:#68d391;text-align:right;display:flex;align-items:center;justify-content:flex-end" id="fin-apport-total">—</div>`;
+  // Total financement
+  html+=`<div style="padding:10px 12px;font-size:11px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border);display:flex;align-items:center">Total financement</div>`;
+  LOGS.forEach(l=>{
+    html+=`<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--teal);text-align:right" id="fin-total-${l.prevKey}">—</div>`;
+  });
+  html+=`<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:14px;font-weight:700;color:var(--teal);text-align:right" id="fin-total-global">—</div>`;
+  // Budget prévu
+  html+=`<div style="padding:10px 12px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center">Budget prévu</div>`;
+  LOGS.forEach(l=>{
+    html+=`<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);text-align:right" id="fin-budget-${l.prevKey}">—</div>`;
+  });
+  html+=`<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);text-align:right" id="fin-budget-global">—</div>`;
+  // Reste
+  html+=`<div style="padding:10px 12px;font-size:11px;font-weight:600;color:var(--text);display:flex;align-items:center">Reste de crédit</div>`;
+  LOGS.forEach(l=>{
+    html+=`<div style="padding:10px 12px;font-size:13px;font-weight:700;text-align:right" id="fin-reste-${l.prevKey}">—</div>`;
+  });
+  html+=`<div style="padding:10px 12px;font-size:14px;font-weight:700;text-align:right" id="fin-reste-global">—</div>`;
+  html+=`</div><div style="display:grid;grid-template-columns:repeat(${n},1fr);gap:16px" id="fin-bars"></div>`;
+  wrap.innerHTML=html;
+
+  LOGS.forEach(l=>{
+    document.getElementById('fin-credit-'+l.prevKey).value=fin['credit_'+l.prevKey]||'';
+    document.getElementById('fin-apport-'+l.prevKey).value=fin['apport_'+l.prevKey]||'';
   });
 }
 function updateFinancement(){
   const{budget}=loadData();
   const{byLog}=getBudgetTotals(budget);
-  const logMap={A:'Logement A',B:'Logement B',C:'Logement C'};
-  const logColors={A:'#63b3ed',B:'#68d391',C:'#f6ad55'};
   const fin=loadFinancement();
   let totCr=0,totAp=0,totBudget=0,totReste=0;
-  ['A','B','C'].forEach(l=>{
-    const cr=fin['credit_'+l]||0,ap=fin['apport_'+l]||0;
+  LOGS.forEach(l=>{
+    const cr=fin['credit_'+l.prevKey]||0,ap=fin['apport_'+l.prevKey]||0;
     const finTot=cr+ap;
-    const bud=byLog[l]||0;
+    const bud=byLog[l.prevKey]||0;
     const reste=bud-finTot;
     totCr+=cr;totAp+=ap;totBudget+=bud;totReste+=reste;
-    document.getElementById('fin-total-'+l).textContent=fmt(finTot);
-    document.getElementById('fin-total-'+l).style.color='var(--teal)';
-    document.getElementById('fin-budget-'+l).textContent=fmt(bud);
-    const resteEl=document.getElementById('fin-reste-'+l);
+    document.getElementById('fin-total-'+l.prevKey).textContent=fmt(finTot);
+    document.getElementById('fin-total-'+l.prevKey).style.color='var(--teal)';
+    document.getElementById('fin-budget-'+l.prevKey).textContent=fmt(bud);
+    const resteEl=document.getElementById('fin-reste-'+l.prevKey);
     resteEl.textContent=fmt(Math.abs(reste));
     resteEl.style.color=reste<=0?'#68d391':'#fc8181';
   });
@@ -2533,15 +2536,15 @@ function updateFinancement(){
   resteGl.textContent=fmt(Math.abs(totReste));
   resteGl.style.color=totReste<=0?'#68d391':'#fc8181';
   // Barres
-  document.getElementById('fin-bars').innerHTML=['A','B','C'].map(l=>{
-    const cr=fin['credit_'+l]||0,ap=fin['apport_'+l]||0;
-    const bud=byLog[l]||0,finTot=cr+ap;
+  document.getElementById('fin-bars').innerHTML=LOGS.map(l=>{
+    const cr=fin['credit_'+l.prevKey]||0,ap=fin['apport_'+l.prevKey]||0;
+    const bud=byLog[l.prevKey]||0,finTot=cr+ap;
     const pct=bud>0?Math.min(finTot/bud*100,100):0;
     const crPct=bud>0?Math.min(cr/bud*100,100):0;
     const apPct=bud>0?Math.min(ap/bud*100,100):0;
     const reste=bud-finTot;
     return`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
-      <div style="font-size:11px;font-weight:600;color:${logColors[l]};margin-bottom:10px">Logement ${l}</div>
+      <div style="font-size:11px;font-weight:600;color:${l.color};margin-bottom:10px">${l.key}</div>
       <div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;display:flex;margin-bottom:6px">
         <div style="height:100%;width:${crPct.toFixed(1)}%;background:#63b3ed;transition:width .7s"></div>
         <div style="height:100%;width:${apPct.toFixed(1)}%;background:#68d391;transition:width .7s"></div>
