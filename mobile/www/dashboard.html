@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mon espace — GestImmo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0e1a;--bg2:#111827;--bg3:#1a2235;--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--accent:#3b82f6;--green:#10b981;--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.12)}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* LOADER */
+#loader{display:flex;position:fixed;inset:0;background:var(--bg);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* APP */
+#app{display:none}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.logo{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.user-menu{display:flex;align-items:center;gap:12px}
+.user-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:white;cursor:pointer}
+.btn-deconnexion{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s}
+.btn-deconnexion:hover{background:rgba(239,68,68,.2)}
+
+.main{max-width:1100px;margin:0 auto;padding:32px 24px}
+.welcome{margin-bottom:32px}
+.welcome h1{font-size:26px;font-weight:800;margin-bottom:6px}
+.welcome p{color:var(--text2);font-size:14px}
+.trial-banner{background:linear-gradient(135deg,rgba(59,130,246,.1),rgba(139,92,246,.1));border:1px solid rgba(59,130,246,.25);border-radius:12px;padding:14px 18px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.trial-banner p{font-size:13px;color:#93c5fd;font-weight:600}
+.trial-banner span{font-size:12px;color:var(--text3)}
+
+.section-title{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.btn-add{background:var(--accent);border:none;color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s}
+.btn-add:hover{background:#2563eb}
+
+.structures-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:32px}
+.structure-card{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:22px;cursor:pointer;transition:.2s}
+.structure-card:hover{border-color:rgba(59,130,246,.4);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.structure-type-badge{display:inline-block;padding:3px 10px;border-radius:100px;font-size:10px;font-weight:700;margin-bottom:12px}
+.structure-name{font-size:17px;font-weight:700;margin-bottom:4px}
+.structure-meta{font-size:12px;color:var(--text3);margin-bottom:14px}
+.structure-stats{display:flex;gap:16px;padding-top:12px;border-top:1px solid var(--border)}
+.structure-stat{text-align:center}
+.structure-stat-val{font-size:16px;font-weight:700;color:var(--accent)}
+.structure-stat-label{font-size:10px;color:var(--text3);margin-top:2px}
+
+.empty-state{text-align:center;padding:60px 20px;background:var(--bg2);border:2px dashed var(--border2);border-radius:20px}
+.empty-state .icon{font-size:48px;margin-bottom:16px}
+.empty-state h3{font-size:18px;font-weight:700;margin-bottom:8px}
+.empty-state p{font-size:14px;color:var(--text2);margin-bottom:24px;max-width:400px;margin-left:auto;margin-right:auto}
+
+/* MODAL NOUVELLE STRUCTURE */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal-card{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:32px;width:480px;max-width:100%;max-height:90vh;overflow-y:auto;position:relative}
+.modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.06);border:none;color:var(--text2);font-size:18px;cursor:pointer;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.modal-title{font-size:20px;font-weight:800;margin-bottom:6px}
+.modal-sub{font-size:13px;color:var(--text3);margin-bottom:24px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:11px 14px;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:14px;transition:.2s;outline:none}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent);background:rgba(59,130,246,.06)}
+.form-group select option{background:var(--bg2)}
+.types-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+.type-option{padding:10px 8px;background:rgba(255,255,255,.04);border:2px solid var(--border);border-radius:10px;text-align:center;cursor:pointer;transition:.2s;font-size:11px;font-weight:600}
+.type-option:hover{border-color:var(--accent);background:rgba(59,130,246,.08)}
+.type-option.selected{border-color:var(--accent);background:rgba(59,130,246,.12);color:var(--accent)}
+.type-option .type-icon{font-size:20px;margin-bottom:4px}
+.colors-grid{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.color-option{width:32px;height:32px;border-radius:50%;cursor:pointer;transition:.2s;border:3px solid transparent}
+.color-option.selected{border-color:white;transform:scale(1.1)}
+.btn-save{width:100%;padding:13px;border:none;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:white;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;transition:.2s}
+.btn-save:hover{opacity:.9}
+.btn-save:disabled{opacity:.6;cursor:not-allowed}
+
+@media(max-width:480px){
+  .main{padding:16px 12px}
+  .types-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="spinner"></div>
+  <div style="font-size:14px;color:var(--text2)">Chargement...</div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="logo"><div class="logo-icon">🏠</div>GestImmo</div>
+    <div class="user-menu">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <span id="user-name" style="font-size:13px;color:var(--text2)"></span>
+      <button class="btn-deconnexion" onclick="seDeconnecter()">Déconnexion</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="welcome">
+      <h1 id="welcome-title">Bonjour 👋</h1>
+      <p id="welcome-sub">Gérez vos investissements immobiliers en un seul endroit.</p>
+    </div>
+
+    <div class="trial-banner" id="trial-banner" style="display:none">
+      <div>
+        <p>🎁 Essai gratuit en cours</p>
+        <span id="trial-info">30 jours restants</span>
+      </div>
+      <button style="background:rgba(255,255,255,.1);border:none;color:white;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer">Passer au Pro →</button>
+    </div>
+
+    <div class="section-title">
+      Mes structures
+      <button class="btn-add" onclick="ouvrirModalStructure()">+ Ajouter une structure</button>
+    </div>
+
+    <div class="structures-grid" id="structures-grid">
+      <!-- Chargement... -->
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOUVELLE STRUCTURE -->
+<div class="modal-overlay" id="modal-structure">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModalStructure()">×</button>
+    <div class="modal-title">Nouvelle structure</div>
+    <div class="modal-sub">Créez votre SCI, LMNP, ou autre structure locative</div>
+
+    <div class="form-group">
+      <label>Type de structure</label>
+      <div class="types-grid" id="types-grid">
+        <div class="type-option selected" data-type="LMNP" onclick="selectionnerType(this)"><div class="type-icon">🏠</div>LMNP</div>
+        <div class="type-option" data-type="SCI_IR" onclick="selectionnerType(this)"><div class="type-icon">🏗️</div>SCI-IR</div>
+        <div class="type-option" data-type="SCI_IS" onclick="selectionnerType(this)"><div class="type-icon">🏢</div>SCI-IS</div>
+        <div class="type-option" data-type="LMP" onclick="selectionnerType(this)"><div class="type-icon">💼</div>LMP</div>
+        <div class="type-option" data-type="NU_IR" onclick="selectionnerType(this)"><div class="type-icon">📋</div>Location nue</div>
+        <div class="type-option" data-type="NOM_PROPRE" onclick="selectionnerType(this)"><div class="type-icon">👤</div>Nom propre</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Nom de la structure</label>
+      <input type="text" id="struct-nom" placeholder="ex: SCI Lémyane, LMNP Barreteau...">
+    </div>
+
+    <div class="form-group">
+      <label>Adresse principale <span style="color:var(--text3);text-transform:none;font-weight:400">(optionnel)</span></label>
+      <input type="text" id="struct-adresse" placeholder="ex: 65 Chemin des Guignardières, 85300 Soullans">
+    </div>
+
+    <div class="form-group">
+      <label>SIRET <span style="color:var(--text3);text-transform:none;font-weight:400">(optionnel)</span></label>
+      <input type="text" id="struct-siret" placeholder="ex: 95210815700019">
+    </div>
+
+    <div class="form-group">
+      <label>Email de contact</label>
+      <input type="email" id="struct-email" placeholder="ex: contact@mastructure.fr">
+    </div>
+
+    <div class="form-group">
+      <label>Couleur</label>
+      <div class="colors-grid" id="colors-grid">
+        <div class="color-option selected" data-color="#3b82f6" style="background:#3b82f6" onclick="selectionnerCouleur(this)"></div>
+        <div class="color-option" data-color="#10b981" style="background:#10b981" onclick="selectionnerCouleur(this)"></div>
+        <div class="color-option" data-color="#8b5cf6" style="background:#8b5cf6" onclick="selectionnerCouleur(this)"></div>
+        <div class="color-option" data-color="#f59e0b" style="background:#f59e0b" onclick="selectionnerCouleur(this)"></div>
+        <div class="color-option" data-color="#ef4444" style="background:#ef4444" onclick="selectionnerCouleur(this)"></div>
+        <div class="color-option" data-color="#ec4899" style="background:#ec4899" onclick="selectionnerCouleur(this)"></div>
+        <div class="color-option" data-color="#06b6d4" style="background:#06b6d4" onclick="selectionnerCouleur(this)"></div>
+        <div class="color-option" data-color="#84cc16" style="background:#84cc16" onclick="selectionnerCouleur(this)"></div>
+      </div>
+    </div>
+
+    <button class="btn-save" id="btn-save-structure" onclick="sauvegarderStructure()">✓ Créer la structure</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
+  authDomain: "gestimmo-app.firebaseapp.com",
+  projectId: "gestimmo-app",
+  storageBucket: "gestimmo-app.firebasestorage.app",
+  messagingSenderId: "658875106145",
+  appId: "1:658875106145:web:8d797303b2168efbe6bb20"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let currentUser = null;
+let userProfile = null;
+
+// ── AUTH STATE ────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  if(!user){
+    window.location.href = 'index.html';
+    return;
+  }
+  currentUser = user;
+  await chargerDashboard(user);
+});
+
+async function chargerDashboard(user){
+  // Charger profil
+  const profileRef = doc(db, 'users', user.uid);
+  let profile = {};
+  try {
+    const snap = await getDoc(profileRef);
+    if(snap.exists()) profile = snap.data();
+  } catch(e){ console.warn('Profil non trouvé'); }
+  userProfile = profile;
+
+  // Afficher UI
+  const nom = profile.nom || user.displayName || user.email.split('@')[0];
+  const initiales = nom.split(' ').map(p=>p[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('user-avatar').textContent = initiales;
+  document.getElementById('user-name').textContent = nom;
+  document.getElementById('welcome-title').textContent = `Bonjour ${nom.split(' ')[0]} 👋`;
+
+  // Banner trial
+  if(profile.plan === 'trial' && profile.trialEnd){
+    const joursRestants = Math.max(0, Math.ceil((new Date(profile.trialEnd) - new Date()) / 86400000));
+    const banner = document.getElementById('trial-banner');
+    banner.style.display = 'flex';
+    document.getElementById('trial-info').textContent = 
+      joursRestants > 0 ? `${joursRestants} jour${joursRestants>1?'s':''} restant${joursRestants>1?'s':''}` : 'Essai expiré';
+  }
+
+  // Charger structures
+  await chargerStructures(user.uid);
+
+  // Afficher app
+  document.getElementById('loader').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+async function chargerStructures(uid){
+  const grid = document.getElementById('structures-grid');
+  try {
+    const snap = await getDocs(collection(db, 'users', uid, 'structures'));
+    if(snap.empty){
+      grid.innerHTML = `
+        <div class="empty-state" style="grid-column:1/-1">
+          <div class="icon">🏗️</div>
+          <h3>Aucune structure pour l'instant</h3>
+          <p>Créez votre première structure (SCI, LMNP, LMP...) pour commencer à gérer vos logements et locataires.</p>
+          <button class="btn-add" onclick="ouvrirModalStructure()">+ Créer ma première structure</button>
+        </div>`;
+      return;
+    }
+    const types = {
+      LMNP:'LMNP', SCI_IR:'SCI-IR', SCI_IS:'SCI-IS',
+      LMP:'LMP', NU_IR:'Location nue', NOM_PROPRE:'Nom propre'
+    };
+    let html = '';
+    snap.forEach(d => {
+      const s = d.data();
+      html += `
+        <div class="structure-card" onclick="ouvrirStructure('${d.id}')" style="border-color:${s.couleur}33">
+          <div class="structure-type-badge" style="background:${s.couleur}22;color:${s.couleur}">
+            ${types[s.type]||s.type}
+          </div>
+          <div class="structure-name">${s.nom}</div>
+          <div class="structure-meta">${s.adresse||'Adresse non renseignée'}</div>
+          <div class="structure-stats">
+            <div class="structure-stat">
+              <div class="structure-stat-val" style="color:${s.couleur}">0</div>
+              <div class="structure-stat-label">Logements</div>
+            </div>
+            <div class="structure-stat">
+              <div class="structure-stat-val" style="color:${s.couleur}">0</div>
+              <div class="structure-stat-label">Locataires</div>
+            </div>
+            <div class="structure-stat">
+              <div class="structure-stat-val" style="color:${s.couleur}">0 €</div>
+              <div class="structure-stat-label">Loyers/mois</div>
+            </div>
+          </div>
+        </div>`;
+    });
+    grid.innerHTML = html;
+  } catch(e){
+    console.error('Erreur chargement structures:', e);
+    grid.innerHTML = '<p style="color:var(--text3);padding:20px">Erreur de chargement.</p>';
+  }
+}
+
+// ── CRÉER STRUCTURE ───────────────────────────────────────────────────
+window.sauvegarderStructure = async function(){
+  const nom = document.getElementById('struct-nom').value.trim();
+  if(!nom){ alert('Le nom de la structure est obligatoire.'); return; }
+  const type = document.querySelector('.type-option.selected')?.dataset.type || 'LMNP';
+  const couleur = document.querySelector('.color-option.selected')?.dataset.color || '#3b82f6';
+  const btn = document.getElementById('btn-save-structure');
+  btn.disabled = true; btn.textContent = '⏳ Création...';
+  try {
+    await addDoc(collection(db, 'users', currentUser.uid, 'structures'), {
+      nom,
+      type,
+      couleur,
+      adresse: document.getElementById('struct-adresse').value.trim(),
+      siret: document.getElementById('struct-siret').value.trim(),
+      email: document.getElementById('struct-email').value.trim(),
+      createdAt: new Date().toISOString(),
+      logements: [],
+    });
+    fermerModalStructure();
+    await chargerStructures(currentUser.uid);
+  } catch(e){
+    alert('Erreur: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '✓ Créer la structure';
+  }
+};
+
+window.ouvrirStructure = function(id){
+  window.location.href = 'structure.html?id=' + encodeURIComponent(id);
+};
+
+window.seDeconnecter = async function(){
+  await signOut(auth);
+  window.location.href = 'index.html';
+};
+</script>
+
+<script>
+function ouvrirModalStructure(){
+  document.getElementById('modal-structure').classList.add('open');
+}
+function fermerModalStructure(){
+  document.getElementById('modal-structure').classList.remove('open');
+  document.getElementById('struct-nom').value='';
+  document.getElementById('struct-adresse').value='';
+  document.getElementById('struct-siret').value='';
+  document.getElementById('struct-email').value='';
+}
+function selectionnerType(el){
+  document.querySelectorAll('.type-option').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function selectionnerCouleur(el){
+  document.querySelectorAll('.color-option').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+document.getElementById('modal-structure').addEventListener('click',function(e){
+  if(e.target===this)fermerModalStructure();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')fermerModalStructure();});
+</script>
+</body>
+</html>

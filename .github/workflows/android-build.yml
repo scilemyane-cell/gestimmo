@@ -1,0 +1,49 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'mobile/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installer les dépendances npm
+        run: npm install
+
+      - name: Synchroniser Capacitor
+        run: npx cap sync android
+
+      - name: Autoriser l'exécution de gradlew
+        run: chmod +x android/gradlew
+
+      - name: Compiler l'APK de debug
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug
+
+      - name: Publier l'APK compilé
+        uses: actions/upload-artifact@v4
+        with:
+          name: gestimmo-debug-apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
