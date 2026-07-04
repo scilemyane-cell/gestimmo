@@ -1315,7 +1315,7 @@ function getCatType(name){const c=CATEGORIES.find(x=>x.name===name);return c?c.t
 let LOGS=[];
 function refreshLOGS(){
   LOGS=[
-    ...getLogementsActifs().map(l=>({key:l.label, prevKey:l.key, color:l.color})),
+    ...getLogementsActifs().filter(l=>l.hasPrevisionnel!==false).map(l=>({key:l.label, prevKey:l.key, color:l.color})),
     {key:"Commun", prevKey:"com", color:"#b794f4"}
   ];
 }
@@ -4132,7 +4132,7 @@ function renderParametres(){
           <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:rgba(255,255,255,.03);border:1px solid ${lg.actif!==false?lg.color+'44':'var(--border)'};border-radius:12px;opacity:${lg.actif!==false?1:.5}">
             <div style="width:14px;height:14px;border-radius:50%;background:${lg.color};flex-shrink:0"></div>
             <div style="flex:1">
-              <div style="font-size:13px;font-weight:600;color:var(--text)">${lg.label}</div>
+              <div style="font-size:13px;font-weight:600;color:var(--text)">${lg.label}${(cfg.hasBudgetTravaux && lg.hasPrevisionnel===false)?' <span style="font-size:9px;font-weight:600;color:var(--text3);background:rgba(255,255,255,.08);padding:2px 7px;border-radius:100px;vertical-align:middle">hors prévisionnel</span>':''}</div>
               ${lg.adresse?`<div style="font-size:11px;color:var(--text3)">${lg.adresse}</div>`:''}
               <div style="display:flex;gap:12px;margin-top:3px;flex-wrap:wrap">
                 ${lg.pdl?`<div style="font-size:10px;color:var(--text3)">⚡ PDL : <b style="color:var(--text2)">${lg.pdl}</b></div>`:''}
@@ -4254,6 +4254,13 @@ function renderParametres(){
             </div>
             <input type="hidden" id="ml-color" value="${LOG_COLORS[0]}">
           </div>
+          <div class="form-group" id="ml-previsionnel-group" style="display:none">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="ml-previsionnel" checked style="width:16px;height:16px;cursor:pointer">
+              <span>Inclure ce logement dans le prévisionnel (budget travaux, dashboard)</span>
+            </label>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px;margin-left:24px">À décocher pour un logement déjà existant / non concerné par le chantier — il reste géré normalement partout ailleurs (locataires, dépenses...).</div>
+          </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
           <button class="btn btn-sm" style="background:var(--bg3);border-color:var(--border)" onclick="document.getElementById('modal-logement').style.display='none'">Annuler</button>
@@ -4278,6 +4285,10 @@ function ouvrirModalLogement(idx){
   const color=lg?lg.color:LOG_COLORS[0];
   document.getElementById('ml-color').value=color;
   selectLogColor(color);
+  const prevGroup=document.getElementById('ml-previsionnel-group');
+  if(prevGroup) prevGroup.style.display=CTX_CONFIG[CTX].hasBudgetTravaux?'block':'none';
+  const prevCheck=document.getElementById('ml-previsionnel');
+  if(prevCheck) prevCheck.checked=lg?(lg.hasPrevisionnel!==false):true;
   document.getElementById('modal-logement').style.display='flex';
   setTimeout(()=>document.getElementById('ml-label').focus(),50);
 }
@@ -4295,12 +4306,13 @@ function sauvegarderLogement(){
   const pdl=(document.getElementById('ml-pdl')?.value||'').trim();
   const compteurEau=(document.getElementById('ml-compteur-eau')?.value||'').trim();
   const color=document.getElementById('ml-color').value;
+  const hasPrevisionnel=document.getElementById('ml-previsionnel')?document.getElementById('ml-previsionnel').checked:true;
   const logs=loadLogements();
   if(_editLogIdx!==null){
-    logs[_editLogIdx]={...logs[_editLogIdx],label,adresse,pdl,compteurEau,color};
+    logs[_editLogIdx]={...logs[_editLogIdx],label,adresse,pdl,compteurEau,color,hasPrevisionnel};
   }else{
     const key='L'+(Date.now().toString(36).slice(-4).toUpperCase());
-    logs.push({key,label,adresse,pdl,compteurEau,color,actif:true});
+    logs.push({key,label,adresse,pdl,compteurEau,color,actif:true,hasPrevisionnel});
   }
   saveLogements(logs);
   document.getElementById('modal-logement').style.display='none';
