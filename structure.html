@@ -431,7 +431,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div class="badge" id="badge-date"></div>
     <div class="badge" onclick="toggleTheme()" id="btn-theme-toggle" title="Changer le thème" style="cursor:pointer">🌙 Sombre</div>
     <div class="badge" id="sync-status" style="color:#63b3ed;cursor:pointer" onclick="loadFromCloud().then(()=>location.reload())" title="Cliquer pour forcer la synchronisation">☁ Cloud</div>
-    <div class="badge" id="drive-status" onclick="connectDrive()" style="color:#68d391;cursor:pointer;display:none" title="Google Drive">📁 Drive</div>
+    <div class="badge" id="drive-status" onclick="disconnectDrive()" style="color:#68d391;cursor:pointer;display:none" title="Cliquer pour déconnecter / changer de compte Google">📁 Drive</div>
     <div class="badge" onclick="connectDrive()" id="drive-connect" style="color:#f6ad55;cursor:pointer" title="Connecter Google Drive pour stocker les PDF">📁 Connecter Drive</div>
     <div class="badge" onclick="scanGmail()" id="btn-gmail" style="color:#f687b3;cursor:pointer;display:none" title="Scanner Gmail pour importer les factures">📧 Scanner Gmail</div>
     <div class="badge" onclick="trierTouteBoite()" id="btn-trier-boite" style="color:#f6ad55;cursor:pointer;display:none" title="Trier tous les emails par expéditeur">📂 Trier Gmail</div>
@@ -8984,22 +8984,56 @@ function reconnectDriveSilent(){
   }
 }
 
+function disconnectDrive(){
+  if(confirm('Déconnecter Google Drive de cette structure ?\n\nTu pourras reconnecter avec le même compte ou un compte différent (utile si chaque structure a son propre Gmail).')){
+    driveAccessToken = null;
+    localStorage.removeItem(CTX+'_drive_token');
+    localStorage.removeItem(CTX+'_drive_token_expiry');
+    updateDriveUI(false);
+  }
+}
+
 function connectDrive(){
   const client = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
     scope: DRIVE_SCOPE,
-    callback: (response) => {
+    prompt: 'select_account', // Force le choix du compte à chaque connexion (évite de réutiliser un compte déjà actif dans le navigateur)
+    callback: async (response) => {
       if(response.access_token){
         driveAccessToken = response.access_token;
         localStorage.setItem(CTX+'_drive_token', driveAccessToken);
         localStorage.setItem(CTX+'_drive_token_expiry', Date.now() + (response.expires_in * 1000));
+        // Récupère l'email du compte Google choisi, pour l'afficher (utile si plusieurs structures = plusieurs comptes)
+        try{
+          const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { 'Authorization': 'Bearer '+driveAccessToken }
+          }).then(r=>r.json());
+          if(info && info.email) localStorage.setItem(CTX+'_drive_email', info.email);
+        }catch(e){}
         updateDriveUI(true);
         alert('✓ Google Drive connecté ! Les PDF seront maintenant uploadés sur Drive.');
       }
     }
   });
-  client.requestAccessToken();
+  client.requestAccessToken({prompt: 'select_account'});
 }
+
+window.disconnectDrive = function(){
+  if(!confirm('Déconnecter Google Drive pour cette structure ? Tu pourras reconnecter un compte (le même ou un autre) ensuite.')) return;
+  driveAccessToken = null;
+  localStorage.removeItem(CTX+'_drive_token');
+  localStorage.removeItem(CTX+'_drive_token_expiry');
+  localStorage.removeItem(CTX+'_drive_email');
+  updateDriveUI(false);
+};
+
+window.disconnectDrive=function(){
+  if(!confirm('Déconnecter Google Drive de cette structure ? Tu pourras reconnecter un autre compte Google ensuite.')) return;
+  driveAccessToken = null;
+  localStorage.removeItem(CTX+'_drive_token');
+  localStorage.removeItem(CTX+'_drive_token_expiry');
+  updateDriveUI(false);
+};
 
 // ── GOOGLE PICKER : importer un fichier déjà existant depuis Drive ──────────
 // IMPORTANT : à remplacer par la vraie clé API du projet gestimmo-app
@@ -9055,7 +9089,12 @@ function updateDriveUI(connected){
   const statusBtn = document.getElementById('drive-status');
   if(connected){
     if(connectBtn) connectBtn.style.display='none';
-    if(statusBtn) statusBtn.style.display='block';
+    if(statusBtn){
+      statusBtn.style.display='block';
+      const email = localStorage.getItem(CTX+'_drive_email');
+      statusBtn.textContent = email ? '📁 '+email : '📁 Drive';
+      statusBtn.title = 'Connecté'+(email?' en tant que '+email:'')+' — cliquer pour déconnecter / changer de compte';
+    }
     // Gmail reste désactivé tant que la vérification Google n'est pas faite (scope séparé désormais)
   } else {
     if(connectBtn) connectBtn.style.display='block';
