@@ -9051,10 +9051,10 @@ async function uploadToDrive(b64, fileName){
 
     // Structure : SCI Lemyane Factures / 2025 / fichier.pdf
     const year = new Date().getFullYear().toString();
-    const cacheKey = 'drive_folder_'+year;
+    const cacheKey = ctxKey('drive_folder_'+year);
     let yearFolderId = localStorage.getItem(cacheKey);
     if(!yearFolderId){
-      const rootId = await getOrCreateFolder('SCI Lemyane Factures', null);
+      const rootId = await getOrCreateFolder(getCTXConfig().driveFolderName, null);
       yearFolderId = await getOrCreateFolder(year, rootId);
       localStorage.setItem(cacheKey, yearFolderId);
     }
@@ -9536,14 +9536,14 @@ async function ouvrirDossierDrive(){
   }
 
   // Chercher le dossier de l'année sur Drive
-  const cacheKey='drive_folder_'+year;
+  const cacheKey=ctxKey('drive_folder_'+year);
   let yearFolderId=localStorage.getItem(cacheKey);
   
   if(!yearFolderId){
     // Chercher sur Drive
     try{
       const rootSearch=await fetch(
-        "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent("name='SCI Lemyane Factures' and mimeType='application/vnd.google-apps.folder' and trashed=false"),
+        "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent("name='"+getCTXConfig().driveFolderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false"),
         {headers:{'Authorization':'Bearer '+driveAccessToken}}
       ).then(r=>r.json());
       
@@ -9632,7 +9632,7 @@ async function nettoyerDoublonsDrive(){
 
   try{
     // Retrouver le dossier racine "SCI Lemyane Factures"
-    const qRoot="name='SCI Lemyane Factures' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+    const qRoot="name='"+getCTXConfig().driveFolderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
     const respRoot=await fetch(
       "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
       {headers:{'Authorization':'Bearer '+driveAccessToken}}
@@ -9737,7 +9737,7 @@ async function ouvrirDossierDriveAnnee(){
 
   try{
     // Chercher le dossier racine
-    const qRoot="name='SCI Lemyane Factures' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+    const qRoot="name='"+getCTXConfig().driveFolderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
     const respRoot=await fetch(
       "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
       {headers:{'Authorization':'Bearer '+driveAccessToken}}
@@ -9815,7 +9815,7 @@ async function syncAllPdfsToDrive(){
     // Récupérer l'ID du dossier de l'année en cours (cache localStorage)
     let yearFolderId=null;
     try{
-      const rootQ=encodeURIComponent("name='SCI Lemyane Factures' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+      const rootQ=encodeURIComponent("name='"+getCTXConfig().driveFolderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
       const rootResp=await fetch(`https://www.googleapis.com/drive/v3/files?q=${rootQ}&fields=files(id)`,{headers:{'Authorization':'Bearer '+driveAccessToken}});
       const rootData=await rootResp.json();
       if(rootData.files&&rootData.files.length>0){
