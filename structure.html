@@ -1283,12 +1283,19 @@ const LOC_LOGEMENTS=getLogementsActifs();
 const CATEGORIES=[
   // ── TRAVAUX (investissement / construction) ──
   {name:"Administratif / Honoraires",color:"#63b3ed",type:"travaux"},
+  {name:"Frais de notaire (acquisition terrain/bien)",color:"#7dd3fc",type:"travaux"},
+  {name:"Étude de sol",color:"#38bdf8",type:"travaux"},
+  {name:"Assurance dommage-ouvrage",color:"#0ea5e9",type:"travaux"},
   {name:"Raccordements",color:"#68d391",type:"travaux"},
   {name:"Gros Œuvre / Maçonnerie",color:"#f6ad55",type:"travaux"},
   {name:"Charpente / Couverture / Zinguerie",color:"#b794f4",type:"travaux"},
   {name:"Enduit / Façade",color:"#fc8181",type:"travaux"},
+  {name:"Isolation",color:"#fca5a5",type:"travaux"},
   {name:"Menuiseries extérieures",color:"#4fd1c5",type:"travaux"},
   {name:"Aménagement intérieur",color:"#f687b3",type:"travaux"},
+  {name:"Peinture / Revêtements sols et murs",color:"#f9a8d4",type:"travaux"},
+  {name:"Cuisine équipée",color:"#fbcfe8",type:"travaux"},
+  {name:"Domotique / Électroménager",color:"#e9d5ff",type:"travaux"},
   {name:"Sanitaire — Plomberie",color:"#38bdf8",type:"travaux"},
   {name:"Sanitaire — Salle de bain",color:"#818cf8",type:"travaux"},
   {name:"Sanitaire — WC",color:"#34d399",type:"travaux"},
@@ -1303,20 +1310,28 @@ const CATEGORIES=[
   {name:"Divers / Imprévus",color:"#fbd38d",type:"travaux"},
   // ── FONCTIONNEMENT (charges récurrentes — comptent dans la rentabilité nette) ──
   {name:"Assurance PNO / GLI",color:"#f56565",type:"fonctionnement"},
+  {name:"Assurance emprunteur",color:"#fb7185",type:"fonctionnement"},
   {name:"Comptable / Expert-comptable",color:"#ed8936",type:"fonctionnement"},
   {name:"Frais de gestion locative",color:"#ecc94b",type:"fonctionnement"},
+  {name:"Frais d'agence (mise en location)",color:"#fbbf24",type:"fonctionnement"},
+  {name:"Publicité / Annonce de location",color:"#fcd34d",type:"fonctionnement"},
+  {name:"Diagnostics obligatoires (DPE, électricité, etc.)",color:"#fde68a",type:"fonctionnement"},
   {name:"Taxe foncière",color:"#48bb78",type:"fonctionnement"},
   {name:"CFE / Impôts professionnels",color:"#38b2ac",type:"fonctionnement"},
   {name:"Charges de copropriété",color:"#4299e1",type:"fonctionnement"},
+  {name:"Frais de syndic",color:"#60a5fa",type:"fonctionnement"},
   {name:"Entretien courant / Petites réparations",color:"#667eea",type:"fonctionnement"},
   {name:"Eau (abonnement / consommation)",color:"#9f7aea",type:"fonctionnement"},
   {name:"Électricité (parties communes)",color:"#ed64a6",type:"fonctionnement"},
   {name:"Frais bancaires",color:"#a0aec0",type:"fonctionnement"},
+  {name:"Abonnement logiciel / outils de gestion",color:"#94a3b8",type:"fonctionnement"},
   {name:"Frais de gestion divers",color:"#cbd5e0",type:"fonctionnement"},
-  // ── HORS RENTABILITÉ (exclu du calcul — prêts, flux perso, etc.) ──
-  {name:"Mensualité de prêt (capital + intérêts — NE PAS utiliser, voir Financement)",color:"#718096",type:"hors_rentabilite"},
+  // ── HORS RENTABILITÉ (exclu du calcul — flux perso, apports, etc.) ──
+  // Note : les mensualités de prêt (capital + intérêts) ne sont volontairement pas une catégorie
+  // de facture — elles se saisissent dans l'onglet Financement, qui gère le tableau d'amortissement.
   {name:"Virement interne / rééquilibrage personnel",color:"#a0aec0",type:"hors_rentabilite"},
   {name:"Apport personnel / Remboursement associé",color:"#a0aec0",type:"hors_rentabilite"},
+  {name:"Distribution de dividendes / résultat (SCI-IS)",color:"#94a3b8",type:"hors_rentabilite"},
 ];
 const CAT_TRAVAUX=CATEGORIES.filter(c=>c.type==='travaux').map(c=>c.name);
 const CAT_FONCTIONNEMENT=CATEGORIES.filter(c=>c.type==='fonctionnement').map(c=>c.name);
@@ -2041,11 +2056,7 @@ function renderBudget(){
   grid.innerHTML='<div class="bg-th">Description</div>'+
     LOGS.map(l=>`<div class="bg-th" style="text-align:right">${l.key} TTC</div>`).join('')+
     '<div class="bg-th" style="text-align:right">Total TTC</div>';
-  CATEGORIES.forEach(cat=>{
-    const hdr=document.createElement('div');hdr.className='bg-cat-hdr';hdr.style.color=cat.color;
-    hdr.innerHTML=`<span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>${cat.name}`;
-    grid.appendChild(hdr);
-    const rows=budget[cat.name]||[];
+  CATEGORIES.filter(cat=>cat.type!=='hors_rentabilite').forEach(cat=>{
     rows.forEach((row,idx)=>{
       [{field:'desc',cls:'desc'},...LOGS.map(l=>({field:l.prevKey}))].forEach(col=>{
         const td=document.createElement('div');td.className='bg-td'+(col.cls?' '+col.cls:'');
@@ -4298,7 +4309,7 @@ function renderParametres(){
         <div class="form-grid">
           <div class="form-group"><label>Nom du logement *</label><input id="ml-label" type="text" placeholder="ex: Appartement T2, Studio..."></div>
           <div class="form-group"><label>Adresse</label><input id="ml-adresse" type="text" placeholder="ex: 12 rue de la Paix, 85000 ..."></div>
-          <div class="form-group"><label>⚡ PDL électricité <span style="font-size:10px;color:var(--text3)">(Point de livraison, 14 chiffres)</span></label><input id="ml-pdl" type="text" placeholder="ex: 12345678901234" maxlength="14"></div>
+          <div class="form-group"><label>⚡ PDL électricité</label><input id="ml-pdl" type="text" placeholder="14 chiffres (point de livraison)" maxlength="14"></div>
           <div class="form-group"><label>💧 N° compteur eau</label><input id="ml-compteur-eau" type="text" placeholder="ex: 123456789"></div>
           <div class="form-group"><label>Couleur</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="ml-colors">
