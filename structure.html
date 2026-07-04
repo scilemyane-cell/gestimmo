@@ -9655,11 +9655,11 @@ async function ouvrirDossierDrive(){
   }
 
   if(yearFolderId){
-    window.open('https://drive.google.com/drive/folders/'+yearFolderId,'_blank');
+    window.open('https://drive.google.com/drive/folders/'+yearFolderId+'?authuser='+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||''),'_blank');
   } else {
     // Ouvrir le dossier racine si pas de dossier pour cette année
     if(confirm('Aucun dossier trouvé pour '+year+' sur Drive.\nOuvrir le dossier principal '+getCTXConfig().driveFolderName+' ?')){
-      window.open('https://drive.google.com/drive/search?q='+encodeURIComponent(getCTXConfig().driveFolderName),'_blank');
+      window.open('https://drive.google.com/drive/search?q='+encodeURIComponent(getCTXConfig().driveFolderName)+'&authuser='+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||''),'_blank');
     }
   }
 }
@@ -9854,7 +9854,7 @@ async function ouvrirDossierDriveAnnee(){
     }
     // Ouvrir le dossier dans un nouvel onglet — Drive applique le tri choisi par l'utilisateur,
     // pense à cliquer sur l'en-tête "Nom" pour trier par numéro de facture si besoin.
-    window.open('https://drive.google.com/drive/folders/'+yearFolderId,'_blank');
+    window.open('https://drive.google.com/drive/folders/'+yearFolderId+'?authuser='+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||''),'_blank');
   }catch(e){
     console.error('Ouverture dossier Drive error:',e);
     alert('Erreur lors de l\'ouverture du dossier : '+e.message);
