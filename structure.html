@@ -431,10 +431,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div class="badge" onclick="toggleTheme()" id="btn-theme-toggle" title="Changer le thème" style="cursor:pointer">🌙 Sombre</div>
     <div class="badge" id="sync-status" style="color:#63b3ed;cursor:pointer" onclick="loadFromCloud().then(()=>location.reload())" title="Cliquer pour forcer la synchronisation">☁ Cloud</div>
     <div class="badge" id="drive-status" onclick="connectDrive()" style="color:#68d391;cursor:pointer;display:none" title="Google Drive">📁 Drive</div>
-    <div class="badge" onclick="connectDrive()" id="drive-connect" style="color:#f6ad55;cursor:pointer;display:none" title="Connecter Google Drive pour stocker les PDF">📁 Connecter Drive</div>
+    <div class="badge" onclick="connectDrive()" id="drive-connect" style="color:#f6ad55;cursor:pointer" title="Connecter Google Drive pour stocker les PDF">📁 Connecter Drive</div>
     <div class="badge" onclick="scanGmail()" id="btn-gmail" style="color:#f687b3;cursor:pointer;display:none" title="Scanner Gmail pour importer les factures">📧 Scanner Gmail</div>
     <div class="badge" onclick="trierTouteBoite()" id="btn-trier-boite" style="color:#f6ad55;cursor:pointer;display:none" title="Trier tous les emails par expéditeur">📂 Trier Gmail</div>
-    <a href="#" target="_blank" id="btn-boite-mail" style="display:none;align-items:center;gap:6px;background:rgba(246,173,85,.1);border:1px solid rgba(246,173,85,.3);border-radius:6px;padding:4px 11px;font-size:11px;color:#f6ad55;text-decoration:none;cursor:pointer" title="Ouvrir la boîte mail">✉ Boîte mail</a>
+    <a href="#" target="_blank" id="btn-boite-mail" style="display:flex;align-items:center;gap:6px;background:rgba(246,173,85,.1);border:1px solid rgba(246,173,85,.3);border-radius:6px;padding:4px 11px;font-size:11px;color:#f6ad55;text-decoration:none;cursor:pointer" title="Ouvrir ma boîte mail dans un nouvel onglet">✉ Boîte mail</a>
     <div id="trier-status" style="display:none;align-items:center;gap:6px;background:rgba(246,173,85,.1);border:1px solid rgba(246,173,85,.3);border-radius:6px;padding:4px 11px;font-size:11px;color:#f6ad55">
       <div style="width:10px;height:10px;border:2px solid rgba(246,173,85,.3);border-top-color:#f6ad55;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
       <span>Tri en cours...</span>
@@ -4191,7 +4191,7 @@ function renderParametres(){
           </div>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);margin-top:12px;font-style:italic">Format image (PNG/JPG), 500 Ko maximum. Utilisé sur les quittances et documents exportés.</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:12px;font-style:italic">Formats acceptés : PNG, JPG. Compression et redimensionnement automatiques — importe l'image telle quelle, on s'occupe du reste.</div>
     </div>
 
     <!-- Clé API Gemini (OCR factures) -->
@@ -8778,28 +8778,71 @@ window.toggleTheme=function(){
 };
 
 // ── LOGO ET TAMPON DE LA STRUCTURE ──────────────────────────────────────
-window.uploadLogoOuTampon=function(input,type){
+// Compresse une image dans le navigateur (redimensionne + réduit la qualité JPEG)
+// jusqu'à passer sous la taille cible, sans jamais bloquer l'utilisateur sur un souci de poids de fichier.
+function compresserImage(file, maxDimension, targetBytes){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Lecture du fichier impossible'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Image illisible'));
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > maxDimension || height > maxDimension){
+          const scale = maxDimension / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); // fond blanc (le JPEG ne gère pas la transparence)
+        ctx.drawImage(img, 0, 0, width, height);
+        let quality = 0.9;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while(dataUrl.length > targetBytes && quality > 0.25){
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        resolve(dataUrl);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+window.uploadLogoOuTampon=async function(input,type){
   const file=input.files[0];
   if(!file)return;
-  if(file.size>500*1024){
-    alert('Image trop lourde (max 500 Ko). Compresse-la ou choisis-en une autre.');
+  if(file.size>20*1024*1024){
+    alert('Fichier trop lourd à traiter (max 20 Mo en entrée).');
     input.value='';
     return;
   }
-  const reader=new FileReader();
-  reader.onload=async function(){
-    const b64=reader.result;
-    try{
-      const field=type==='logo'?'logoBase64':'tamponBase64';
-      await window._setDoc(window._doc(window._db,'users',window._currentUid,'structures',window._structureId),{[field]:b64},{merge:true});
-      window._structureInfo=window._structureInfo||{};
-      window._structureInfo[field]=b64;
-      afficherApercuLogoTampon();
-    }catch(e){
-      alert('Erreur lors de l\'enregistrement : '+e.message);
+  try{
+    // Compression : 900px de côté max, cible ~350 Ko encodé (large marge pour rester sous la limite Firestore)
+    const b64=await compresserImage(file, 900, 350*1024);
+
+    // Firestore limite un document entier à 1 Mo : on vérifie logo + tampon combinés
+    const info=window._structureInfo||{};
+    const otherField=type==='logo'?'tamponBase64':'logoBase64';
+    const otherSize=(info[otherField]||'').length;
+    if(otherSize+b64.length>950000){
+      alert("Logo + tampon dépassent ensemble la limite de stockage (950 Ko encodés au total). Supprime l'autre image avant de réessayer.");
+      input.value='';
+      return;
     }
-  };
-  reader.readAsDataURL(file);
+    const field=type==='logo'?'logoBase64':'tamponBase64';
+    await window._setDoc(window._doc(window._db,'users',window._currentUid,'structures',window._structureId),{[field]:b64},{merge:true});
+    window._structureInfo=window._structureInfo||{};
+    window._structureInfo[field]=b64;
+    afficherApercuLogoTampon();
+  }catch(e){
+    alert('Erreur lors du traitement de l\'image : '+e.message);
+  }
+  input.value='';
 };
 window.supprimerLogoOuTampon=async function(type){
   const field=type==='logo'?'logoBase64':'tamponBase64';
@@ -8894,8 +8937,14 @@ function showSubTab(id){
 }
 
 // ── GOOGLE DRIVE ──────────────────────────────────────────
-const GOOGLE_CLIENT_ID = '627856663016-eiur4n4ib2k4dtcrhveeg1d6v0gunpah.apps.googleusercontent.com';
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.labels';
+// IMPORTANT : ce Client ID doit être un identifiant OAuth créé dans TON projet Google Cloud
+// GestImmo (pas un projet personnel) — voir Google Cloud Console > APIs & Services > Identifiants.
+const GOOGLE_CLIENT_ID = '658875106145-j8simu5rb93ko75hndipga72v29ohck9.apps.googleusercontent.com';
+// Scope Drive seul : "drive.file" est classé NON SENSIBLE par Google — aucune vérification
+// nécessaire, ça fonctionne pour tous les utilisateurs dès maintenant.
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+// Scope Gmail séparé, à activer plus tard (nécessite la vérification Google — voir Paramètres)
+const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.labels';
 let driveAccessToken = null;
 
 function initGoogleDrive(){
@@ -8951,18 +9000,14 @@ function connectDrive(){
 function updateDriveUI(connected){
   const connectBtn = document.getElementById('drive-connect');
   const statusBtn = document.getElementById('drive-status');
-  const gmailBtn = document.getElementById('btn-gmail');
   if(connected){
     if(connectBtn) connectBtn.style.display='none';
     if(statusBtn) statusBtn.style.display='block';
-    if(gmailBtn) gmailBtn.style.display='block';
-    const trierBtn=document.getElementById('btn-trier-boite');
-    if(trierBtn) trierBtn.style.display='block';
-    const mailBtn=document.getElementById('btn-boite-mail');
-    if(mailBtn) mailBtn.style.display='flex';
+    // Gmail reste désactivé tant que la vérification Google n'est pas faite (scope séparé désormais)
   } else {
     if(connectBtn) connectBtn.style.display='block';
     if(statusBtn) statusBtn.style.display='none';
+    const gmailBtn=document.getElementById('btn-gmail');
     if(gmailBtn) gmailBtn.style.display='none';
     const trierBtn=document.getElementById('btn-trier-boite');
     if(trierBtn) trierBtn.style.display='none';
@@ -9249,6 +9294,9 @@ async function applyGmailLabels(messages){
   console.log('Labels Gmail appliqués (sans retrait INBOX, sans filtre) — '+messages.length+' emails traités');
 }
 
+// NOTE : depuis la séparation des scopes, driveAccessToken ne contient plus que "drive.file".
+// Quand la vérification Google Gmail sera faite, il faudra une connexion OAuth séparée avec
+// GMAIL_SCOPE (voir plus haut) avant de réactiver cette fonction.
 async function scanGmail(){
   if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
   document.getElementById('gmail-modal-overlay').classList.add('open');
@@ -9461,9 +9509,11 @@ function initContexteUI(){
   if(s)s.textContent=cfg.sousTitre;
   document.title=cfg.nom+' — GestImmo';
 
-  // Lien boîte mail — désactivé (intégration Gmail personnelle à venir)
+  // Raccourci boîte mail — simple lien, aucune autorisation Google nécessaire
   const m=document.getElementById('btn-boite-mail');
-  if(m)m.style.display='none';
+  if(m && window._currentUserEmail){
+    m.href='https://mail.google.com/mail/u/?authuser='+encodeURIComponent(window._currentUserEmail);
+  }
   // Sélecteurs logements
   const logs=cfg.logements;
   [['filter-log','label',true],['f-log','label',true],['e-log','label',true],['sv-log','label',true]].forEach(([id,prop,commun])=>{
