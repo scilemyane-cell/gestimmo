@@ -4162,6 +4162,22 @@ function renderParametres(){
       </div>
     </div>
 
+    <!-- Module Construction prévisionnelle -->
+    <div class="table-wrap" style="padding:24px;margin-bottom:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">🏗️ Module Construction prévisionnelle</div>
+          <div style="font-size:11px;color:var(--text3)">Suivi de budget travaux, dashboard prévisionnel et vue par logement. À activer uniquement si cette structure porte un projet de construction/rénovation. Inutile pour la simple gestion d'un bien déjà existant.</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0">
+          <span style="font-size:12px;font-weight:600;color:${cfg.hasBudgetTravaux?'#68d391':'var(--text3)'}">${cfg.hasBudgetTravaux?'Activé':'Désactivé'}</span>
+          <span onclick="toggleBudgetTravaux()" style="width:44px;height:24px;border-radius:100px;background:${cfg.hasBudgetTravaux?'#68d391':'rgba(255,255,255,.15)'};position:relative;transition:.2s;display:inline-block">
+            <span style="position:absolute;top:2px;left:${cfg.hasBudgetTravaux?'22px':'2px'};width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s"></span>
+          </span>
+        </label>
+      </div>
+    </div>
+
     <!-- Logo et tampon -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
       <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px">🖼️ Logo et tampon de la structure</div>
@@ -8879,6 +8895,24 @@ function afficherApercuLogoTampon(){
   }
 }
 
+// ── ACTIVER / DÉSACTIVER LE MODULE CONSTRUCTION PRÉVISIONNELLE ──────────
+window.toggleBudgetTravaux=async function(){
+  const nouvelEtat = !CTX_CONFIG[CTX].hasBudgetTravaux;
+  if(!nouvelEtat){
+    if(!confirm("Désactiver le module Construction prévisionnelle ?\n\nLes données déjà saisies (budget, etc.) ne seront pas supprimées — tu pourras réactiver le module plus tard pour les retrouver.")) return;
+  }
+  try{
+    await window._setDoc(window._doc(window._db,'users',window._currentUid,'structures',window._structureId),{hasBudgetTravaux:nouvelEtat},{merge:true});
+    window._structureInfo=window._structureInfo||{};
+    window._structureInfo.hasBudgetTravaux=nouvelEtat;
+    CTX_CONFIG[CTX].hasBudgetTravaux=nouvelEtat;
+    renderParametres();
+    renderNavigation('parametres');
+  }catch(e){
+    alert('Erreur : '+e.message);
+  }
+};
+
 function logout(){
   if(window._signOut) window._signOut();
   window.location.href = 'index.html';
@@ -10045,7 +10079,7 @@ window._authReady.then(async () => {
     couleur: '#63b3ed',
     gmail: window._currentUserEmail || '',
     driveFolderName: (info.nom || 'Structure') + ' Factures',
-    hasBudgetTravaux: true,
+    hasBudgetTravaux: info.hasBudgetTravaux !== false, // activé par défaut, désactivable dans Paramètres
     defaultLogements: []
   };
 
