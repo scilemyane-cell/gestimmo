@@ -27,6 +27,7 @@ window._authReady = new Promise((resolve) => { window._authReadyResolve = resolv
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
 <script>
@@ -946,6 +947,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         </button>
         <button type="button" onclick="document.getElementById('f-camera').click()" style="flex:1;min-width:150px;background:rgba(104,211,145,.1);border:1.5px dashed rgba(104,211,145,.4);border-radius:10px;padding:18px 14px;color:#68d391;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
           📷 Prendre une photo<br><small style="font-size:10px;color:var(--text3);font-weight:400">Appareil photo</small>
+        </button>
+        <button type="button" onclick="openDrivePicker('facture')" style="flex:1;min-width:150px;background:rgba(246,173,85,.1);border:1.5px dashed rgba(246,173,85,.4);border-radius:10px;padding:18px 14px;color:#f6ad55;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+          📂 Depuis Google Drive<br><small style="font-size:10px;color:var(--text3);font-weight:400">Fichier déjà existant</small>
         </button>
       </div>
       <input type="file" accept="application/pdf,image/*" id="f-pdf" onchange="onFileChange(event)" style="display:none">
@@ -8997,6 +9001,55 @@ function connectDrive(){
   client.requestAccessToken();
 }
 
+// ── GOOGLE PICKER : importer un fichier déjà existant depuis Drive ──────────
+// IMPORTANT : à remplacer par la vraie clé API du projet gestimmo-app
+// (Google Cloud Console > API et services > Identifiants > "Clé API").
+const GOOGLE_PICKER_API_KEY = 'REMPLACER_PAR_LA_CLE_API_GESTIMMO';
+let pickerApiLoaded = false;
+function gapiLoaded(){
+  gapi.load('picker', () => { pickerApiLoaded = true; });
+}
+
+window.openDrivePicker = function(cible){
+  if(!driveAccessToken){
+    alert("Connecte d'abord Google Drive (bouton \"📁 Connecter Drive\" en haut à droite) avant d'importer un fichier existant.");
+    return;
+  }
+  if(!pickerApiLoaded || typeof google === 'undefined' || !google.picker){
+    alert("Le sélecteur Google Drive n'est pas encore prêt, réessaie dans quelques secondes.");
+    return;
+  }
+  const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+    .setMimeTypes('application/pdf,image/png,image/jpeg,image/jpg')
+    .setSelectFolderEnabled(false);
+  const picker = new google.picker.PickerBuilder()
+    .setOAuthToken(driveAccessToken)
+    .setDeveloperKey(GOOGLE_PICKER_API_KEY)
+    .addView(view)
+    .setTitle('Choisis une facture déjà présente dans ton Drive')
+    .setCallback((data) => onDrivePickerResult(data, cible))
+    .build();
+  picker.setVisible(true);
+};
+
+async function onDrivePickerResult(data, cible){
+  if(data.action !== google.picker.Action.PICKED) return;
+  const doc = data.docs[0];
+  if(!doc) return;
+  try{
+    const resp = await fetch('https://www.googleapis.com/drive/v3/files/'+doc.id+'?alt=media', {
+      headers: { 'Authorization': 'Bearer '+driveAccessToken }
+    });
+    if(!resp.ok) throw new Error('Téléchargement du fichier Drive impossible (code '+resp.status+')');
+    const blob = await resp.blob();
+    const file = new File([blob], doc.name, { type: doc.mimeType || blob.type });
+    // Réutilise exactement le même traitement qu'un fichier choisi localement
+    if(cible === 'facture') await processFile(file, false);
+  }catch(e){
+    alert('Erreur lors de l\'import depuis Drive : '+e.message);
+  }
+}
+
 function updateDriveUI(connected){
   const connectBtn = document.getElementById('drive-connect');
   const statusBtn = document.getElementById('drive-status');
@@ -9566,8 +9619,8 @@ async function ouvrirDossierDrive(){
     window.open('https://drive.google.com/drive/folders/'+yearFolderId,'_blank');
   } else {
     // Ouvrir le dossier racine si pas de dossier pour cette année
-    if(confirm('Aucun dossier trouvé pour '+year+' sur Drive.\nOuvrir le dossier principal SCI Lemyane Factures ?')){
-      window.open('https://drive.google.com/drive/search?q=SCI%20Lemyane%20Factures','_blank');
+    if(confirm('Aucun dossier trouvé pour '+year+' sur Drive.\nOuvrir le dossier principal '+getCTXConfig().driveFolderName+' ?')){
+      window.open('https://drive.google.com/drive/search?q='+encodeURIComponent(getCTXConfig().driveFolderName),'_blank');
     }
   }
 }
@@ -9641,7 +9694,7 @@ async function nettoyerDoublonsDrive(){
     const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
     if(!rootId){
       btn.innerHTML='🧹 Nettoyer doublons Drive';btn.disabled=false;
-      alert('Dossier "SCI Lemyane Factures" introuvable sur Drive.');
+      alert('Dossier "'+getCTXConfig().driveFolderName+'" introuvable sur Drive.');
       return;
     }
 
@@ -9745,7 +9798,7 @@ async function ouvrirDossierDriveAnnee(){
     const dataRoot=await respRoot.json();
     const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
     if(!rootId){
-      alert('Dossier "SCI Lemyane Factures" introuvable sur Drive. Lance d\'abord une synchronisation (☁ Sync Drive) pour le créer.');
+      alert('Dossier "'+getCTXConfig().driveFolderName+'" introuvable sur Drive. Lance d\'abord une synchronisation (☁ Sync Drive) pour le créer.');
       return;
     }
     // Chercher le sous-dossier de l'année demandée
