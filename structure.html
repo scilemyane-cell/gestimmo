@@ -907,13 +907,23 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         </div>
       </div>
       <div class="form-group"><label>Catégorie</label><select id="f-cat"></select></div>
-      <div class="form-group"><label>Logement</label>
+      <div class="form-group" id="f-log-group"><label>Logement</label>
         <select id="f-log">
           <option value="Logement A">Logement A</option>
           <option value="Logement B">Logement B</option>
           <option value="Logement C">Logement C</option>
           <option value="Commun">Commun / Global</option>
         </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="f-split-toggle" onchange="toggleFactureSplit()" style="width:16px;height:16px;cursor:pointer">
+          <span>Répartir cette facture sur plusieurs logements (ex : achat Leroy Merlin pour 2 chantiers à la fois)</span>
+        </label>
+        <div id="f-split-panel" style="display:none;margin-top:10px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Le montant TTC sera divisé à parts égales entre les logements cochés. Une ligne de facture distincte sera créée pour chacun.</div>
+          <div id="f-split-checkboxes" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
       </div>
       <div class="form-group"><label>Statut paiement</label>
         <select id="f-statut">
@@ -1314,10 +1324,7 @@ const CAT_HORS_RENTABILITE=CATEGORIES.filter(c=>c.type==='hors_rentabilite').map
 function getCatType(name){const c=CATEGORIES.find(x=>x.name===name);return c?c.type:'travaux';}
 let LOGS=[];
 function refreshLOGS(){
-  LOGS=[
-    ...getLogementsActifs().filter(l=>l.hasPrevisionnel!==false).map(l=>({key:l.label, prevKey:l.key, color:l.color})),
-    {key:"Commun", prevKey:"com", color:"#b794f4"}
-  ];
+  LOGS=getLogementsActifs().filter(l=>l.hasPrevisionnel!==false).map(l=>({key:l.label, prevKey:l.key, color:l.color}));
 }
 
 let editIdx=null;
@@ -1496,7 +1503,7 @@ function getReelTotals(factures){
 // Totaux TTC par catégorie ET logement (pour tableau miroir)
 function getReelMatrix(factures){
   const matrix={};
-  const nLogs=LOGS.length-1; // hors "Commun"
+  const nLogs=LOGS.length; // LOGS ne contient plus que les vrais logements ("Commun" retiré du prévisionnel)
   CATEGORIES.forEach(cat=>{
     const row={com:0,total:0};
     LOGS.forEach(l=>{ if(l.prevKey!=='com') row[l.prevKey]=0; });
@@ -1774,22 +1781,26 @@ function clearUpload(isEdit){
 
 // ── TABS ─────────────────────────────────────────────────────────────────
 // ── NAVIGATION (groupes + sous-onglets) ────────────────────────────────────
+function getModulesConfig(){
+  const cfg = CTX_CONFIG[CTX] || {};
+  const m = cfg.modules || {};
+  return {
+    construction: cfg.hasBudgetTravaux !== false, // rétrocompatible avec l'ancien interrupteur
+    comptabilite: m.comptabilite !== false,
+    locataires: m.locataires !== false,
+    financement: m.financement !== false
+  };
+}
 function getTabGroups(){
   const paramGroup={id:'parametres',label:'⚙️ Paramètres',tabs:['parametres']};
-  const hasBudgetTravaux = CTX_CONFIG[CTX] ? CTX_CONFIG[CTX].hasBudgetTravaux : true;
-  if(!hasBudgetTravaux){return[
-    {id:'comptabilite',label:'🧾 Comptabilité',tabs:['factures','annuel','saisie','charges-recurrentes']},
-    {id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']},
-    {id:'financement',label:'💰 Financement',tabs:['financement']},
-    paramGroup
-  ];}
-  return[
-    {id:'construction',label:'🏗️ Construction prévisionnelle',tabs:['synthese','logements','budget','dashboard']},
-    {id:'comptabilite',label:'🧾 Comptabilité',tabs:['factures','annuel','saisie','charges-recurrentes']},
-    {id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']},
-    {id:'financement',label:'💰 Financement',tabs:['projection','financement']},
-    paramGroup
-  ];
+  const mods = getModulesConfig();
+  const groups = [];
+  if(mods.construction) groups.push({id:'construction',label:'🏗️ Construction prévisionnelle',tabs:['synthese','logements','budget','dashboard']});
+  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['factures','annuel','saisie','charges-recurrentes']});
+  if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']});
+  if(mods.financement) groups.push({id:'financement',label:'💰 Financement',tabs:['projection','financement']});
+  groups.push(paramGroup);
+  return groups;
 }
 function getTabLabels(){return{
   synthese:'Synthèse',logements:'Par logement',budget:'Budget prévisionnel',dashboard:'📊 Dashboard Prév.',
@@ -2240,32 +2251,61 @@ function ajouterFacture(){
   const four=document.getElementById('f-four').value.trim();
   if(!four||ttcInput<=0){alert('Fournisseur et montant TTC requis.');return;}
   const tva=parseFloat(document.getElementById('f-tva').value)||20;
-  const ht=+(ttcInput/(1+tva/100)).toFixed(2);
+
+  const isSplit=document.getElementById('f-split-toggle').checked;
+  const splitLogs=isSplit?Array.from(document.querySelectorAll('.f-split-log:checked')).map(el=>el.value):[];
+  if(isSplit && splitLogs.length<2){
+    alert('Coche au moins 2 logements pour répartir cette facture, ou décoche la case pour la saisir normalement.');
+    return;
+  }
+
   const d=loadData();
-  const newIdx=d.factures.length;
-  d.factures.push({
-    num:document.getElementById('f-num').value.trim(),
-    date:document.getElementById('f-date').value,
-    datepay:document.getElementById('f-datepay').value,
-    four,
-    cat:document.getElementById('f-cat').value,
-    log:document.getElementById('f-log').value,
-    ht,tva,ttc:ttcInput,
-    statut:document.getElementById('f-statut').value,
-    regleby:document.getElementById('f-regleby').value,
-    cmd:document.getElementById('f-cmd').value.trim(),
-    desc:document.getElementById('f-desc').value.trim(),
-    hasPdf:!!pendingPdfB64,
-    inclus:true
+  const cibles=isSplit?splitLogs:[document.getElementById('f-log').value];
+  const nbParts=cibles.length;
+  const splitGroupId=isSplit?('SPLIT-'+Date.now().toString(36)):null;
+  const baseNum=document.getElementById('f-num').value.trim();
+  const baseCmd=document.getElementById('f-cmd').value.trim();
+  const baseDesc=document.getElementById('f-desc').value.trim();
+  const startIdx=d.factures.length;
+  const newIdxs=[];
+
+  cibles.forEach((logVal,i)=>{
+    const partTtc=+(ttcInput/nbParts).toFixed(2);
+    const partHt=+(partTtc/(1+tva/100)).toFixed(2);
+    d.factures.push({
+      num: isSplit ? (baseNum?baseNum+'-'+(i+1):'') : baseNum,
+      date:document.getElementById('f-date').value,
+      datepay:document.getElementById('f-datepay').value,
+      four,
+      cat:document.getElementById('f-cat').value,
+      log:logVal,
+      ht:partHt,tva,ttc:partTtc,
+      statut:document.getElementById('f-statut').value,
+      regleby:document.getElementById('f-regleby').value,
+      cmd:baseCmd,
+      desc: isSplit ? (baseDesc?baseDesc+' (part '+(i+1)+'/'+nbParts+')':'Part '+(i+1)+'/'+nbParts+' d\'une facture répartie') : baseDesc,
+      hasPdf:!!pendingPdfB64,
+      inclus:true,
+      splitGroupId
+    });
+    newIdxs.push(startIdx+i);
   });
+
   const ok=saveFactures(d.factures);
   if(!ok){alert('Erreur de stockage — données trop volumineuses.');return;}
   if(pendingPdfB64){
-    const fnum=document.getElementById('f-num').value||'FAC-'+(newIdx+1);
-    const fcmd=document.getElementById('f-cmd').value;
     const ffour=(document.getElementById('f-four').value||'facture').replace(/[^a-zA-Z0-9]/g,'_');
-    const fname=fnum+(fcmd?'_BC'+fcmd.replace(/[^a-zA-Z0-9]/g,'_'):'')+'_'+ffour+'.pdf';
-    savePdfWithDrive(newIdx, pendingPdfB64, fname);
+    newIdxs.forEach((newIdx,i)=>{
+      const fnum=d.factures[newIdx].num||'FAC-'+(newIdx+1);
+      const fcmd=baseCmd;
+      const fname=fnum+(fcmd?'_BC'+fcmd.replace(/[^a-zA-Z0-9]/g,'_'):'')+'_'+ffour+'.pdf';
+      savePdfWithDrive(newIdx, pendingPdfB64, fname);
+    });
+  }
+  if(isSplit){
+    document.getElementById('f-split-toggle').checked=false;
+    toggleFactureSplit();
+    document.querySelectorAll('.f-split-log').forEach(el=>el.checked=false);
   }
   ['f-num','f-date','f-datepay','f-four','f-ttc','f-desc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-regleby').value='';
@@ -4114,6 +4154,7 @@ function renderParametres(){
   if(!container)return;
   const logs=loadLogements();
   const cfg=CTX_CONFIG[CTX];
+  const mods=getModulesConfig();
 
   container.innerHTML=`
     <div class="section-title">⚙️ Paramètres — ${cfg.nom}</div>
@@ -4162,19 +4203,30 @@ function renderParametres(){
       </div>
     </div>
 
-    <!-- Module Construction prévisionnelle -->
+    <!-- Modules activables -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
-        <div style="flex:1;min-width:240px">
-          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">🏗️ Module Construction prévisionnelle</div>
-          <div style="font-size:11px;color:var(--text3)">Suivi de budget travaux, dashboard prévisionnel et vue par logement. À activer uniquement si cette structure porte un projet de construction/rénovation. Inutile pour la simple gestion d'un bien déjà existant.</div>
-        </div>
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0">
-          <span style="font-size:12px;font-weight:600;color:${cfg.hasBudgetTravaux?'#68d391':'var(--text3)'}">${cfg.hasBudgetTravaux?'Activé':'Désactivé'}</span>
-          <span onclick="toggleBudgetTravaux()" style="width:44px;height:24px;border-radius:100px;background:${cfg.hasBudgetTravaux?'#68d391':'rgba(255,255,255,.15)'};position:relative;transition:.2s;display:inline-block">
-            <span style="position:absolute;top:2px;left:${cfg.hasBudgetTravaux?'22px':'2px'};width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s"></span>
-          </span>
-        </label>
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">🧩 Modules de l'application</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:18px">Active uniquement ce dont tu as besoin pour cette structure. Désactiver un module ne supprime aucune donnée déjà saisie — tu peux le réactiver à tout moment.</div>
+      <div style="display:flex;flex-direction:column;gap:14px" id="modules-list">
+        ${[
+          {id:'construction', icon:'🏗️', label:'Construction prévisionnelle', desc:'Budget travaux, dashboard prévisionnel, vue par logement. Utile uniquement pour un projet de construction/rénovation.'},
+          {id:'comptabilite', icon:'🧾', label:'Comptabilité', desc:'Saisie et suivi des factures, récapitulatif annuel, charges récurrentes.'},
+          {id:'locataires', icon:'🏠', label:'Locataires', desc:'Fiches locataires, quittances, gestion locative, rentabilité.'},
+          {id:'financement', icon:'💰', label:'Financement', desc:'Projection 20 ans, suivi de crédit et charges.'}
+        ].map(mod=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px">
+            <div style="flex:1;min-width:220px">
+              <div style="font-size:13px;font-weight:600;color:var(--text)">${mod.icon} ${mod.label}</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px">${mod.desc}</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0">
+              <span style="font-size:11px;font-weight:600;color:${mods[mod.id]?'#68d391':'var(--text3)'}">${mods[mod.id]?'Activé':'Désactivé'}</span>
+              <span onclick="toggleModule('${mod.id}')" style="width:40px;height:22px;border-radius:100px;background:${mods[mod.id]?'#68d391':'rgba(255,255,255,.15)'};position:relative;transition:.2s;display:inline-block">
+                <span style="position:absolute;top:2px;left:${mods[mod.id]?'20px':'2px'};width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s"></span>
+              </span>
+            </label>
+          </div>
+        `).join('')}
       </div>
     </div>
 
@@ -4254,7 +4306,7 @@ function renderParametres(){
             </div>
             <input type="hidden" id="ml-color" value="${LOG_COLORS[0]}">
           </div>
-          <div class="form-group" id="ml-previsionnel-group" style="display:none">
+          <div class="form-group" id="ml-previsionnel-group" style="display:none;grid-column:1/-1">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
               <input type="checkbox" id="ml-previsionnel" checked style="width:16px;height:16px;cursor:pointer">
               <span>Inclure ce logement dans le prévisionnel (budget travaux, dashboard)</span>
@@ -8908,20 +8960,43 @@ function afficherApercuLogoTampon(){
 }
 
 // ── ACTIVER / DÉSACTIVER LE MODULE CONSTRUCTION PRÉVISIONNELLE ──────────
-window.toggleBudgetTravaux=async function(){
-  const nouvelEtat = !CTX_CONFIG[CTX].hasBudgetTravaux;
+const MODULE_LABELS={construction:'Construction prévisionnelle',comptabilite:'Comptabilité',locataires:'Locataires',financement:'Financement'};
+window.toggleModule=async function(moduleId){
+  const mods=getModulesConfig();
+  const nouvelEtat=!mods[moduleId];
   if(!nouvelEtat){
-    if(!confirm("Désactiver le module Construction prévisionnelle ?\n\nLes données déjà saisies (budget, etc.) ne seront pas supprimées — tu pourras réactiver le module plus tard pour les retrouver.")) return;
+    if(!confirm(`Désactiver le module "${MODULE_LABELS[moduleId]||moduleId}" ?\n\nLes données déjà saisies ne seront pas supprimées — tu pourras réactiver le module plus tard pour les retrouver.`)) return;
   }
   try{
-    await window._setDoc(window._doc(window._db,'users',window._currentUid,'structures',window._structureId),{hasBudgetTravaux:nouvelEtat},{merge:true});
+    const info=window._structureInfo||{};
+    const newModules={...(info.modules||{}), [moduleId]:nouvelEtat};
+    const updateData={modules:newModules};
+    if(moduleId==='construction') updateData.hasBudgetTravaux=nouvelEtat; // rétrocompatibilité
+    await window._setDoc(window._doc(window._db,'users',window._currentUid,'structures',window._structureId),updateData,{merge:true});
     window._structureInfo=window._structureInfo||{};
-    window._structureInfo.hasBudgetTravaux=nouvelEtat;
-    CTX_CONFIG[CTX].hasBudgetTravaux=nouvelEtat;
+    window._structureInfo.modules=newModules;
+    if(moduleId==='construction') window._structureInfo.hasBudgetTravaux=nouvelEtat;
+    CTX_CONFIG[CTX].modules=newModules;
+    if(moduleId==='construction') CTX_CONFIG[CTX].hasBudgetTravaux=nouvelEtat;
     renderParametres();
     renderNavigation('parametres');
   }catch(e){
     alert('Erreur : '+e.message);
+  }
+};
+
+// ── RÉPARTITION D'UNE FACTURE SUR PLUSIEURS LOGEMENTS ───────────────────
+window.toggleFactureSplit=function(){
+  const on=document.getElementById('f-split-toggle').checked;
+  document.getElementById('f-log-group').style.display=on?'none':'block';
+  document.getElementById('f-split-panel').style.display=on?'block':'none';
+  if(on){
+    const cfg=getCTXConfig();
+    document.getElementById('f-split-checkboxes').innerHTML=cfg.logements.map(l=>`
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
+        <input type="checkbox" class="f-split-log" value="${l.label.replace(/"/g,'&quot;')}" style="width:15px;height:15px;cursor:pointer">
+        <span>${l.label}</span>
+      </label>`).join('');
   }
 };
 
@@ -10091,7 +10166,8 @@ window._authReady.then(async () => {
     couleur: '#63b3ed',
     gmail: window._currentUserEmail || '',
     driveFolderName: (info.nom || 'Structure') + ' Factures',
-    hasBudgetTravaux: info.hasBudgetTravaux !== false, // activé par défaut, désactivable dans Paramètres
+    hasBudgetTravaux: info.hasBudgetTravaux !== false, // activé par défaut, désactivable dans Paramètres (rétrocompatibilité)
+    modules: info.modules || {},
     defaultLogements: []
   };
 
