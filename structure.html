@@ -2004,6 +2004,10 @@ function renderBudget(){
     LOGS.map(l=>`<div class="bg-th" style="text-align:right">${l.key} TTC</div>`).join('')+
     '<div class="bg-th" style="text-align:right">Total TTC</div>';
   CATEGORIES.filter(cat=>cat.type!=='hors_rentabilite').forEach(cat=>{
+    const hdr=document.createElement('div');hdr.className='bg-cat-hdr';hdr.style.color=cat.color;
+    hdr.innerHTML=`<span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>${cat.name}`;
+    grid.appendChild(hdr);
+    const rows=budget[cat.name]||[];
     rows.forEach((row,idx)=>{
       [{field:'desc',cls:'desc'},...LOGS.map(l=>({field:l.prevKey}))].forEach(col=>{
         const td=document.createElement('div');td.className='bg-td'+(col.cls?' '+col.cls:'');
