@@ -195,6 +195,25 @@ async function checkDestVide(){
 const obs=new MutationObserver(()=>{ document.getElementById('sel-dest')?.addEventListener('change',checkDestVide); });
 obs.observe(document.getElementById('sel-dest'),{childList:true});
 
+function remapperBudget(budget){
+  // L'ancienne app stockait les montants par logement sous des lettres minuscules
+  // (a, b, c) alors que les vrais logements utilisent leur clé en majuscules (A, B, C).
+  // On corrige ce décalage une bonne fois pour toutes au moment de l'import.
+  const mapping={a:'A',b:'B',c:'C'};
+  const budgetCorrige={};
+  Object.keys(budget||{}).forEach(catName=>{
+    budgetCorrige[catName]=(budget[catName]||[]).map(row=>{
+      const nouvelleRow={desc:row.desc||''};
+      Object.keys(mapping).forEach(anciennelettre=>{
+        nouvelleRow[mapping[anciennelettre]] = row[anciennelettre] || 0;
+      });
+      if(row.com!==undefined) nouvelleRow.com = row.com;
+      return nouvelleRow;
+    });
+  });
+  return budgetCorrige;
+}
+
 window.lancerImport = async function(){
   const structureId=document.getElementById('sel-dest').value;
   const msg=document.getElementById('msg-import');
@@ -206,7 +225,7 @@ window.lancerImport = async function(){
   msg.className='msg info';msg.textContent='Import en cours...';
   try{
     await setDoc(doc(dbGestimmo,'users',currentUser.uid,'structures',structureId,'appdata','data'), {
-      budget: sourceData.budget || {},
+      budget: remapperBudget(sourceData.budget || {}),
       factures: sourceData.factures || [],
       fin: sourceData.fin || {},
       locataires: sourceData.locataires || [],
