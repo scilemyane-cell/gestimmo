@@ -38,6 +38,7 @@ select,input{width:100%;background:var(--bg3);border:1px solid var(--border);bor
   <div class="card">
     <div class="step-title"><span class="step-num">1</span> Connexion à GestImmo</div>
     <button class="btn" id="btn-login" onclick="seConnecter()">Se connecter avec Google</button>
+    <button class="btn btn-danger hidden" id="btn-switch" onclick="seDeconnecterImport()" style="margin-top:8px">Changer de compte</button>
     <div class="msg" id="msg-login"></div>
   </div>
 
@@ -63,7 +64,7 @@ select,input{width:100%;background:var(--bg3);border:1px solid var(--border);bor
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // Projet GestImmo (destination)
@@ -96,11 +97,17 @@ let sourceData = null;
 
 window.seConnecter = async function(){
   try{
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    await signInWithPopup(auth, provider);
   }catch(e){
     document.getElementById('msg-login').className='msg error';
     document.getElementById('msg-login').textContent='Erreur de connexion : '+e.message;
   }
+};
+window.seDeconnecterImport = async function(){
+  await signOut(auth);
+  location.reload();
 };
 
 onAuthStateChanged(auth, async (user) => {
@@ -108,6 +115,7 @@ onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   document.getElementById('btn-login').textContent='✓ Connecté : '+user.email;
   document.getElementById('btn-login').disabled=true;
+  document.getElementById('btn-switch').classList.remove('hidden');
   document.getElementById('msg-login').className='msg success';
   document.getElementById('msg-login').textContent='Connecté avec succès.';
   document.getElementById('card-source').classList.remove('hidden');
