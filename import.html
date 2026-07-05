@@ -171,6 +171,16 @@ window.chargerApercu = async function(){
     msg.className='msg success';msg.textContent='Données chargées. Choisis la structure de destination ci-dessous.';
     document.getElementById('card-dest').classList.remove('hidden');
     document.getElementById('btn-import').disabled=false;
+
+    // Debug : afficher le JSON brut d'une catégorie de budget pour diagnostic
+    const debugDiv=document.createElement('div');
+    debugDiv.style.cssText='margin-top:14px;font-size:10px;color:var(--text3)';
+    const premiereCat=Object.keys(sourceData.budget||{})[0];
+    if(premiereCat){
+      debugDiv.innerHTML='<b>Debug — première catégorie ("'+premiereCat+'") telle que stockée :</b><pre style="white-space:pre-wrap;background:var(--bg);padding:10px;border-radius:6px;margin-top:6px;overflow-x:auto">'+
+        JSON.stringify(sourceData.budget[premiereCat], null, 2).replace(/</g,'&lt;')+'</pre>';
+    }
+    preview.appendChild(debugDiv);
   }catch(e){
     msg.className='msg error';
     msg.textContent='Erreur : '+e.message;
