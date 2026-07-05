@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'mobile/**'
+      - '*.html'
   workflow_dispatch:
 
 jobs:
@@ -17,6 +18,14 @@ jobs:
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v4
+
+      - name: Copier les pages web à jour dans mobile/www
+        run: |
+          cp ../index.html www/index.html
+          cp ../dashboard.html www/dashboard.html
+          cp ../structure.html www/structure.html
+          cp ../holding.html www/holding.html 2>/dev/null || true
+          cp ../import.html www/import.html 2>/dev/null || true
 
       - name: Installer Java 21
         uses: actions/setup-java@v4
