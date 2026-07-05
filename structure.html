@@ -2003,7 +2003,17 @@ function renderBudget(){
   grid.innerHTML='<div class="bg-th">Description</div>'+
     LOGS.map(l=>`<div class="bg-th" style="text-align:right">${l.key} TTC</div>`).join('')+
     '<div class="bg-th" style="text-align:right">Total TTC</div>';
+  let lastType=null;
   CATEGORIES.filter(cat=>cat.type!=='hors_rentabilite').forEach(cat=>{
+    if(cat.type!==lastType){
+      lastType=cat.type;
+      const sectionLabel=cat.type==='travaux'?'🔨 TRAVAUX (INVESTISSEMENT)':'📋 FONCTIONNEMENT (CHARGES RÉCURRENTES)';
+      const sectionColor=cat.type==='travaux'?'#63b3ed':'#68d391';
+      const section=document.createElement('div');
+      section.style.cssText=`grid-column:1/-1;padding:14px 12px 6px;font-size:11px;font-weight:700;letter-spacing:.6px;color:${sectionColor};border-top:2px solid ${sectionColor}33;margin-top:8px`;
+      section.textContent=sectionLabel;
+      grid.appendChild(section);
+    }
     const hdr=document.createElement('div');hdr.className='bg-cat-hdr';hdr.style.color=cat.color;
     hdr.innerHTML=`<span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>${cat.name}`;
     grid.appendChild(hdr);
@@ -2063,10 +2073,21 @@ function renderReelGrid(){
 
   const totals=LOGS.map(()=>0);
   let totAll=0;
+  let lastType=null;
+  const TYPE_LABELS={travaux:'🔨 TRAVAUX (INVESTISSEMENT)',fonctionnement:'📋 FONCTIONNEMENT (CHARGES RÉCURRENTES)',hors_rentabilite:'⛔ HORS RENTABILITÉ (EXCLU DU CALCUL)'};
+  const TYPE_COLORS={travaux:'#63b3ed',fonctionnement:'#68d391',hors_rentabilite:'#a0aec0'};
   CATEGORIES.forEach(cat=>{
     const m=matrix[cat.name]||{};
     LOGS.forEach((l,i)=>{ totals[i]+=m[l.prevKey]||0; });
     totAll+=m.total||0;
+
+    if(cat.type!==lastType){
+      lastType=cat.type;
+      const section=document.createElement('div');
+      section.style.cssText=`grid-column:1/-1;padding:14px 12px 6px;font-size:11px;font-weight:700;letter-spacing:.6px;color:${TYPE_COLORS[cat.type]};border-top:2px solid ${TYPE_COLORS[cat.type]}33;margin-top:8px`;
+      section.textContent=TYPE_LABELS[cat.type]||cat.type;
+      grid.appendChild(section);
+    }
 
     // En-tête catégorie
     const hdr=document.createElement('div');hdr.className='bg-cat-hdr';
