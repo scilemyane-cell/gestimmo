@@ -9089,7 +9089,7 @@ function showSubTab(id){
 const GOOGLE_CLIENT_ID = '658875106145-j8simu5rb93ko75hndipga72v29ohck9.apps.googleusercontent.com';
 // Scope Drive seul : "drive.file" est classé NON SENSIBLE par Google — aucune vérification
 // nécessaire, ça fonctionne pour tous les utilisateurs dès maintenant.
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
 // Scope Gmail séparé, à activer plus tard (nécessite la vérification Google — voir Paramètres)
 const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.labels';
 let driveAccessToken = null;
