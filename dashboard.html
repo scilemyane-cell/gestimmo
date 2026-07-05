@@ -141,7 +141,7 @@ body::after{
 .form-group input,.form-group select,.form-group textarea{width:100%;padding:11px 14px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;font-family:var(--font-body);transition:.2s;outline:none}
 .form-group input:focus,.form-group select:focus{border-color:var(--cyan);background:rgba(79,216,255,.05)}
 .form-group select option{background:var(--bg2)}
-.types-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+.types-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
 .type-option{padding:10px 8px;background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:6px;text-align:center;cursor:pointer;transition:.2s;font-size:10px;font-weight:600;font-family:var(--font-mono);letter-spacing:.02em}
 .type-option:hover{border-color:var(--cyan)}
 .type-option.selected{border-color:var(--cyan);background:rgba(79,216,255,.1);color:var(--cyan)}
@@ -249,6 +249,7 @@ body::after{
         <div class="type-option" data-type="LMP" onclick="selectionnerType(this)"><div class="type-icon">💼</div>LMP</div>
         <div class="type-option" data-type="NU_IR" onclick="selectionnerType(this)"><div class="type-icon">📋</div>Location nue</div>
         <div class="type-option" data-type="NOM_PROPRE" onclick="selectionnerType(this)"><div class="type-icon">👤</div>Nom propre</div>
+        <div class="type-option" data-type="HOLDING" onclick="selectionnerType(this)"><div class="type-icon">🏛️</div>Holding</div>
       </div>
     </div>
 
@@ -298,7 +299,7 @@ body::after{
     <div class="modal-sub">Action <strong style="color:var(--text)">définitive</strong>. Toutes les données associées (logements, locataires, factures...) seront perdues.</div>
     <div class="form-group">
       <label>Tape le nom exact « <span id="supp-nom-cible" style="color:var(--text);text-transform:none"></span> » pour confirmer</label>
-      <input type="text" id="supp-nom-input" placeholder="Nom de la structure" oninput="document.getElementById('btn-confirmer-suppression').disabled = this.value !== window._structNomASupprimer">
+      <input type="text" id="supp-nom-input" placeholder="Nom de la structure" oninput="document.getElementById('btn-confirmer-suppression').disabled = !nomsCorrespondent(this.value, window._structNomASupprimer)">
     </div>
     <button class="btn-save danger" id="btn-confirmer-suppression" disabled onclick="confirmerSuppressionStructure()">🗑 Supprimer définitivement</button>
   </div>
@@ -374,7 +375,7 @@ async function chargerDashboard(user){
 
 const TYPE_LABELS = {
   LMNP:'LMNP', SCI_IR:'SCI-IR', SCI_IS:'SCI-IS',
-  LMP:'LMP', NU_IR:'Location nue', NOM_PROPRE:'Nom propre'
+  LMP:'LMP', NU_IR:'Location nue', NOM_PROPRE:'Nom propre', HOLDING:'Holding'
 };
 
 // ── Helpers de calcul des stats réelles (répliqués depuis structure.html) ──
@@ -415,6 +416,25 @@ async function chargerStatsStructure(uid, structureId){
   } catch(e){
     console.warn('Stats indisponibles pour', structureId, e);
     return { logements: 0, locataires: 0, loyers: 0 };
+  }
+}
+async function chargerStatsHolding(uid, structureId){
+  try {
+    const snap = await getDoc(doc(db, 'users', uid, 'structures', structureId, 'appdata', 'data'));
+    if(!snap.exists()) return { participations: 0, solde_cca: 0, dividendes: 0 };
+    const ad = snap.data();
+    const participations = Array.isArray(ad.participations) ? ad.participations : [];
+    const cca = Array.isArray(ad.cca) ? ad.cca : [];
+    const dividendes = Array.isArray(ad.dividendes) ? ad.dividendes : [];
+    const soldeCca = cca.reduce((sum, filiale) => {
+      const mouvements = Array.isArray(filiale.mouvements) ? filiale.mouvements : [];
+      return sum + mouvements.reduce((s, m) => s + (m.sens === 'remboursement' ? -(+m.montant||0) : (+m.montant||0)), 0);
+    }, 0);
+    const totalDividendes = dividendes.reduce((sum, d) => sum + (+d.montant||0), 0);
+    return { participations: participations.length, solde_cca: soldeCca, dividendes: totalDividendes };
+  } catch(e){
+    console.warn('Stats holding indisponibles pour', structureId, e);
+    return { participations: 0, solde_cca: 0, dividendes: 0 };
   }
 }
 
@@ -475,13 +495,39 @@ async function chargerStructures(uid){
     snap.forEach(d => structures.push({ id: d.id, ...d.data() }));
     renderOrbit(structures);
 
-    const statsList = await Promise.all(structures.map(s => chargerStatsStructure(uid, s.id)));
+    const statsList = await Promise.all(structures.map(s => s.type === 'HOLDING' ? chargerStatsHolding(uid, s.id) : chargerStatsStructure(uid, s.id)));
 
     let html = '';
     structures.forEach((s, i) => {
-      const stats = statsList[i] || { logements: 0, locataires: 0, loyers: 0 };
+      const isHolding = s.type === 'HOLDING';
+      const stats = statsList[i] || {};
+      const statsBlock = isHolding ? `
+            <div class="structure-stat">
+              <div class="structure-stat-val" style="color:${s.couleur}">${stats.participations||0}</div>
+              <div class="structure-stat-label">Participations</div>
+            </div>
+            <div class="structure-stat">
+              <div class="structure-stat-val" style="color:${s.couleur}">${Math.round(stats.solde_cca||0).toLocaleString('fr-FR')} €</div>
+              <div class="structure-stat-label">Solde CCA</div>
+            </div>
+            <div class="structure-stat">
+              <div class="structure-stat-val" style="color:${s.couleur}">${Math.round(stats.dividendes||0).toLocaleString('fr-FR')} €</div>
+              <div class="structure-stat-label">Dividendes</div>
+            </div>` : `
+            <div class="structure-stat">
+              <div class="structure-stat-val" style="color:${s.couleur}">${stats.logements||0}</div>
+              <div class="structure-stat-label">Logements</div>
+            </div>
+            <div class="structure-stat">
+              <div class="structure-stat-val" style="color:${s.couleur}">${stats.locataires||0}</div>
+              <div class="structure-stat-label">Locataires</div>
+            </div>
+            <div class="structure-stat">
+              <div class="structure-stat-val" style="color:${s.couleur}">${Math.round(stats.loyers||0).toLocaleString('fr-FR')} €</div>
+              <div class="structure-stat-label">Loyers/mois</div>
+            </div>`;
       html += `
-        <div class="structure-card" data-structure-id="${s.id}" onclick="ouvrirStructure('${s.id}')">
+        <div class="structure-card" data-structure-id="${s.id}" onclick="ouvrirStructure('${s.id}','${s.type}')">
           <div class="structure-top">
             <div class="structure-type-badge" style="color:${s.couleur}">
               ${TYPE_LABELS[s.type]||s.type}
@@ -493,19 +539,7 @@ async function chargerStructures(uid){
           </div>
           <div class="structure-name">${s.nom}</div>
           <div class="structure-meta">${s.adresse||'Adresse non renseignée'}</div>
-          <div class="structure-stats">
-            <div class="structure-stat">
-              <div class="structure-stat-val" style="color:${s.couleur}">${stats.logements}</div>
-              <div class="structure-stat-label">Logements</div>
-            </div>
-            <div class="structure-stat">
-              <div class="structure-stat-val" style="color:${s.couleur}">${stats.locataires}</div>
-              <div class="structure-stat-label">Locataires</div>
-            </div>
-            <div class="structure-stat">
-              <div class="structure-stat-val" style="color:${s.couleur}">${Math.round(stats.loyers).toLocaleString('fr-FR')} €</div>
-              <div class="structure-stat-label">Loyers/mois</div>
-            </div>
+          <div class="structure-stats">${statsBlock}
           </div>
         </div>`;
     });
@@ -554,8 +588,9 @@ window.sauvegarderStructure = async function(){
   }
 };
 
-window.ouvrirStructure = function(id){
-  window.location.href = 'structure.html?id=' + encodeURIComponent(id);
+window.ouvrirStructure = function(id, type){
+  const page = type === 'HOLDING' ? 'holding.html' : 'structure.html';
+  window.location.href = page + '?id=' + encodeURIComponent(id);
 };
 
 window._structIdASupprimer = null;
@@ -576,6 +611,11 @@ window.fermerModalSuppression = function(){
 window.confirmerSuppressionStructure = async function(){
   const id = window._structIdASupprimer;
   if(!id) return;
+  const input = document.getElementById('supp-nom-input');
+  if(!nomsCorrespondent(input.value, window._structNomASupprimer)){
+    alert('Le nom saisi ne correspond pas.');
+    return;
+  }
   const btn = document.getElementById('btn-confirmer-suppression');
   btn.disabled = true; btn.textContent = '⏳ Suppression...';
   try {
@@ -597,6 +637,12 @@ window.seDeconnecter = async function(){
 </script>
 
 <script>
+function normaliserNom(s){
+  return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/\s+/g,' ');
+}
+function nomsCorrespondent(a, b){
+  return normaliserNom(a) === normaliserNom(b) && normaliserNom(a).length > 0;
+}
 async function ouvrirModalStructure(id){
   window._editingStructureId = id || null;
   const title = document.querySelector('#modal-structure .modal-title');
