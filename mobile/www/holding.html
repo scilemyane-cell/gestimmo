@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holding — GestImmo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#05060c;--bg2:#0a0d18;
+  --panel:rgba(148,170,255,.045);--panel-hover:rgba(148,170,255,.08);
+  --line:rgba(140,180,255,.14);--line-strong:rgba(94,214,255,.45);
+  --cyan:#4fd8ff;--violet:#a78bff;--amber:#ffb545;--green:#3ddc97;--danger:#ff5470;
+  --text:#eef2fb;--text2:#8f9ac2;--text3:#525d82;
+  --font-display:'Sora',system-ui,sans-serif;--font-body:'Inter',system-ui,sans-serif;--font-mono:'JetBrains Mono',monospace;
+}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:64px 64px;opacity:.1;mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 40%,transparent 100%)}
+
+#loader{display:flex;position:fixed;inset:0;background:var(--bg);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:18px}
+.spinner{width:44px;height:44px;border:2px solid var(--line);border-top-color:var(--cyan);border-radius:50%;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loader .label{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--text3);text-transform:uppercase}
+
+#app{display:none;position:relative;z-index:1}
+.topbar{background:rgba(10,13,24,.7);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:0 28px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;flex-wrap:wrap;gap:10px}
+.topbar-left{display:flex;align-items:center;gap:16px}
+.btn-back{background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--text2);padding:7px 14px;border-radius:8px;font-size:11px;font-family:var(--font-mono);cursor:pointer;letter-spacing:.03em;text-transform:uppercase}
+.btn-back:hover{border-color:var(--line-strong);color:var(--text)}
+.struct-badge{display:flex;align-items:center;gap:9px;font-family:var(--font-display);font-size:16px;font-weight:700}
+.struct-dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 8px 1px currentColor}
+.struct-type-tag{font-family:var(--font-mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);border:1px solid var(--line);padding:2px 8px;border-radius:100px}
+.btn-deconnexion{background:rgba(255,84,112,.08);border:1px solid rgba(255,84,112,.25);color:#ff9fae;padding:7px 14px;border-radius:8px;font-size:11px;font-family:var(--font-mono);letter-spacing:.04em;font-weight:600;cursor:pointer;text-transform:uppercase}
+.btn-deconnexion:hover{background:rgba(255,84,112,.16)}
+
+.main{max-width:1180px;margin:0 auto;padding:32px 28px 60px;position:relative}
+
+.tab-bar{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:28px;overflow-x:auto}
+.tab-btn{padding:12px 18px;font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:none;background:transparent;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:.15s}
+.tab-btn.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+.tab-btn:hover:not(.active){color:var(--text)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:32px}
+.kpi-card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:20px;clip-path:polygon(0 10px,10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%)}
+.kpi-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.kpi-val{font-family:var(--font-display);font-size:26px;font-weight:700}
+.kpi-sub{font-family:var(--font-mono);font-size:10px;color:var(--text3);margin-top:6px}
+
+.section-title{font-family:var(--font-display);font-size:15px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between}
+.btn-add{background:transparent;border:1px solid var(--line-strong);color:var(--cyan);padding:9px 16px;border-radius:8px;font-size:12px;font-family:var(--font-mono);font-weight:600;cursor:pointer;letter-spacing:.03em}
+.btn-add:hover{background:rgba(79,216,255,.1)}
+
+.card-list{display:flex;flex-direction:column;gap:10px;margin-bottom:32px}
+.row-card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.row-card:hover{border-color:var(--line-strong)}
+.row-main{display:flex;flex-direction:column;gap:3px;min-width:160px}
+.row-title{font-family:var(--font-display);font-weight:700;font-size:14px}
+.row-sub{font-family:var(--font-mono);font-size:11px;color:var(--text3)}
+.row-metrics{display:flex;gap:22px;flex-wrap:wrap}
+.row-metric{text-align:left}
+.row-metric-val{font-family:var(--font-mono);font-size:15px;font-weight:700}
+.row-metric-label{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.row-actions{display:flex;gap:6px}
+.row-actions button{background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--text2);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:11px}
+.row-actions button.danger{background:rgba(255,84,112,.08);border-color:rgba(255,84,112,.25);color:#ff9fae}
+
+.empty-state{text-align:center;padding:50px 20px;background:var(--panel);border:1px dashed var(--line);border-radius:8px;margin-bottom:32px}
+.empty-state .icon{font-size:34px;margin-bottom:12px;opacity:.7}
+.empty-state p{font-size:13px;color:var(--text2);font-family:var(--font-mono)}
+
+.chart-wrap{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px;height:280px;margin-bottom:32px}
+
+.movements-table{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12px}
+.movements-table th{text-align:left;padding:10px 12px;color:var(--text3);font-size:9px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--line)}
+.movements-table td{padding:10px 12px;border-bottom:1px solid var(--line)}
+.movements-table tr:hover td{background:var(--panel-hover)}
+.tag-avance{color:var(--cyan)}
+.tag-remboursement{color:var(--amber)}
+.tag-interet{color:var(--green)}
+.badge-statut{display:inline-block;padding:3px 9px;border-radius:100px;font-size:9px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em;border:1px solid currentColor}
+
+/* MODALS */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(2,3,8,.8);z-index:100;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+.modal-overlay.open{display:flex}
+.modal-card{background:var(--bg2);border:1px solid var(--line-strong);border-radius:6px;padding:32px;width:460px;max-width:100%;max-height:90vh;overflow-y:auto;position:relative}
+.modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text2);font-size:16px;cursor:pointer;width:30px;height:30px;border-radius:6px}
+.modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:10px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em;font-family:var(--font-mono)}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 13px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;font-family:var(--font-body);outline:none}
+.form-group input:focus,.form-group select:focus{border-color:var(--cyan);background:rgba(79,216,255,.05)}
+.form-group select option{background:var(--bg2)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn-save{width:100%;padding:12px;border:1px solid var(--line-strong);border-radius:8px;background:rgba(79,216,255,.1);color:var(--cyan);font-size:13px;font-family:var(--font-mono);font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;margin-top:6px}
+.btn-save:hover{background:rgba(79,216,255,.18)}
+.btn-save.danger{border-color:rgba(255,84,112,.4);background:rgba(255,84,112,.1);color:#ff9fae}
+
+@media(max-width:600px){.form-row{grid-template-columns:1fr}.row-metrics{gap:14px}}
+</style>
+</head>
+<body>
+
+<div id="loader"><div class="spinner"></div><div class="label">Chargement de la holding</div></div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="btn-back" onclick="window.location.href='dashboard.html'">← Structures</button>
+      <div class="struct-badge">
+        <span class="struct-dot" id="struct-dot"></span>
+        <span id="struct-nom">Holding</span>
+        <span class="struct-type-tag">Holding</span>
+      </div>
+    </div>
+    <button class="btn-deconnexion" onclick="seDeconnecter()">Déconnexion</button>
+  </div>
+
+  <div class="main">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="synthese" onclick="changerOnglet('synthese')">📊 Synthèse</button>
+      <button class="tab-btn" data-tab="participations" onclick="changerOnglet('participations')">🏢 Participations</button>
+      <button class="tab-btn" data-tab="cca" onclick="changerOnglet('cca')">💱 Trésorerie & CCA</button>
+      <button class="tab-btn" data-tab="dividendes" onclick="changerOnglet('dividendes')">💰 Dividendes</button>
+      <button class="tab-btn" data-tab="conventions" onclick="changerOnglet('conventions')">📜 Conventions</button>
+      <button class="tab-btn" data-tab="echeances" onclick="changerOnglet('echeances')">📅 Échéances</button>
+    </div>
+
+    <!-- SYNTHÈSE -->
+    <div class="tab-panel active" id="tab-synthese">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Valeur des participations</div>
+          <div class="kpi-val" id="kpi-participations" style="color:var(--cyan)">0 €</div>
+          <div class="kpi-sub" id="kpi-participations-nb">0 filiale(s)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Solde CCA consolidé</div>
+          <div class="kpi-val" id="kpi-cca" style="color:var(--violet)">0 €</div>
+          <div class="kpi-sub">Créance holding sur filiales</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Trésorerie propre holding</div>
+          <div class="kpi-val" id="kpi-tresorerie" style="color:var(--amber)">0 €</div>
+          <div class="kpi-sub"><a href="#" onclick="ouvrirModalTresorerie();return false" style="color:var(--text3)">✎ modifier</a></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Dividendes reçus (cumulé)</div>
+          <div class="kpi-val" id="kpi-dividendes" style="color:var(--green)">0 €</div>
+          <div class="kpi-sub" id="kpi-dividendes-annee">0 € cette année</div>
+        </div>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:1fr">
+        <div class="kpi-card" style="clip-path:none">
+          <div class="kpi-label">Patrimoine consolidé de la holding</div>
+          <div class="kpi-val" id="kpi-patrimoine" style="font-size:34px;color:var(--text)">0 €</div>
+          <div class="kpi-sub">Participations + Solde CCA + Trésorerie propre</div>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Quote-part imposable (régime mère-fille)</div>
+          <div class="kpi-val" id="kpi-quotepart" style="color:var(--amber)">0 €</div>
+          <div class="kpi-sub">5% des dividendes éligibles + 100% des non-éligibles</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Conventions réglementées</div>
+          <div class="kpi-val" id="kpi-conventions" style="color:var(--danger)">0 à approuver</div>
+          <div class="kpi-sub"><a href="#" onclick="changerOnglet('conventions');return false" style="color:var(--text3)">voir l'onglet →</a></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Prochaine échéance légale</div>
+          <div class="kpi-val" id="kpi-prochaine-echeance" style="color:var(--cyan);font-size:16px">Aucune</div>
+          <div class="kpi-sub" id="kpi-prochaine-echeance-date"></div>
+        </div>
+      </div>
+      <div class="section-title">Dividendes par année</div>
+      <div class="chart-wrap"><canvas id="chart-dividendes"></canvas></div>
+    </div>
+
+    <!-- PARTICIPATIONS -->
+    <div class="tab-panel" id="tab-participations">
+      <div class="section-title">Participations (filiales)<button class="btn-add" onclick="ouvrirModalParticipation()">+ Ajouter une filiale</button></div>
+      <div class="card-list" id="participations-list"></div>
+    </div>
+
+    <!-- CCA -->
+    <div class="tab-panel" id="tab-cca">
+      <div class="section-title">Comptes courants d'associés<button class="btn-add" onclick="ouvrirModalMouvement()">+ Nouveau mouvement</button></div>
+      <div class="card-list" id="cca-soldes-list"></div>
+      <div class="section-title" style="margin-top:8px">Historique des mouvements</div>
+      <div style="overflow-x:auto">
+        <table class="movements-table">
+          <thead><tr><th>Date</th><th>Filiale</th><th>Sens</th><th style="text-align:right">Montant</th><th>Notes</th><th></th></tr></thead>
+          <tbody id="cca-mouvements-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- DIVIDENDES -->
+    <div class="tab-panel" id="tab-dividendes">
+      <div class="section-title">Dividendes reçus<button class="btn-add" onclick="ouvrirModalDividende()">+ Ajouter un dividende</button></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin:-10px 0 16px">Régime mère-fille : si la holding détient ≥5% de la filiale depuis ≥2 ans, seule une quote-part de 5% du dividende reste imposable à l'IS.</div>
+      <div style="overflow-x:auto">
+        <table class="movements-table">
+          <thead><tr><th>Année</th><th>Filiale</th><th>Date versement</th><th style="text-align:right">Montant</th><th>Régime</th><th style="text-align:right">Base imposable</th><th>Notes</th><th></th></tr></thead>
+          <tbody id="dividendes-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CONVENTIONS RÉGLEMENTÉES -->
+    <div class="tab-panel" id="tab-conventions">
+      <div class="section-title">Conventions réglementées<button class="btn-add" onclick="ouvrirModalConvention()">+ Nouvelle convention</button></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin:-10px 0 16px">Toute convention entre la holding et une filiale ayant un dirigeant commun (avance, prestation de services, garantie...) doit être approuvée en assemblée générale et mentionnée dans un rapport spécial.</div>
+      <div class="card-list" id="conventions-list"></div>
+    </div>
+
+    <!-- ÉCHÉANCES LÉGALES -->
+    <div class="tab-panel" id="tab-echeances">
+      <div class="section-title">Échéances légales<button class="btn-add" onclick="ouvrirModalEcheance()">+ Nouvelle échéance</button></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin:-10px 0 16px">Ex : AG annuelle d'approbation des comptes (dans les 6 mois suivant la clôture), dépôt de la liasse fiscale IS, affectation du résultat.</div>
+      <div class="card-list" id="echeances-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PARTICIPATION -->
+<div class="modal-overlay" id="modal-participation">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModal('modal-participation')">×</button>
+    <div class="modal-title" id="modal-participation-title">Nouvelle participation</div>
+    <div class="form-group"><label>Nom de la filiale</label><input type="text" id="part-nom" placeholder="ex: SCI Lémyane"></div>
+    <div class="form-row">
+      <div class="form-group"><label>% détenu</label><input type="number" id="part-pct" step="0.01" placeholder="100"></div>
+      <div class="form-group"><label>Valeur des titres (€)</label><input type="number" id="part-valeur" step="0.01" placeholder="0"></div>
+    </div>
+    <div class="form-group"><label>Taux d'intérêt CCA (% par an) <span style="color:var(--text3);text-transform:none;font-weight:400">— pense à vérifier le taux plafond fiscal en vigueur</span></label><input type="number" id="part-taux" step="0.01" placeholder="ex: 4.5"></div>
+    <div class="form-group"><label>Notes</label><textarea id="part-notes" rows="2" placeholder="optionnel"></textarea></div>
+    <button class="btn-save" onclick="sauvegarderParticipation()">✓ Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL MOUVEMENT CCA -->
+<div class="modal-overlay" id="modal-mouvement">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModal('modal-mouvement')">×</button>
+    <div class="modal-title">Nouveau mouvement CCA</div>
+    <div class="form-group">
+      <label>Filiale</label>
+      <select id="mvt-filiale"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Date</label><input type="date" id="mvt-date"></div>
+      <div class="form-group"><label>Sens</label>
+        <select id="mvt-sens">
+          <option value="avance">Avance (holding → filiale)</option>
+          <option value="remboursement">Remboursement (filiale → holding)</option>
+          <option value="interet">Intérêts courus (CCA)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Montant (€)</label><input type="number" id="mvt-montant" step="0.01"></div>
+    <div class="form-group"><label>Notes</label><textarea id="mvt-notes" rows="2" placeholder="optionnel"></textarea></div>
+    <button class="btn-save" onclick="sauvegarderMouvement()">✓ Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL DIVIDENDE -->
+<div class="modal-overlay" id="modal-dividende">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModal('modal-dividende')">×</button>
+    <div class="modal-title">Nouveau dividende</div>
+    <div class="form-group">
+      <label>Filiale</label>
+      <select id="div-filiale"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Année</label><input type="number" id="div-annee" placeholder="2026"></div>
+      <div class="form-group"><label>Date de versement</label><input type="date" id="div-date"></div>
+    </div>
+    <div class="form-group"><label>Montant (€)</label><input type="number" id="div-montant" step="0.01"></div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none">
+        <input type="checkbox" id="div-merefille" checked style="width:auto">
+        Éligible au régime mère-fille (détention ≥5% depuis ≥2 ans)
+      </label>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="div-notes" rows="2" placeholder="optionnel"></textarea></div>
+    <button class="btn-save" onclick="sauvegarderDividende()">✓ Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL TRESORERIE -->
+<div class="modal-overlay" id="modal-tresorerie">
+  <div class="modal-card" style="width:360px">
+    <button class="modal-close" onclick="fermerModal('modal-tresorerie')">×</button>
+    <div class="modal-title">Trésorerie propre de la holding</div>
+    <div class="form-group"><label>Montant en compte bancaire (€)</label><input type="number" id="tres-montant" step="0.01"></div>
+    <button class="btn-save" onclick="sauvegarderTresorerie()">✓ Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL CONVENTION -->
+<div class="modal-overlay" id="modal-convention">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModal('modal-convention')">×</button>
+    <div class="modal-title">Nouvelle convention réglementée</div>
+    <div class="form-group">
+      <label>Filiale concernée</label>
+      <select id="conv-filiale"></select>
+    </div>
+    <div class="form-group"><label>Type de convention</label>
+      <select id="conv-type">
+        <option value="avance">Avance / prêt en compte courant</option>
+        <option value="prestation">Prestation de services / management fees</option>
+        <option value="garantie">Garantie / caution</option>
+        <option value="autre">Autre</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Description</label><textarea id="conv-description" rows="2" placeholder="ex: Avance de trésorerie pour travaux"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Date de signature</label><input type="date" id="conv-date-signature"></div>
+      <div class="form-group"><label>Statut</label>
+        <select id="conv-statut">
+          <option value="a_approuver">⏳ À approuver en AG</option>
+          <option value="approuvee">✅ Approuvée en AG</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Date d'approbation AG <span style="color:var(--text3);text-transform:none;font-weight:400">(si approuvée)</span></label><input type="date" id="conv-date-ag"></div>
+    <button class="btn-save" onclick="sauvegarderConvention()">✓ Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL ÉCHÉANCE -->
+<div class="modal-overlay" id="modal-echeance">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModal('modal-echeance')">×</button>
+    <div class="modal-title">Nouvelle échéance légale</div>
+    <div class="form-group"><label>Libellé</label><input type="text" id="ech-libelle" placeholder="ex: AG annuelle — approbation des comptes 2025"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Date d'échéance</label><input type="date" id="ech-date"></div>
+      <div class="form-group"><label>Statut</label>
+        <select id="ech-statut">
+          <option value="a_faire">⏳ À faire</option>
+          <option value="fait">✅ Fait</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="ech-notes" rows="2" placeholder="optionnel"></textarea></div>
+    <button class="btn-save" onclick="sauvegarderEcheance()">✓ Enregistrer</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
+  authDomain: "gestimmo-app.firebaseapp.com",
+  projectId: "gestimmo-app",
+  storageBucket: "gestimmo-app.firebasestorage.app",
+  messagingSenderId: "658875106145",
+  appId: "1:658875106145:web:8d797303b2168efbe6bb20"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+window._structureId = new URLSearchParams(window.location.search).get('id');
+if(!window._structureId){ window.location.href = 'dashboard.html'; }
+
+let currentUser = null;
+window.DATA = { participations: [], cca: [], dividendes: [], tresoreriePropre: 0, conventions: [], echeances: [] };
+
+function appDataRef(){
+  return doc(db, 'users', currentUser.uid, 'structures', window._structureId, 'appdata', 'data');
+}
+
+onAuthStateChanged(auth, async user => {
+  if(!user){ window.location.href = 'index.html'; return; }
+  currentUser = user;
+  try {
+    const structSnap = await getDoc(doc(db, 'users', user.uid, 'structures', window._structureId));
+    if(structSnap.exists()){
+      const s = structSnap.data();
+      document.getElementById('struct-nom').textContent = s.nom || 'Holding';
+      document.getElementById('struct-dot').style.background = s.couleur || '#4fd8ff';
+      document.getElementById('struct-dot').style.color = s.couleur || '#4fd8ff';
+    }
+  } catch(e){ console.warn('Structure introuvable', e); }
+
+  try {
+    const adSnap = await getDoc(appDataRef());
+    if(adSnap.exists()){
+      const ad = adSnap.data();
+      window.DATA.participations = Array.isArray(ad.participations) ? ad.participations : [];
+      window.DATA.cca = Array.isArray(ad.cca) ? ad.cca : [];
+      window.DATA.dividendes = Array.isArray(ad.dividendes) ? ad.dividendes : [];
+      window.DATA.tresoreriePropre = +ad.tresoreriePropre || 0;
+      window.DATA.conventions = Array.isArray(ad.conventions) ? ad.conventions : [];
+      window.DATA.echeances = Array.isArray(ad.echeances) ? ad.echeances : [];
+    }
+  } catch(e){ console.warn('Données holding introuvables, initialisation vide', e); }
+
+  try {
+    window.renderAll();
+  } catch(e){
+    console.error('Erreur de rendu de la holding:', e);
+  } finally {
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  }
+});
+
+window.sauvegarderDonnees = async function(){
+  try {
+    await setDoc(appDataRef(), {
+      participations: window.DATA.participations,
+      cca: window.DATA.cca,
+      dividendes: window.DATA.dividendes,
+      tresoreriePropre: window.DATA.tresoreriePropre,
+      conventions: window.DATA.conventions,
+      echeances: window.DATA.echeances
+    }, { merge: true });
+  } catch(e){
+    alert('Erreur de sauvegarde : ' + e.message);
+  }
+};
+
+window.seDeconnecter = async function(){
+  await signOut(auth);
+  window.location.href = 'index.html';
+};
+</script>
+
+<script>
+function fmt(n){ return Math.round(+n||0).toLocaleString('fr-FR') + ' €'; }
+function uid(){ return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+function todayStrLocal(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function changerOnglet(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active', p.id==='tab-'+tab));
+}
+function fermerModal(id){ document.getElementById(id).classList.remove('open'); }
+document.addEventListener('click', e => {
+  if(e.target.classList && e.target.classList.contains('modal-overlay')) e.target.classList.remove('open');
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));
+});
+
+// ── SYNTHÈSE ────────────────────────────────────────────────────────────
+let chartDividendes = null;
+function soldeCcaFiliale(filialeNom){
+  const f = window.DATA.cca.find(c => c.filiale === filialeNom);
+  if(!f) return 0;
+  return (f.mouvements||[]).reduce((s,m)=> s + (m.sens==='remboursement' ? -(+m.montant||0) : (+m.montant||0)), 0);
+}
+function soldeCcaTotal(){
+  return window.DATA.cca.reduce((sum,f)=> sum + soldeCcaFiliale(f.filiale), 0);
+}
+function valeurParticipationsTotal(){
+  return window.DATA.participations.reduce((s,p)=> s + (+p.valeurTitres||0), 0);
+}
+function dividendesTotal(){
+  return window.DATA.dividendes.reduce((s,d)=> s + (+d.montant||0), 0);
+}
+function dividendesAnneeCourante(){
+  const y = new Date().getFullYear();
+  return window.DATA.dividendes.filter(d=>+d.annee===y).reduce((s,d)=> s + (+d.montant||0), 0);
+}
+function baseImposableDividende(d){
+  // Régime mère-fille : 5% du montant reste imposable si éligible, sinon 100% imposable.
+  return d.merefille !== false ? (+d.montant||0) * 0.05 : (+d.montant||0);
+}
+function quotePartImposableTotal(){
+  return window.DATA.dividendes.reduce((s,d)=> s + baseImposableDividende(d), 0);
+}
+function conventionsAApprouver(){
+  return window.DATA.conventions.filter(c => c.statut !== 'approuvee').length;
+}
+function prochaineEcheance(){
+  const todayS = todayStrLocal();
+  const aVenir = window.DATA.echeances.filter(e => e.statut !== 'fait').sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  return aVenir.length ? aVenir[0] : null;
+}
+function renderSynthese(){
+  const valPart = valeurParticipationsTotal();
+  const cca = soldeCcaTotal();
+  const tres = +window.DATA.tresoreriePropre || 0;
+  const div = dividendesTotal();
+  document.getElementById('kpi-participations').textContent = fmt(valPart);
+  document.getElementById('kpi-participations-nb').textContent = window.DATA.participations.length + ' filiale(s)';
+  document.getElementById('kpi-cca').textContent = fmt(cca);
+  document.getElementById('kpi-tresorerie').textContent = fmt(tres);
+  document.getElementById('kpi-dividendes').textContent = fmt(div);
+  document.getElementById('kpi-dividendes-annee').textContent = fmt(dividendesAnneeCourante()) + ' cette année';
+  document.getElementById('kpi-patrimoine').textContent = fmt(valPart + cca + tres);
+  document.getElementById('kpi-quotepart').textContent = fmt(quotePartImposableTotal());
+
+  const nbConv = conventionsAApprouver();
+  const kpiConv = document.getElementById('kpi-conventions');
+  kpiConv.textContent = nbConv + (nbConv>1?' à approuver':' à approuver');
+  kpiConv.style.color = nbConv>0 ? 'var(--danger)' : 'var(--green)';
+
+  const proch = prochaineEcheance();
+  if(proch){
+    document.getElementById('kpi-prochaine-echeance').textContent = proch.libelle;
+    const joursRestants = Math.ceil((new Date(proch.date) - new Date())/86400000);
+    const dateTxt = new Date(proch.date).toLocaleDateString('fr-FR');
+    document.getElementById('kpi-prochaine-echeance-date').textContent = joursRestants<0 ? `⚠ ${dateTxt} — en retard` : `${dateTxt} (dans ${joursRestants}j)`;
+  } else {
+    document.getElementById('kpi-prochaine-echeance').textContent = 'Aucune';
+    document.getElementById('kpi-prochaine-echeance-date').textContent = '';
+  }
+
+  const parAnnee = {};
+  window.DATA.dividendes.forEach(d => { parAnnee[d.annee] = (parAnnee[d.annee]||0) + (+d.montant||0); });
+  const annees = Object.keys(parAnnee).sort();
+  try {
+    if(chartDividendes) chartDividendes.destroy();
+    chartDividendes = new Chart(document.getElementById('chart-dividendes'), {
+      type: 'bar',
+      data: { labels: annees.length?annees:['Aucune donnée'], datasets: [{ label:'Dividendes', data: annees.length?annees.map(a=>parAnnee[a]):[0], backgroundColor:'rgba(79,216,255,.5)', borderColor:'#4fd8ff', borderWidth:1.5, borderRadius:5 }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{color:'#8f9ac2',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,.05)'}},
+                 y:{ticks:{color:'#8f9ac2',font:{family:'JetBrains Mono',size:9},callback:v=>fmt(v)},grid:{color:'rgba(255,255,255,.05)'}} } }
+    });
+  } catch(e){
+    console.warn('Graphique dividendes indisponible:', e);
+  }
+}
+
+// ── PARTICIPATIONS ──────────────────────────────────────────────────────
+window._editPartId = null;
+function interetsCourusEstimation(filialeNom, taux){
+  const solde = soldeCcaFiliale(filialeNom);
+  if(solde<=0 || !taux) return 0;
+  const debutAnnee = new Date(new Date().getFullYear(), 0, 1);
+  const joursEcoules = Math.max(0, Math.floor((new Date() - debutAnnee) / 86400000));
+  return solde * (+taux/100) * (joursEcoules/365);
+}
+function renderParticipations(){
+  const list = document.getElementById('participations-list');
+  if(!window.DATA.participations.length){
+    list.innerHTML = `<div class="empty-state"><div class="icon">🏢</div><p>Aucune filiale enregistrée pour l'instant.</p></div>`;
+    return;
+  }
+  list.innerHTML = window.DATA.participations.map(p => `
+    <div class="row-card">
+      <div class="row-main"><div class="row-title">${p.nom}</div><div class="row-sub">${p.notes||''}${p.tauxInteret?' · Taux CCA '+p.tauxInteret+'%':''}</div></div>
+      <div class="row-metrics">
+        <div class="row-metric"><div class="row-metric-val" style="color:var(--cyan)">${p.pourcentage||0}%</div><div class="row-metric-label">Détenu</div></div>
+        <div class="row-metric"><div class="row-metric-val">${fmt(p.valeurTitres)}</div><div class="row-metric-label">Valeur titres</div></div>
+        <div class="row-metric"><div class="row-metric-val" style="color:var(--violet)">${fmt(soldeCcaFiliale(p.nom))}</div><div class="row-metric-label">Solde CCA</div></div>
+      </div>
+      <div class="row-actions">
+        <button onclick="ouvrirModalParticipation('${p.id}')" title="Modifier">✎</button>
+        <button class="danger" onclick="supprimerParticipation('${p.id}')" title="Supprimer">🗑</button>
+      </div>
+    </div>`).join('');
+}
+window.ouvrirModalParticipation = function(id){
+  window._editPartId = id || null;
+  document.getElementById('modal-participation-title').textContent = id ? 'Modifier la participation' : 'Nouvelle participation';
+  if(id){
+    const p = window.DATA.participations.find(x=>x.id===id);
+    document.getElementById('part-nom').value = p.nom || '';
+    document.getElementById('part-pct').value = p.pourcentage || '';
+    document.getElementById('part-valeur').value = p.valeurTitres || '';
+    document.getElementById('part-taux').value = p.tauxInteret || '';
+    document.getElementById('part-notes').value = p.notes || '';
+  } else {
+    document.getElementById('part-nom').value = '';
+    document.getElementById('part-pct').value = '';
+    document.getElementById('part-valeur').value = '';
+    document.getElementById('part-taux').value = '';
+    document.getElementById('part-notes').value = '';
+  }
+  document.getElementById('modal-participation').classList.add('open');
+};
+window.sauvegarderParticipation = function(){
+  const nom = document.getElementById('part-nom').value.trim();
+  if(!nom){ alert('Le nom de la filiale est obligatoire.'); return; }
+  const data = {
+    nom,
+    pourcentage: +document.getElementById('part-pct').value || 0,
+    valeurTitres: +document.getElementById('part-valeur').value || 0,
+    tauxInteret: +document.getElementById('part-taux').value || 0,
+    notes: document.getElementById('part-notes').value.trim()
+  };
+  if(window._editPartId){
+    const idx = window.DATA.participations.findIndex(x=>x.id===window._editPartId);
+    if(idx>-1) window.DATA.participations[idx] = { ...window.DATA.participations[idx], ...data };
+  } else {
+    window.DATA.participations.push({ id: uid(), ...data });
+  }
+  fermerModal('modal-participation');
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+window.supprimerParticipation = function(id){
+  if(!confirm('Supprimer cette filiale de la liste des participations ?')) return;
+  window.DATA.participations = window.DATA.participations.filter(x=>x.id!==id);
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+
+// ── CCA ─────────────────────────────────────────────────────────────────
+function remplirSelectFiliales(selectId){
+  const sel = document.getElementById(selectId);
+  const noms = window.DATA.participations.map(p=>p.nom);
+  sel.innerHTML = noms.length ? noms.map(n=>`<option value="${n}">${n}</option>`).join('') : `<option value="">Aucune filiale — ajoute une participation d'abord</option>`;
+}
+function renderCca(){
+  const soldesList = document.getElementById('cca-soldes-list');
+  if(!window.DATA.participations.length){
+    soldesList.innerHTML = `<div class="empty-state"><div class="icon">💱</div><p>Ajoute d'abord une filiale dans l'onglet Participations.</p></div>`;
+  } else {
+    soldesList.innerHTML = window.DATA.participations.map(p => {
+      const solde = soldeCcaFiliale(p.nom);
+      const interets = interetsCourusEstimation(p.nom, p.tauxInteret);
+      return `<div class="row-card">
+        <div class="row-main"><div class="row-title">${p.nom}</div><div class="row-sub">Compte courant d'associé${p.tauxInteret?' · taux '+p.tauxInteret+'%':' · aucun taux défini'}</div></div>
+        <div class="row-metrics">
+          <div class="row-metric"><div class="row-metric-val" style="color:${solde>=0?'var(--violet)':'var(--danger)'}">${fmt(solde)}</div><div class="row-metric-label">Solde (créance holding)</div></div>
+          ${interets>0 ? `<div class="row-metric"><div class="row-metric-val" style="color:var(--amber)">${fmt(interets)}</div><div class="row-metric-label">Intérêts courus (est. ${new Date().getFullYear()})</div></div>` : ''}
+        </div>
+        ${interets>0 ? `<div class="row-actions"><button onclick="enregistrerInteretsCourus('${p.nom}', ${interets.toFixed(2)})" title="Enregistrer comme mouvement" style="width:auto;padding:0 10px;font-size:10px;font-family:var(--font-mono)">+ Enregistrer</button></div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  const allMouvements = [];
+  window.DATA.cca.forEach(f => (f.mouvements||[]).forEach(m => allMouvements.push({ ...m, filiale: f.filiale })));
+  allMouvements.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  const body = document.getElementById('cca-mouvements-body');
+  const labels = { avance:'↗ Avance', remboursement:'↙ Remboursement', interet:'% Intérêts courus' };
+  body.innerHTML = allMouvements.length ? allMouvements.map(m => `
+    <tr>
+      <td>${m.date||'—'}</td>
+      <td>${m.filiale}</td>
+      <td class="tag-${m.sens}">${labels[m.sens]||m.sens}</td>
+      <td style="text-align:right">${fmt(m.montant)}</td>
+      <td style="color:var(--text3)">${m.notes||''}</td>
+      <td><button onclick="supprimerMouvement('${m.filiale}','${m.id}')" title="Supprimer" style="background:rgba(255,84,112,.08);border:1px solid rgba(255,84,112,.25);color:#ff9fae;width:24px;height:24px;border-radius:5px;cursor:pointer;font-size:10px">🗑</button></td>
+    </tr>`).join('') : '<tr><td colspan="6" style="color:var(--text3);padding:20px;text-align:center">Aucun mouvement enregistré.</td></tr>';
+}
+window.enregistrerInteretsCourus = function(filiale, montant){
+  if(!confirm(`Enregistrer ${fmt(montant)} d'intérêts courus pour ${filiale} au ${new Date().toLocaleDateString('fr-FR')} ?`)) return;
+  let f = window.DATA.cca.find(c=>c.filiale===filiale);
+  if(!f){ f = { filiale, mouvements: [] }; window.DATA.cca.push(f); }
+  f.mouvements.push({ id: uid(), date: todayStrLocal(), sens: 'interet', montant: +montant, notes: `Intérêts courus ${new Date().getFullYear()} (calcul automatique)` });
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+window.ouvrirModalMouvement = function(){
+  if(!window.DATA.participations.length){ alert("Ajoute d'abord une filiale dans l'onglet Participations."); return; }
+  remplirSelectFiliales('mvt-filiale');
+  document.getElementById('mvt-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('mvt-montant').value = '';
+  document.getElementById('mvt-notes').value = '';
+  document.getElementById('modal-mouvement').classList.add('open');
+};
+window.sauvegarderMouvement = function(){
+  const filiale = document.getElementById('mvt-filiale').value;
+  const montant = +document.getElementById('mvt-montant').value || 0;
+  if(!filiale || montant<=0){ alert('Sélectionne une filiale et indique un montant valide.'); return; }
+  const mvt = {
+    id: uid(),
+    date: document.getElementById('mvt-date').value,
+    sens: document.getElementById('mvt-sens').value,
+    montant,
+    notes: document.getElementById('mvt-notes').value.trim()
+  };
+  let f = window.DATA.cca.find(c=>c.filiale===filiale);
+  if(!f){ f = { filiale, mouvements: [] }; window.DATA.cca.push(f); }
+  f.mouvements.push(mvt);
+  fermerModal('modal-mouvement');
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+window.supprimerMouvement = function(filiale, id){
+  const f = window.DATA.cca.find(c=>c.filiale===filiale);
+  if(!f) return;
+  f.mouvements = (f.mouvements||[]).filter(m=>m.id!==id);
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+
+// ── DIVIDENDES ──────────────────────────────────────────────────────────
+function renderDividendes(){
+  const sorted = [...window.DATA.dividendes].sort((a,b)=> (b.annee-a.annee) || (b.date||'').localeCompare(a.date||''));
+  const body = document.getElementById('dividendes-body');
+  body.innerHTML = sorted.length ? sorted.map(d => `
+    <tr>
+      <td>${d.annee}</td>
+      <td>${d.filiale}</td>
+      <td>${d.date||'—'}</td>
+      <td style="text-align:right;color:var(--green)">${fmt(d.montant)}</td>
+      <td>${d.merefille!==false ? '<span class="badge-statut" style="color:var(--green)">Mère-fille</span>' : '<span class="badge-statut" style="color:var(--amber)">Non éligible</span>'}</td>
+      <td style="text-align:right;color:var(--amber)">${fmt(baseImposableDividende(d))}</td>
+      <td style="color:var(--text3)">${d.notes||''}</td>
+      <td><button onclick="supprimerDividende('${d.id}')" title="Supprimer" style="background:rgba(255,84,112,.08);border:1px solid rgba(255,84,112,.25);color:#ff9fae;width:24px;height:24px;border-radius:5px;cursor:pointer;font-size:10px">🗑</button></td>
+    </tr>`).join('') : '<tr><td colspan="8" style="color:var(--text3);padding:20px;text-align:center">Aucun dividende enregistré.</td></tr>';
+}
+window.ouvrirModalDividende = function(){
+  remplirSelectFiliales('div-filiale');
+  document.getElementById('div-annee').value = new Date().getFullYear();
+  document.getElementById('div-date').value = '';
+  document.getElementById('div-montant').value = '';
+  document.getElementById('div-merefille').checked = true;
+  document.getElementById('div-notes').value = '';
+  document.getElementById('modal-dividende').classList.add('open');
+};
+window.sauvegarderDividende = function(){
+  const filiale = document.getElementById('div-filiale').value || 'Non précisée';
+  const montant = +document.getElementById('div-montant').value || 0;
+  const annee = +document.getElementById('div-annee').value || new Date().getFullYear();
+  if(montant<=0){ alert('Indique un montant valide.'); return; }
+  window.DATA.dividendes.push({
+    id: uid(), filiale, annee,
+    date: document.getElementById('div-date').value,
+    montant,
+    merefille: document.getElementById('div-merefille').checked,
+    notes: document.getElementById('div-notes').value.trim()
+  });
+  fermerModal('modal-dividende');
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+window.supprimerDividende = function(id){
+  window.DATA.dividendes = window.DATA.dividendes.filter(d=>d.id!==id);
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+
+// ── TRÉSORERIE PROPRE ─────────────────────────────────────────────────
+window.ouvrirModalTresorerie = function(){
+  document.getElementById('tres-montant').value = window.DATA.tresoreriePropre || 0;
+  document.getElementById('modal-tresorerie').classList.add('open');
+};
+window.sauvegarderTresorerie = function(){
+  window.DATA.tresoreriePropre = +document.getElementById('tres-montant').value || 0;
+  fermerModal('modal-tresorerie');
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+
+// ── CONVENTIONS RÉGLEMENTÉES ──────────────────────────────────────────
+const CONV_TYPE_LABELS = { avance:'Avance / prêt CCA', prestation:'Prestation de services', garantie:'Garantie / caution', autre:'Autre' };
+function renderConventions(){
+  const list = document.getElementById('conventions-list');
+  if(!window.DATA.conventions.length){
+    list.innerHTML = `<div class="empty-state"><div class="icon">📜</div><p>Aucune convention enregistrée pour l'instant.</p></div>`;
+    return;
+  }
+  const sorted = [...window.DATA.conventions].sort((a,b)=> (b.dateSignature||'').localeCompare(a.dateSignature||''));
+  list.innerHTML = sorted.map(c => `
+    <div class="row-card">
+      <div class="row-main">
+        <div class="row-title">${c.filiale} — ${CONV_TYPE_LABELS[c.type]||c.type}</div>
+        <div class="row-sub">${c.description||''}</div>
+      </div>
+      <div class="row-metrics">
+        <div class="row-metric"><div class="row-metric-val" style="font-size:11px">${c.dateSignature||'—'}</div><div class="row-metric-label">Signature</div></div>
+        <div class="row-metric">
+          <div class="row-metric-val">
+            <span class="badge-statut" style="color:${c.statut==='approuvee'?'var(--green)':'var(--danger)'}">${c.statut==='approuvee'?'✅ Approuvée':'⏳ À approuver'}</span>
+          </div>
+          <div class="row-metric-label">${c.dateAg ? 'AG du '+c.dateAg : 'Statut AG'}</div>
+        </div>
+      </div>
+      <div class="row-actions">
+        <button onclick="ouvrirModalConvention('${c.id}')" title="Modifier">✎</button>
+        <button class="danger" onclick="supprimerConvention('${c.id}')" title="Supprimer">🗑</button>
+      </div>
+    </div>`).join('');
+}
+window._editConvId = null;
+window.ouvrirModalConvention = function(id){
+  window._editConvId = id || null;
+  remplirSelectFiliales('conv-filiale');
+  if(id){
+    const c = window.DATA.conventions.find(x=>x.id===id);
+    document.getElementById('conv-filiale').value = c.filiale || '';
+    document.getElementById('conv-type').value = c.type || 'avance';
+    document.getElementById('conv-description').value = c.description || '';
+    document.getElementById('conv-date-signature').value = c.dateSignature || '';
+    document.getElementById('conv-statut').value = c.statut || 'a_approuver';
+    document.getElementById('conv-date-ag').value = c.dateAg || '';
+  } else {
+    document.getElementById('conv-type').value = 'avance';
+    document.getElementById('conv-description').value = '';
+    document.getElementById('conv-date-signature').value = new Date().toISOString().slice(0,10);
+    document.getElementById('conv-statut').value = 'a_approuver';
+    document.getElementById('conv-date-ag').value = '';
+  }
+  document.getElementById('modal-convention').classList.add('open');
+};
+window.sauvegarderConvention = function(){
+  const filiale = document.getElementById('conv-filiale').value;
+  if(!filiale){ alert("Ajoute d'abord une filiale dans l'onglet Participations."); return; }
+  const data = {
+    filiale,
+    type: document.getElementById('conv-type').value,
+    description: document.getElementById('conv-description').value.trim(),
+    dateSignature: document.getElementById('conv-date-signature').value,
+    statut: document.getElementById('conv-statut').value,
+    dateAg: document.getElementById('conv-date-ag').value
+  };
+  if(window._editConvId){
+    const idx = window.DATA.conventions.findIndex(x=>x.id===window._editConvId);
+    if(idx>-1) window.DATA.conventions[idx] = { ...window.DATA.conventions[idx], ...data };
+  } else {
+    window.DATA.conventions.push({ id: uid(), ...data });
+  }
+  fermerModal('modal-convention');
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+window.supprimerConvention = function(id){
+  if(!confirm('Supprimer cette convention ?')) return;
+  window.DATA.conventions = window.DATA.conventions.filter(c=>c.id!==id);
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+
+// ── ÉCHÉANCES LÉGALES ─────────────────────────────────────────────────
+function renderEcheances(){
+  const list = document.getElementById('echeances-list');
+  if(!window.DATA.echeances.length){
+    list.innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>Aucune échéance enregistrée pour l'instant.</p></div>`;
+    return;
+  }
+  const todayS = todayStrLocal();
+  const sorted = [...window.DATA.echeances].sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  list.innerHTML = sorted.map(e => {
+    const enRetard = e.statut!=='fait' && e.date && e.date < todayS;
+    const joursRestants = e.date ? Math.ceil((new Date(e.date) - new Date())/86400000) : null;
+    let statutTxt = '✅ Fait';
+    let statutColor = 'var(--green)';
+    if(e.statut !== 'fait'){
+      if(enRetard){ statutTxt = '⚠ En retard'; statutColor = 'var(--danger)'; }
+      else if(joursRestants!==null && joursRestants<=30){ statutTxt = `⏳ Dans ${joursRestants}j`; statutColor = 'var(--amber)'; }
+      else { statutTxt = '⏳ À faire'; statutColor = 'var(--text2)'; }
+    }
+    return `<div class="row-card">
+      <div class="row-main"><div class="row-title">${e.libelle}</div><div class="row-sub">${e.notes||''}</div></div>
+      <div class="row-metrics">
+        <div class="row-metric"><div class="row-metric-val" style="font-size:12px">${e.date ? new Date(e.date).toLocaleDateString('fr-FR') : '—'}</div><div class="row-metric-label">Échéance</div></div>
+        <div class="row-metric"><div class="row-metric-val"><span class="badge-statut" style="color:${statutColor}">${statutTxt}</span></div><div class="row-metric-label">Statut</div></div>
+      </div>
+      <div class="row-actions">
+        <button onclick="ouvrirModalEcheance('${e.id}')" title="Modifier">✎</button>
+        <button class="danger" onclick="supprimerEcheance('${e.id}')" title="Supprimer">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+window._editEchId = null;
+window.ouvrirModalEcheance = function(id){
+  window._editEchId = id || null;
+  if(id){
+    const e = window.DATA.echeances.find(x=>x.id===id);
+    document.getElementById('ech-libelle').value = e.libelle || '';
+    document.getElementById('ech-date').value = e.date || '';
+    document.getElementById('ech-statut').value = e.statut || 'a_faire';
+    document.getElementById('ech-notes').value = e.notes || '';
+  } else {
+    document.getElementById('ech-libelle').value = '';
+    document.getElementById('ech-date').value = '';
+    document.getElementById('ech-statut').value = 'a_faire';
+    document.getElementById('ech-notes').value = '';
+  }
+  document.getElementById('modal-echeance').classList.add('open');
+};
+window.sauvegarderEcheance = function(){
+  const libelle = document.getElementById('ech-libelle').value.trim();
+  if(!libelle){ alert('Le libellé est obligatoire.'); return; }
+  const data = {
+    libelle,
+    date: document.getElementById('ech-date').value,
+    statut: document.getElementById('ech-statut').value,
+    notes: document.getElementById('ech-notes').value.trim()
+  };
+  if(window._editEchId){
+    const idx = window.DATA.echeances.findIndex(x=>x.id===window._editEchId);
+    if(idx>-1) window.DATA.echeances[idx] = { ...window.DATA.echeances[idx], ...data };
+  } else {
+    window.DATA.echeances.push({ id: uid(), ...data });
+  }
+  fermerModal('modal-echeance');
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+window.supprimerEcheance = function(id){
+  if(!confirm('Supprimer cette échéance ?')) return;
+  window.DATA.echeances = window.DATA.echeances.filter(e=>e.id!==id);
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+
+window.renderAll = function(){
+  try{ renderSynthese(); }catch(e){ console.warn('renderSynthese a échoué:', e); }
+  try{ renderParticipations(); }catch(e){ console.warn('renderParticipations a échoué:', e); }
+  try{ renderCca(); }catch(e){ console.warn('renderCca a échoué:', e); }
+  try{ renderDividendes(); }catch(e){ console.warn('renderDividendes a échoué:', e); }
+  try{ renderConventions(); }catch(e){ console.warn('renderConventions a échoué:', e); }
+  try{ renderEcheances(); }catch(e){ console.warn('renderEcheances a échoué:', e); }
+};
+</script>
+</body>
+</html>
