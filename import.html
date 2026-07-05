@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Import SCI Lémyane → GestImmo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0e1a;--bg2:#111827;--bg3:#1a2235;--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+--accent:#63b3ed;--accent2:#4299e1;--accent3:#2b6cb0;--green:#68d391;--red:#fc8181;--orange:#f6ad55;
+--border:rgba(99,179,237,0.15);--border2:rgba(99,179,237,0.32);--font:'Segoe UI',system-ui,sans-serif}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;padding:28px 16px}
+.wrap{max-width:640px;margin:0 auto}
+h1{font-size:20px;font-weight:700;margin-bottom:6px;color:var(--accent)}
+.sub{font-size:12px;color:var(--text3);margin-bottom:24px}
+.card{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:22px;margin-bottom:16px}
+.step-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--accent3);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+select,input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;margin-bottom:10px}
+.btn{background:var(--accent3);border:1px solid var(--accent2);border-radius:8px;padding:11px 18px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;width:100%}
+.btn:hover{background:var(--accent2)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-danger{background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.4);color:#fc8181}
+.msg{font-size:12px;padding:10px 12px;border-radius:8px;margin-top:10px;display:none}
+.msg.info{background:rgba(99,179,237,.1);color:var(--accent);display:block}
+.msg.success{background:rgba(104,211,145,.1);color:var(--green);display:block}
+.msg.error{background:rgba(252,129,129,.1);color:var(--red);display:block}
+.msg.warn{background:rgba(246,173,85,.1);color:var(--orange);display:block}
+.preview{font-size:11px;color:var(--text2);background:var(--bg3);border-radius:8px;padding:12px;margin-top:10px;line-height:1.8}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📦 Import de données — Ancienne app → GestImmo</h1>
+  <p class="sub">Outil à usage unique pour copier tes données (factures, budget, locataires...) depuis ton ancienne application personnelle vers une structure GestImmo. Aucune donnée n'est supprimée côté ancienne app.</p>
+
+  <div class="card">
+    <div class="step-title"><span class="step-num">1</span> Connexion à GestImmo</div>
+    <button class="btn" id="btn-login" onclick="seConnecter()">Se connecter avec Google</button>
+    <div class="msg" id="msg-login"></div>
+  </div>
+
+  <div class="card hidden" id="card-source">
+    <div class="step-title"><span class="step-num">2</span> Choisir les données à importer</div>
+    <select id="sel-source">
+      <option value="sci">SCI Lémyane (contexte "sci")</option>
+      <option value="lmnp">LMNP Barreteau (contexte "lmnp")</option>
+    </select>
+    <button class="btn" onclick="chargerApercu()">Charger l'aperçu</button>
+    <div class="msg" id="msg-source"></div>
+    <div class="preview hidden" id="preview-source"></div>
+  </div>
+
+  <div class="card hidden" id="card-dest">
+    <div class="step-title"><span class="step-num">3</span> Choisir la structure GestImmo de destination</div>
+    <select id="sel-dest"></select>
+    <div class="msg warn" id="msg-dest-warning" style="display:none">⚠ Cette structure contient déjà des données. L'import écrasera tout son contenu.</div>
+    <button class="btn" id="btn-import" onclick="lancerImport()" disabled>Importer maintenant</button>
+    <div class="msg" id="msg-import"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// Projet GestImmo (destination)
+const gestimmoConfig = {
+  apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
+  authDomain: "gestimmo-app.firebaseapp.com",
+  projectId: "gestimmo-app",
+  storageBucket: "gestimmo-app.firebasestorage.app",
+  messagingSenderId: "658875106145",
+  appId: "1:658875106145:web:8d797303b2168efbe6bb20"
+};
+// Projet ancienne app perso (source)
+const sciConfig = {
+  apiKey: "AIzaSyD79uAdDd0xmHjCuhVbKw976K_tPL1Pl0Y",
+  authDomain: "sci-lemayne.firebaseapp.com",
+  projectId: "sci-lemayne",
+  storageBucket: "sci-lemayne.firebasestorage.app",
+  messagingSenderId: "627856663016",
+  appId: "1:627856663016:web:a6f83a2db2b144db90045d"
+};
+
+const gestimmoApp = initializeApp(gestimmoConfig, 'gestimmo');
+const sciApp = initializeApp(sciConfig, 'sci');
+const auth = getAuth(gestimmoApp);
+const dbGestimmo = getFirestore(gestimmoApp);
+const dbSci = getFirestore(sciApp);
+
+let currentUser = null;
+let sourceData = null;
+
+window.seConnecter = async function(){
+  try{
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  }catch(e){
+    document.getElementById('msg-login').className='msg error';
+    document.getElementById('msg-login').textContent='Erreur de connexion : '+e.message;
+  }
+};
+
+onAuthStateChanged(auth, async (user) => {
+  if(!user) return;
+  currentUser = user;
+  document.getElementById('btn-login').textContent='✓ Connecté : '+user.email;
+  document.getElementById('btn-login').disabled=true;
+  document.getElementById('msg-login').className='msg success';
+  document.getElementById('msg-login').textContent='Connecté avec succès.';
+  document.getElementById('card-source').classList.remove('hidden');
+
+  // Charger la liste des structures GestImmo de l'utilisateur
+  const sel=document.getElementById('sel-dest');
+  sel.innerHTML='<option value="">Chargement...</option>';
+  try{
+    const snap=await getDocs(collection(dbGestimmo,'users',user.uid,'structures'));
+    if(snap.empty){
+      sel.innerHTML='<option value="">Aucune structure trouvée — crée-la d\'abord sur GestImmo</option>';
+    }else{
+      sel.innerHTML='';
+      snap.forEach(d=>{
+        const o=document.createElement('option');
+        o.value=d.id;
+        o.textContent=d.data().nom || d.id;
+        sel.appendChild(o);
+      });
+    }
+  }catch(e){
+    sel.innerHTML='<option value="">Erreur de chargement</option>';
+  }
+});
+
+window.chargerApercu = async function(){
+  const ctx=document.getElementById('sel-source').value;
+  const msg=document.getElementById('msg-source');
+  const preview=document.getElementById('preview-source');
+  msg.className='msg info';msg.textContent='Chargement depuis l\'ancienne app...';
+  try{
+    const snap=await getDoc(doc(dbSci,ctx,'data'));
+    if(!snap.exists()){
+      msg.className='msg error';
+      msg.textContent='Aucune donnée trouvée pour ce contexte sur l\'ancienne app.';
+      preview.classList.add('hidden');
+      return;
+    }
+    sourceData=snap.data();
+    const nbFactures=(sourceData.factures||[]).length;
+    const nbLogements=(sourceData.logements||[]).length;
+    const nbLocataires=(sourceData.locataires||[]).length;
+    const nbCatBudget=Object.keys(sourceData.budget||{}).length;
+    preview.innerHTML=`
+      <b>Aperçu des données trouvées :</b><br>
+      📄 ${nbFactures} facture(s)<br>
+      🏠 ${nbLogements} logement(s)<br>
+      👥 ${nbLocataires} locataire(s)<br>
+      🧾 ${nbCatBudget} catégorie(s) de budget<br>
+      🕒 Dernière synchro : ${sourceData.lastSync ? new Date(sourceData.lastSync).toLocaleString('fr-FR') : 'inconnue'}
+    `;
+    preview.classList.remove('hidden');
+    msg.className='msg success';msg.textContent='Données chargées. Choisis la structure de destination ci-dessous.';
+    document.getElementById('card-dest').classList.remove('hidden');
+    document.getElementById('btn-import').disabled=false;
+  }catch(e){
+    msg.className='msg error';
+    msg.textContent='Erreur : '+e.message;
+  }
+};
+
+document.getElementById('sel-dest')?.addEventListener?.('change', checkDestVide);
+async function checkDestVide(){
+  const structureId=document.getElementById('sel-dest').value;
+  const warning=document.getElementById('msg-dest-warning');
+  if(!structureId){warning.style.display='none';return;}
+  try{
+    const snap=await getDoc(doc(dbGestimmo,'users',currentUser.uid,'structures',structureId,'appdata','data'));
+    if(snap.exists() && snap.data() && Object.keys(snap.data()).length>0){
+      warning.style.display='block';
+    }else{
+      warning.style.display='none';
+    }
+  }catch(e){ warning.style.display='none'; }
+}
+// Vérifie aussi juste après le chargement de la liste
+const obs=new MutationObserver(()=>{ document.getElementById('sel-dest')?.addEventListener('change',checkDestVide); });
+obs.observe(document.getElementById('sel-dest'),{childList:true});
+
+window.lancerImport = async function(){
+  const structureId=document.getElementById('sel-dest').value;
+  const msg=document.getElementById('msg-import');
+  if(!structureId || !sourceData){
+    msg.className='msg error';msg.textContent='Choisis une structure de destination.';
+    return;
+  }
+  if(!confirm('Confirmer l\'import ? Cela va remplacer toutes les données actuelles de la structure sélectionnée sur GestImmo par celles de l\'ancienne app.')) return;
+  msg.className='msg info';msg.textContent='Import en cours...';
+  try{
+    await setDoc(doc(dbGestimmo,'users',currentUser.uid,'structures',structureId,'appdata','data'), {
+      budget: sourceData.budget || {},
+      factures: sourceData.factures || [],
+      fin: sourceData.fin || {},
+      locataires: sourceData.locataires || [],
+      logements: sourceData.logements || [],
+      projection: sourceData.projection || {},
+      fc: sourceData.fc || {},
+      lastSync: new Date().toISOString()
+    });
+    msg.className='msg success';
+    msg.textContent='✓ Import terminé ! Ouvre cette structure sur GestImmo et clique sur "☁ Sync Drive" ou recharge la page pour voir les données.';
+  }catch(e){
+    msg.className='msg error';
+    msg.textContent='Erreur lors de l\'import : '+e.message;
+  }
+};
+</script>
+</body>
+</html>
