@@ -315,9 +315,14 @@ onAuthStateChanged(auth, async user => {
     }
   } catch(e){ console.warn('Données holding introuvables, initialisation vide', e); }
 
-  window.renderAll();
-  document.getElementById('loader').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
+  try {
+    window.renderAll();
+  } catch(e){
+    console.error('Erreur de rendu de la holding:', e);
+  } finally {
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  }
 });
 
 window.sauvegarderDonnees = async function(){
@@ -391,14 +396,18 @@ function renderSynthese(){
   const parAnnee = {};
   window.DATA.dividendes.forEach(d => { parAnnee[d.annee] = (parAnnee[d.annee]||0) + (+d.montant||0); });
   const annees = Object.keys(parAnnee).sort();
-  if(chartDividendes) chartDividendes.destroy();
-  chartDividendes = new Chart(document.getElementById('chart-dividendes'), {
-    type: 'bar',
-    data: { labels: annees.length?annees:['Aucune donnée'], datasets: [{ label:'Dividendes', data: annees.length?annees.map(a=>parAnnee[a]):[0], backgroundColor:'rgba(79,216,255,.5)', borderColor:'#4fd8ff', borderWidth:1.5, borderRadius:5 }] },
-    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-      scales:{ x:{ticks:{color:'#8f9ac2',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,.05)'}},
-               y:{ticks:{color:'#8f9ac2',font:{family:'JetBrains Mono',size:9},callback:v=>fmt(v)},grid:{color:'rgba(255,255,255,.05)'}} } }
-  });
+  try {
+    if(chartDividendes) chartDividendes.destroy();
+    chartDividendes = new Chart(document.getElementById('chart-dividendes'), {
+      type: 'bar',
+      data: { labels: annees.length?annees:['Aucune donnée'], datasets: [{ label:'Dividendes', data: annees.length?annees.map(a=>parAnnee[a]):[0], backgroundColor:'rgba(79,216,255,.5)', borderColor:'#4fd8ff', borderWidth:1.5, borderRadius:5 }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{color:'#8f9ac2',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(255,255,255,.05)'}},
+                 y:{ticks:{color:'#8f9ac2',font:{family:'JetBrains Mono',size:9},callback:v=>fmt(v)},grid:{color:'rgba(255,255,255,.05)'}} } }
+    });
+  } catch(e){
+    console.warn('Graphique dividendes indisponible:', e);
+  }
 }
 
 // ── PARTICIPATIONS ──────────────────────────────────────────────────────
@@ -470,7 +479,7 @@ window.supprimerParticipation = function(id){
 function remplirSelectFiliales(selectId){
   const sel = document.getElementById(selectId);
   const noms = window.DATA.participations.map(p=>p.nom);
-  sel.innerHTML = noms.length ? noms.map(n=>`<option value="${n}">${n}</option>`).join('') : '<option value="">Aucune filiale — ajoute une participation d\\'abord</option>';
+  sel.innerHTML = noms.length ? noms.map(n=>`<option value="${n}">${n}</option>`).join('') : `<option value="">Aucune filiale — ajoute une participation d'abord</option>`;
 }
 function renderCca(){
   const soldesList = document.getElementById('cca-soldes-list');
@@ -592,10 +601,10 @@ window.sauvegarderTresorerie = function(){
 };
 
 window.renderAll = function(){
-  renderSynthese();
-  renderParticipations();
-  renderCca();
-  renderDividendes();
+  try{ renderSynthese(); }catch(e){ console.warn('renderSynthese a échoué:', e); }
+  try{ renderParticipations(); }catch(e){ console.warn('renderParticipations a échoué:', e); }
+  try{ renderCca(); }catch(e){ console.warn('renderCca a échoué:', e); }
+  try{ renderDividendes(); }catch(e){ console.warn('renderDividendes a échoué:', e); }
 };
 </script>
 </body>

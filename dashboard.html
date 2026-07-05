@@ -634,16 +634,8 @@ window.seDeconnecter = async function(){
   await signOut(auth);
   window.location.href = 'index.html';
 };
-</script>
 
-<script>
-function normaliserNom(s){
-  return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/\s+/g,' ');
-}
-function nomsCorrespondent(a, b){
-  return normaliserNom(a) === normaliserNom(b) && normaliserNom(a).length > 0;
-}
-async function ouvrirModalStructure(id){
+window.ouvrirModalStructure = async function(id){
   window._editingStructureId = id || null;
   const title = document.querySelector('#modal-structure .modal-title');
   const sub = document.querySelector('#modal-structure .modal-sub');
@@ -663,13 +655,25 @@ async function ouvrirModalStructure(id){
         document.querySelectorAll('.type-option').forEach(e=>e.classList.toggle('selected', e.dataset.type === s.type));
         document.querySelectorAll('.color-option').forEach(e=>e.classList.toggle('selected', e.dataset.color === s.couleur));
       }
-    } catch(e){ console.error('Erreur chargement structure:', e); }
+    } catch(e){
+      console.error('Erreur chargement structure:', e);
+      alert("Erreur lors du chargement de la structure : " + e.message);
+    }
   } else {
     if(title) title.textContent = 'Nouvelle structure';
     if(sub) sub.textContent = 'Créez votre SCI, LMNP, ou autre structure locative';
     if(btn) btn.textContent = '✓ Créer la structure';
   }
   document.getElementById('modal-structure').classList.add('open');
+};
+</script>
+
+<script>
+function normaliserNom(s){
+  return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/\s+/g,' ');
+}
+function nomsCorrespondent(a, b){
+  return normaliserNom(a) === normaliserNom(b) && normaliserNom(a).length > 0;
 }
 function fermerModalStructure(){
   window._editingStructureId = null;
