@@ -3104,7 +3104,9 @@ async function exportZipFactures(){
         // L'image est volontairement limitée à calc(100% - 60px) en hauteur max pour que
         // le libellé (≈ 40px) + la 1ère page tiennent sur une seule page A4 imprimée.
         const reglePar=f.regleby?` — Réglé par : <span style="color:#2c5282;font-weight:700">${f.regleby}</span>`:'';
-        const labelHtml='<div style="font-family:Arial;font-size:12px;font-weight:700;color:#2b6cb0;padding:6px 0 5px;border-bottom:2px solid #2b6cb0;margin-bottom:8px">'+nom+' — <span style="color:'+sc+'">'+f.statut+'</span> — '+montant+reglePar+'</div>';
+        const cmdInfo=f.cmd?` — N° commande : <span style="color:#2c5282;font-weight:700">${f.cmd}</span>`:'';
+        const datepayInfo=f.datepay?` — Payée le : <span style="color:#2c5282;font-weight:700">${f.datepay}</span>`:'';
+        const labelHtml='<div style="font-family:Arial;font-size:12px;font-weight:700;color:#2b6cb0;padding:6px 0 5px;border-bottom:2px solid #2b6cb0;margin-bottom:8px">'+nom+' — <span style="color:'+sc+'">'+f.statut+'</span> — '+montant+reglePar+cmdInfo+datepayInfo+'</div>';
         const firstPage='<img src="'+images[0]+'" style="width:100%;max-height:calc(100vh - 80px);object-fit:contain;display:block">';
         const restPages=images.slice(1).map(img=>
           '<div style="page-break-before:always"><img src="'+img+'" style="width:100%;display:block"></div>'
@@ -3129,6 +3131,8 @@ async function exportZipFactures(){
       +'<strong>'+montant+'</strong> &nbsp;|&nbsp; '
       +f.cat+' &nbsp;|&nbsp; '+f.log
       +(f.regleby?' &nbsp;|&nbsp; Réglé par : <strong>'+f.regleby+'</strong>':'')
+      +(f.cmd?' &nbsp;|&nbsp; N° commande : <strong>'+f.cmd+'</strong>':'')
+      +(f.datepay?' &nbsp;|&nbsp; Payée le : <strong>'+f.datepay+'</strong>':'')
       +messageManquant
       +'</div>');
   }
