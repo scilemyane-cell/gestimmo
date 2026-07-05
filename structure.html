@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+<script>
+  window.addEventListener('error', function(e){
+    alert('ERREUR JS: ' + e.message + '\n(fichier: ' + e.filename + ' ligne ' + e.lineno + ')');
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    alert('ERREUR PROMESSE: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+  });
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#63b3ed">
