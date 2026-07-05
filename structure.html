@@ -1861,7 +1861,7 @@ function renderSynthese(){
   // Tableau de bord par logement — dynamique selon le contexte
   const cfg=getCTXConfig();
   const logColors={};cfg.logements.forEach(lg=>{logColors[lg.key]=lg.color;});
-  document.getElementById('synth-log-cards').style.gridTemplateColumns=`repeat(${cfg.logements.length},1fr)`;
+  document.getElementById('synth-log-cards').style.gridTemplateColumns=`repeat(${Math.max(cfg.logements.length,1)},1fr)`;
   document.getElementById('synth-log-cards').innerHTML=cfg.logements.map(lg=>{
     const l=lg.key;
     const p=bPrev[l]||0;
@@ -2015,7 +2015,7 @@ function renderLogements(){
 function renderBudget(){
   const{budget}=loadData();
   const grid=document.getElementById('budget-grid');
-  grid.style.gridTemplateColumns=`210px repeat(${LOGS.length},1fr) 110px`;
+  grid.style.gridTemplateColumns=`210px repeat(${Math.max(LOGS.length,1)},1fr) 110px`;
   grid.innerHTML='<div class="bg-th">Description</div>'+
     LOGS.map(l=>`<div class="bg-th" style="text-align:right">${l.key} TTC</div>`).join('')+
     '<div class="bg-th" style="text-align:right">Total TTC</div>';
@@ -2124,7 +2124,7 @@ function renderReelGrid(){
   const matrix=getReelMatrix(factures);
   const grid=document.getElementById('reel-grid');
   if(!grid)return;
-  grid.style.gridTemplateColumns=`210px repeat(${LOGS.length},1fr) 110px`;
+  grid.style.gridTemplateColumns=`210px repeat(${Math.max(LOGS.length,1)},1fr) 110px`;
   grid.innerHTML='<div class="bg-th">Catégorie</div>'+
     LOGS.map(l=>`<div class="bg-th" style="text-align:right">${l.key} TTC</div>`).join('')+
     '<div class="bg-th" style="text-align:right">Total TTC</div>';
@@ -2165,7 +2165,7 @@ function renderReelGrid(){
 
   // Ligne total général
   const totDiv=document.createElement('div');
-  totDiv.style.cssText=`grid-column:1/-1;display:grid;grid-template-columns:210px repeat(${LOGS.length},1fr) 110px;background:rgba(99,179,237,0.1);border-top:2px solid var(--border2)`;
+  totDiv.style.cssText=`grid-column:1/-1;display:grid;grid-template-columns:210px repeat(${Math.max(LOGS.length,1)},1fr) 110px;background:rgba(99,179,237,0.1);border-top:2px solid var(--border2)`;
   [{t:'TOTAL GÉNÉRAL',align:'left'},...totals.map(v=>({v})),{v:totAll,bold:true}].forEach(({t,v,align,bold})=>{
     const td=document.createElement('div');td.className='bg-td';
     td.style.textAlign=align||'right';td.style.fontWeight='700';td.style.color='var(--accent)';td.style.fontSize='12px';
@@ -2564,7 +2564,7 @@ function initFinancement(){
   if(!wrap)return;
   const fin=loadFinancement();
   const n=LOGS.length;
-  let html=`<div style="display:grid;grid-template-columns:150px repeat(${n},1fr) 140px;gap:0;margin-bottom:20px" id="fin-grid">`;
+  let html=`<div style="display:grid;grid-template-columns:150px repeat(${Math.max(n,1)},1fr) 140px;gap:0;margin-bottom:20px" id="fin-grid">`;
   html+=`<div style="padding:8px 12px;border-bottom:1px solid var(--border2)"></div>`;
   LOGS.forEach(l=>{
     html+=`<div style="padding:8px 12px;font-size:11px;font-weight:600;color:${l.color};text-align:center;border-bottom:1px solid var(--border2)">${l.key}</div>`;
@@ -2600,7 +2600,7 @@ function initFinancement(){
     html+=`<div style="padding:10px 12px;font-size:13px;font-weight:700;text-align:right" id="fin-reste-${l.prevKey}">—</div>`;
   });
   html+=`<div style="padding:10px 12px;font-size:14px;font-weight:700;text-align:right" id="fin-reste-global">—</div>`;
-  html+=`</div><div style="display:grid;grid-template-columns:repeat(${n},1fr);gap:16px" id="fin-bars"></div>`;
+  html+=`</div><div style="display:grid;grid-template-columns:repeat(${Math.max(n,1)},1fr);gap:16px" id="fin-bars"></div>`;
   wrap.innerHTML=html;
 
   LOGS.forEach(l=>{
@@ -3474,7 +3474,7 @@ function renderLocataires(){
         <div class="loc-metric"><div class="loc-metric-val" style="color:#b794f4">${nbOccupes}/${logs.length}</div><div class="loc-metric-label">Logements occupés</div></div>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(${Math.min(logs.length,2)},1fr);gap:16px;margin-bottom:24px">
+      <div style="display:grid;grid-template-columns:repeat(${Math.max(Math.min(logs.length,2),1)},1fr);gap:16px;margin-bottom:24px">
         ${logs.map(lg=>{
           const cur=getCurrentLocataire(lg.key);
           const actif=cur&&isLocataireActifAt(cur,todayS);
@@ -4463,7 +4463,7 @@ function renderCoutRevient(){
   const totalG=logsData.reduce((s,d)=>s+d.cout,0);
   container.innerHTML=`
     <div class="section-title">Coût de revient — ${cfg.nom}</div>
-    <div style="display:grid;grid-template-columns:repeat(${cfg.logements.length},1fr);gap:16px;margin-bottom:24px">
+    <div style="display:grid;grid-template-columns:repeat(${Math.max(cfg.logements.length,1)},1fr);gap:16px;margin-bottom:24px">
       ${logsData.map(d=>`<div class="table-wrap" style="padding:20px 22px">
         <div style="font-size:13px;font-weight:700;color:${d.lg.color};margin-bottom:14px;border-bottom:2px solid ${d.lg.color};padding-bottom:8px">${d.lg.label}</div>
         <div style="font-size:12px;display:flex;flex-direction:column;gap:8px">
@@ -7867,7 +7867,7 @@ function renderGestionLocative(){
   </div>`;
 
   const container=document.getElementById('gl-synthese-cards');
-  if(container)container.innerHTML=`<div style="display:grid;grid-template-columns:repeat(${logs.length},1fr);gap:14px;margin-bottom:24px">${synthCards}</div>${tabBar}`;
+  if(container)container.innerHTML=`<div style="display:grid;grid-template-columns:repeat(${Math.max(logs.length,1)},1fr);gap:14px;margin-bottom:24px">${synthCards}</div>${tabBar}`;
 
   renderGestionLocativeDetail();
 }
