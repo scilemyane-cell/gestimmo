@@ -742,18 +742,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 </div>
 
 <!-- BUDGET -->
-<!-- BUDGET -->
 <div class="content" id="tab-budget">
   <div class="section-title">Budget prévisionnel — saisie par poste</div>
+  <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Les catégories de <b>travaux</b> sont toujours disponibles ci-dessous. Ajoute en plus une charge de <b>fonctionnement</b> future si tu veux déjà la prévoir (ex: taxe foncière, assurance...) :</div>
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <select id="budget-add-cat-select" style="flex:1;min-width:240px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none"></select>
+    <button onclick="ajouterCategorieBudget()" style="background:var(--accent3);border:1px solid var(--accent2);border-radius:8px;padding:9px 16px;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">+ Ajouter cette charge</button>
+  </div>
   <div class="table-wrap">
-    <div class="budget-grid" id="budget-grid">
-      <div class="bg-th">Description</div>
-      <div class="bg-th" style="text-align:right">Log. A TTC</div>
-      <div class="bg-th" style="text-align:right">Log. B TTC</div>
-      <div class="bg-th" style="text-align:right">Log. C TTC</div>
-      <div class="bg-th" style="text-align:right">Commun TTC</div>
-      <div class="bg-th" style="text-align:right">Total TTC</div>
-    </div>
+    <div class="budget-grid" id="budget-grid"></div>
   </div>
 </div>
 
@@ -1409,6 +1406,25 @@ function saveFC(d){
 function initBudget(){
   return {}; // Aucune ligne par défaut — l'utilisateur ajoute ses postes via "+ Ajouter un poste"
 }
+window.ajouterCategorieBudget=function(){
+  const sel=document.getElementById('budget-add-cat-select');
+  if(!sel || sel.disabled || !sel.value) return;
+  const catName=sel.value;
+  const d=loadData();
+  if(!d.budget[catName])d.budget[catName]=[];
+  const row={desc:''};
+  LOGS.forEach(l=>{row[l.prevKey]=0;});
+  d.budget[catName].push(row);
+  saveBudget(d.budget);
+  renderBudget();
+};
+window.retirerCategorieBudget=function(catName){
+  if(!confirm(`Retirer la catégorie "${catName}" du budget prévisionnel ?\n\nLes montants déjà saisis pour cette catégorie seront supprimés (mais tes factures réelles dans Comptabilité ne sont pas affectées).`))return;
+  const d=loadData();
+  delete d.budget[catName];
+  saveBudget(d.budget);
+  renderBudget();
+};
 function addBudgetRow(catName){
   const d=loadData();
   if(!d.budget[catName])d.budget[catName]=[];
@@ -2003,8 +2019,39 @@ function renderBudget(){
   grid.innerHTML='<div class="bg-th">Description</div>'+
     LOGS.map(l=>`<div class="bg-th" style="text-align:right">${l.key} TTC</div>`).join('')+
     '<div class="bg-th" style="text-align:right">Total TTC</div>';
+
+  // Menu déroulant "+ Ajouter une catégorie" — uniquement Fonctionnement, pas encore utilisées
+  // (les catégories Travaux sont toujours affichées : c'est le cœur du module Construction prévisionnelle)
+  const catSelect=document.getElementById('budget-add-cat-select');
+  if(catSelect){
+    const dejaUtilisees=Object.keys(budget);
+    const disponibles=CATEGORIES.filter(c=>c.type==='fonctionnement' && !dejaUtilisees.includes(c.name));
+    catSelect.innerHTML='';
+    disponibles.forEach(c=>{
+      const o=document.createElement('option');o.value=c.name;o.textContent=c.name;
+      catSelect.appendChild(o);
+    });
+    if(!disponibles.length){
+      catSelect.innerHTML='<option>Toutes les catégories de fonctionnement sont déjà ajoutées</option>';
+      catSelect.disabled=true;
+    } else {
+      catSelect.disabled=false;
+    }
+  }
+
+  const categoriesUtilisees=CATEGORIES.filter(cat=>
+    cat.type==='travaux' || (cat.type==='fonctionnement' && budget[cat.name])
+  );
+  if(categoriesUtilisees.length===0){
+    const empty=document.createElement('div');
+    empty.style.cssText='grid-column:1/-1;padding:40px 20px;text-align:center;color:var(--text3);font-size:12px';
+    empty.innerHTML='Aucune catégorie de budget pour l\'instant.<br>Choisis-en une ci-dessus pour commencer ta saisie.';
+    grid.appendChild(empty);
+    return;
+  }
+
   let lastType=null;
-  CATEGORIES.filter(cat=>cat.type!=='hors_rentabilite').forEach(cat=>{
+  categoriesUtilisees.forEach(cat=>{
     if(cat.type!==lastType){
       lastType=cat.type;
       const sectionLabel=cat.type==='travaux'?'🔨 TRAVAUX (INVESTISSEMENT)':'📋 FONCTIONNEMENT (CHARGES RÉCURRENTES)';
@@ -2015,7 +2062,18 @@ function renderBudget(){
       grid.appendChild(section);
     }
     const hdr=document.createElement('div');hdr.className='bg-cat-hdr';hdr.style.color=cat.color;
-    hdr.innerHTML=`<span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>${cat.name}`;
+    hdr.style.display='flex';hdr.style.justifyContent='space-between';hdr.style.alignItems='center';
+    hdr.innerHTML=`<span style="display:flex;align-items:center;gap:8px"><span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>${cat.name}</span>`;
+    if(cat.type==='fonctionnement'){
+      const btnRetirerCat=document.createElement('button');
+      btnRetirerCat.textContent='Retirer la catégorie';
+      btnRetirerCat.title='Retire cette catégorie du budget prévisionnel (les données saisies seront perdues)';
+      btnRetirerCat.style.cssText='background:none;border:none;color:inherit;opacity:.5;cursor:pointer;font-size:9px;text-decoration:underline';
+      btnRetirerCat.onmouseover=()=>btnRetirerCat.style.opacity='1';
+      btnRetirerCat.onmouseout=()=>btnRetirerCat.style.opacity='.5';
+      btnRetirerCat.onclick=()=>retirerCategorieBudget(cat.name);
+      hdr.appendChild(btnRetirerCat);
+    }
     grid.appendChild(hdr);
     const rows=budget[cat.name]||[];
     rows.forEach((row,idx)=>{
