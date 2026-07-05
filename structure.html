@@ -924,8 +924,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
           <span>Répartir cette facture sur plusieurs logements (ex : achat Leroy Merlin pour 2 chantiers à la fois)</span>
         </label>
         <div id="f-split-panel" style="display:none;margin-top:10px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px">
-          <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Le montant TTC sera divisé à parts égales entre les logements cochés. Une ligne de facture distincte sera créée pour chacun.</div>
+          <div style="display:flex;gap:16px;margin-bottom:10px;font-size:12px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="f-split-mode" value="egale" checked onchange="toggleFactureSplit()"> Répartition égale</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="f-split-mode" value="manuel" onchange="toggleFactureSplit()"> Répartition manuelle (montants personnalisés)</label>
+          </div>
+          <div id="f-split-desc" style="font-size:11px;color:var(--text3);margin-bottom:10px">Le montant TTC sera divisé à parts égales entre les logements cochés. Une ligne de facture distincte sera créée pour chacun.</div>
           <div id="f-split-checkboxes" style="display:flex;flex-direction:column;gap:6px"></div>
+          <div id="f-split-total-info" style="display:none;margin-top:10px;font-size:12px;font-weight:600"></div>
         </div>
       </div>
       <div class="form-group"><label>Statut paiement</label>
@@ -1469,6 +1474,18 @@ function getBudgetTotals(budget){
   });
   return{byCat,byLog};
 }
+// Retourne la répartition réelle d'une facture sur les logements : répartition manuelle en priorité, sinon Commun (égal sur tous), sinon logement unique
+function getFactureShares(f, cfgLogements){
+  const ttc=+f.ttc||0;
+  if(f.repartition && Array.isArray(f.repartition) && f.repartition.length){
+    return f.repartition.map(r=>({log:r.log, montant:+r.montant||0}));
+  }
+  if(f.log==='Commun'){
+    const n=(cfgLogements&&cfgLogements.length)||1;
+    return cfgLogements.map(lg=>({log:lg.label, montant:ttc/n}));
+  }
+  return [{log:f.log, montant:ttc}];
+}
 function getReelTotals(factures){
   const cfg=getCTXConfig();
   const byCat={},byLog={Commun:0};
@@ -1479,7 +1496,9 @@ function getReelTotals(factures){
     if(f.inclus===false)return;
     const ttc=+f.ttc||0;
     if(byCat[f.cat]!==undefined)byCat[f.cat]+=ttc;
-    if(f.log==='Commun'){
+    if(f.repartition && f.repartition.length){
+      getFactureShares(f,cfg.logements).forEach(s=>{ if(byLog[s.log]!==undefined)byLog[s.log]+=s.montant; });
+    } else if(f.log==='Commun'){
       cfg.logements.forEach(lg=>{byLog[lg.label]+=ttc/nLogs;});
       byLog['Commun']+=ttc;
     } else if(byLog[f.log]!==undefined){byLog[f.log]+=ttc;}
@@ -1500,7 +1519,12 @@ function getReelMatrix(factures){
     if(f.inclus===false)return;
     const ttc=+f.ttc||0;
     if(!matrix[f.cat])return;
-    if(f.log==='Commun'){
+    if(f.repartition && f.repartition.length){
+      getFactureShares(f,[]).forEach(s=>{
+        const l=LOGS.find(x=>x.key===s.log||x.label===s.log);
+        if(l&&l.prevKey!=='com') matrix[f.cat][l.prevKey]+=s.montant;
+      });
+    } else if(f.log==='Commun'){
       if(nLogs>0) LOGS.forEach(l=>{ if(l.prevKey!=='com') matrix[f.cat][l.prevKey]+=ttc/nLogs; });
       matrix[f.cat].com+=ttc;
     } else {
@@ -2318,6 +2342,23 @@ function ajouterFacture(){
     alert('Coche au moins 2 logements pour répartir cette facture, ou décoche la case pour la saisir normalement.');
     return;
   }
+  const splitModeEl=document.querySelector('input[name="f-split-mode"]:checked');
+  const splitMode=splitModeEl?splitModeEl.value:'egale';
+  let manualAmounts=null;
+  if(isSplit && splitMode==='manuel'){
+    manualAmounts={};
+    let sommeManuelle=0;
+    for(const logVal of splitLogs){
+      const amountInput=document.querySelector(`.f-split-amount[data-log="${logVal.replace(/"/g,'&quot;')}"]`);
+      const val=+(parseFloat(amountInput?.value)||0);
+      manualAmounts[logVal]=val;
+      sommeManuelle+=val;
+    }
+    if(Math.abs(sommeManuelle-ttcInput)>0.02){
+      alert('La somme des montants saisis ('+sommeManuelle.toFixed(2)+' €) ne correspond pas au montant TTC total ('+ttcInput.toFixed(2)+' €). Corrige les montants avant d\'enregistrer.');
+      return;
+    }
+  }
 
   const d=loadData();
   const cibles=isSplit?splitLogs:[document.getElementById('f-log').value];
@@ -2330,7 +2371,7 @@ function ajouterFacture(){
   const newIdxs=[];
 
   cibles.forEach((logVal,i)=>{
-    const partTtc=+(ttcInput/nbParts).toFixed(2);
+    const partTtc=manualAmounts?+manualAmounts[logVal].toFixed(2):+(ttcInput/nbParts).toFixed(2);
     const partHt=+(partTtc/(1+tva/100)).toFixed(2);
     d.factures.push({
       num: isSplit ? (baseNum?baseNum+'-'+(i+1):'') : baseNum,
@@ -2366,6 +2407,8 @@ function ajouterFacture(){
     document.getElementById('f-split-toggle').checked=false;
     toggleFactureSplit();
     document.querySelectorAll('.f-split-log').forEach(el=>el.checked=false);
+    const egaleRadio=document.querySelector('input[name="f-split-mode"][value="egale"]');
+    if(egaleRadio)egaleRadio.checked=true;
   }
   ['f-num','f-date','f-datepay','f-four','f-ttc','f-desc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-regleby').value='';
@@ -4124,7 +4167,9 @@ function getReelTotalsByYear(factures,year){
     const d=f.date;
     if(!d||d.slice(0,4)!==String(year))return;
     const ttc=+f.ttc||0;
-    if(f.log==='Commun'){
+    if(f.repartition && f.repartition.length){
+      getFactureShares(f,cfg.logements).forEach(s=>{ if(byLog[s.log]!==undefined)byLog[s.log]+=s.montant; });
+    } else if(f.log==='Commun'){
       cfg.logements.forEach(lg=>{byLog[lg.label]+=ttc/nbLogs;});
       byLog['Commun']+=ttc;
     }else if(byLog[f.log]!==undefined){byLog[f.log]+=ttc;}
@@ -4148,7 +4193,9 @@ function getReelTotalsByYearTyped(factures,year,type){
     if(!d||d.slice(0,4)!==String(year))return;
     if(type&&getCatType(f.cat)!==type)return;
     const ttc=+f.ttc||0;
-    if(f.log==='Commun'){
+    if(f.repartition && f.repartition.length){
+      getFactureShares(f,cfg.logements).forEach(s=>{ result[s.log]=(result[s.log]||0)+s.montant; });
+    } else if(f.log==='Commun'){
       cfg.logements.forEach(lg=>{result[lg.label]=(result[lg.label]||0)+ttc/nbLogs;});
       result['Commun']=(result['Commun']||0)+ttc;
     }else if(result[f.log]!==undefined){
@@ -4475,8 +4522,17 @@ function renderCoutRevient(){
   const container=document.getElementById('cout-revient-container');
   if(!container)return;
   const logsData=cfg.logements.map(lg=>{
-    const factLog=factures.filter(f=>f.log===lg.label||f.log===lg.key);
-    const total=factLog.reduce((s,f)=>s+(+f.ttc||0),0);
+    const factLog=factures.filter(f=>{
+      if(f.repartition&&f.repartition.length) return f.repartition.some(r=>r.log===lg.label||r.log===lg.key);
+      return f.log===lg.label||f.log===lg.key;
+    });
+    const total=factLog.reduce((s,f)=>{
+      if(f.repartition&&f.repartition.length){
+        const part=f.repartition.find(r=>r.log===lg.label||r.log===lg.key);
+        return s+(+(part&&part.montant)||0);
+      }
+      return s+(+f.ttc||0);
+    },0);
     const credit=+(fc[lg.key]||{}).capital||0;
     const apport=+(fc[lg.key]||{}).apport||0;
     const prix=credit+apport;
@@ -5607,11 +5663,18 @@ function genererRapportRentabiliteNette(years, logKeys){
     const totalHorsRentabilite=Object.entries(horsRentabilite).filter(([k])=>logs.some(lg=>lg.label===k)).reduce((s,[,v])=>s+v,0);
     const travaux=getReelTotalsByYearTyped(factures,annee,'travaux');
 
-    const factFonctAnnee=factures.filter(f=>f.inclus!==false&&getCatType(f.cat)==='fonctionnement'&&(f.date||'').slice(0,4)===String(annee)&&logs.some(lg=>lg.label===f.log||f.log==='Commun'));
+    const factFonctAnnee=factures.filter(f=>f.inclus!==false&&getCatType(f.cat)==='fonctionnement'&&(f.date||'').slice(0,4)===String(annee)&&(
+      (f.repartition&&f.repartition.length) ? f.repartition.some(r=>logs.some(lg=>lg.label===r.log||lg.key===r.log)) : logs.some(lg=>lg.label===f.log||f.log==='Commun')
+    ));
     const parCatFonct={};
     factFonctAnnee.forEach(f=>{
       if(!parCatFonct[f.cat])parCatFonct[f.cat]=0;
-      parCatFonct[f.cat]+=+f.ttc||0;
+      if(f.repartition&&f.repartition.length){
+        const relevant=f.repartition.filter(r=>logs.some(lg=>lg.label===r.log||lg.key===r.log));
+        parCatFonct[f.cat]+=relevant.reduce((s,r)=>s+(+r.montant||0),0);
+      } else {
+        parCatFonct[f.cat]+=+f.ttc||0;
+      }
     });
 
     const interetsParLog={},capitalRemboParLog={};
@@ -7749,8 +7812,16 @@ function genererCourrier(locId, type){
     titre=`Régularisation des charges — ${loc.nom||''}`;
     const annee=new Date().getFullYear()-1;
     const{factures}=loadData();
-    const factAnnee=factures.filter(f=>f.inclus!==false&&(+(f.date||f.dateFacture||'').slice(0,4))===annee&&(f.log===lg?.label||f.log===lg?.key||f.log==='Commun'));
-    const totalReelCharges=factAnnee.reduce((s,f)=>s+(+f.ttc||0),0);
+    const factAnnee=factures.filter(f=>f.inclus!==false&&(+(f.date||f.dateFacture||'').slice(0,4))===annee&&(
+      (f.repartition&&f.repartition.length) ? f.repartition.some(r=>r.log===lg?.label||r.log===lg?.key) : (f.log===lg?.label||f.log===lg?.key||f.log==='Commun')
+    ));
+    const totalReelCharges=factAnnee.reduce((s,f)=>{
+      if(f.repartition&&f.repartition.length){
+        const part=f.repartition.find(r=>r.log===lg?.label||r.log===lg?.key);
+        return s+(+(part&&part.montant)||0);
+      }
+      return s+(+f.ttc||0);
+    },0);
     const provisionsPayees=getMonthsOccupied(loc).filter(m=>m.startsWith(String(annee))).reduce((s,m)=>{
       const p=(loc.paiements||{})[m];
       return s+(p?getMontantPeriode(loc,m).charges:0);
@@ -9029,13 +9100,63 @@ window.toggleFactureSplit=function(){
   const on=document.getElementById('f-split-toggle').checked;
   document.getElementById('f-log-group').style.display=on?'none':'block';
   document.getElementById('f-split-panel').style.display=on?'block':'none';
+  const modeEl=document.querySelector('input[name="f-split-mode"]:checked');
+  const mode=modeEl?modeEl.value:'egale';
+  document.getElementById('f-split-desc').textContent=mode==='manuel'
+    ?'Saisis le montant exact pour chaque logement coché. La somme doit correspondre au montant TTC total.'
+    :'Le montant TTC sera divisé à parts égales entre les logements cochés. Une ligne de facture distincte sera créée pour chacun.';
   if(on){
     const cfg=getCTXConfig();
-    document.getElementById('f-split-checkboxes').innerHTML=cfg.logements.map(l=>`
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
-        <input type="checkbox" class="f-split-log" value="${l.label.replace(/"/g,'&quot;')}" style="width:15px;height:15px;cursor:pointer">
+    // Conserver les cases déjà cochées et montants déjà saisis lors d'un changement de mode
+    const prevChecked={};
+    const prevAmounts={};
+    document.querySelectorAll('.f-split-log').forEach(el=>{prevChecked[el.value]=el.checked;});
+    document.querySelectorAll('.f-split-amount').forEach(el=>{prevAmounts[el.dataset.log]=el.value;});
+    document.getElementById('f-split-checkboxes').innerHTML=cfg.logements.map(l=>{
+      const lbl=l.label.replace(/"/g,'&quot;');
+      const checked=prevChecked[l.label]?'checked':'';
+      const amount=prevAmounts[l.label]||'';
+      const amountInput=mode==='manuel'
+        ?`<input type="number" step="0.01" class="f-split-amount" data-log="${lbl}" placeholder="Montant €" value="${amount}" oninput="updateSplitTotal()" style="width:100px;margin-left:auto;padding:4px 8px;font-size:12px">`
+        :'';
+      return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
+        <input type="checkbox" class="f-split-log" value="${lbl}" ${checked} onchange="updateSplitTotal()" style="width:15px;height:15px;cursor:pointer">
         <span>${l.label}</span>
-      </label>`).join('');
+        ${amountInput}
+      </label>`;
+    }).join('');
+    document.getElementById('f-split-total-info').style.display=mode==='manuel'?'block':'none';
+    updateSplitTotal();
+  }
+};
+
+// Affiche en direct le total saisi vs le montant TTC de la facture, en mode répartition manuelle
+window.updateSplitTotal=function(){
+  const modeEl=document.querySelector('input[name="f-split-mode"]:checked');
+  const mode=modeEl?modeEl.value:'egale';
+  const infoEl=document.getElementById('f-split-total-info');
+  if(mode!=='manuel'||!infoEl)return;
+  // Griser/dégriser le champ montant selon la case cochée
+  document.querySelectorAll('.f-split-log').forEach(cb=>{
+    const amountInput=document.querySelector(`.f-split-amount[data-log="${cb.value.replace(/"/g,'&quot;')}"]`);
+    if(amountInput)amountInput.disabled=!cb.checked;
+  });
+  const ttcTotal=parseFloat(document.getElementById('f-ttc').value)||0;
+  let saisi=0;
+  document.querySelectorAll('.f-split-log:checked').forEach(cb=>{
+    const amountInput=document.querySelector(`.f-split-amount[data-log="${cb.value.replace(/"/g,'&quot;')}"]`);
+    saisi+=parseFloat(amountInput?.value)||0;
+  });
+  const diff=+(ttcTotal-saisi).toFixed(2);
+  if(Math.abs(diff)<0.01){
+    infoEl.style.color='var(--green,#68d391)';
+    infoEl.textContent=`✓ Total réparti : ${saisi.toFixed(2)} € — correspond au montant TTC`;
+  } else if(diff>0){
+    infoEl.style.color='#f6ad55';
+    infoEl.textContent=`Il reste ${diff.toFixed(2)} € à répartir (saisi : ${saisi.toFixed(2)} € sur ${ttcTotal.toFixed(2)} €)`;
+  } else {
+    infoEl.style.color='#e53e3e';
+    infoEl.textContent=`⚠ Dépassement de ${Math.abs(diff).toFixed(2)} € (saisi : ${saisi.toFixed(2)} € sur ${ttcTotal.toFixed(2)} €)`;
   }
 };
 
