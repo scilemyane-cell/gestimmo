@@ -10201,11 +10201,13 @@ window._authReady.then(async () => {
   <iframe id="print-frame" class="print-frame"></iframe>
 </div>
 <script>
+// Le service worker a été retiré : son chemin en absolu ('/sw.js') pouvait interférer
+// avec d'autres sites hébergés sur le même domaine GitHub Pages, provoquant un cache
+// fantôme qui empêchait de voir les mises à jour même après un rafraîchissement forcé.
+// On désinscrit activement tout service worker déjà installé chez les utilisateurs concernés.
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('/sw.js')
-      .then(()=>console.log('SW enregistré'))
-      .catch(e=>console.log('SW erreur:',e));
+  navigator.serviceWorker.getRegistrations().then(regs=>{
+    regs.forEach(reg=>reg.unregister());
   });
 }
 </script>
