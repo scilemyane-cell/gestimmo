@@ -781,6 +781,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   <div id="sub-content-liste" style="display:none">
     <div class="filters">
       <input type="text" id="filter-search" placeholder="🔍 Rechercher fournisseur, N°, description..." oninput="renderFactures()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;min-width:240px;flex:1">
+      <select class="filter-select" id="filter-annee" onchange="renderFactures()"><option value="">Toutes années</option></select>
       <select class="filter-select" id="filter-cat" onchange="renderFactures()"><option value="">Toutes catégories</option></select>
       <select class="filter-select" id="filter-log" onchange="renderFactures()">
         <option value="">Tous logements</option>
@@ -2212,7 +2213,16 @@ function renderFactures(){
     driveYearSel.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
     if(curDriveYear&&years.includes(curDriveYear))driveYearSel.value=curDriveYear;
   }
+  // Peupler le filtre d'année de la liste (indépendant du sélecteur Drive ci-dessus)
+  const anneeSel=document.getElementById('filter-annee');
+  if(anneeSel){
+    const years=getYears(factures);
+    const curAnnee=anneeSel.value;
+    anneeSel.innerHTML='<option value="">Toutes années</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');
+    if(curAnnee&&years.includes(curAnnee))anneeSel.value=curAnnee;
+  }
   const dupIndices=getDuplicateIndices(factures);
+  const anneeF=document.getElementById('filter-annee')?.value||'';
   const catF=document.getElementById('filter-cat').value;
   const logF=document.getElementById('filter-log').value;
   const stF=document.getElementById('filter-statut').value;
@@ -2226,7 +2236,8 @@ function renderFactures(){
     const hasPdf=!!loadPdf(f._ri);
     const matchSearch=!searchF||(f.four||'').toLowerCase().includes(searchF)||(f.num||'').toLowerCase().includes(searchF)||(f.desc||'').toLowerCase().includes(searchF)||(f.cat||'').toLowerCase().includes(searchF);
     const matchACompleter=!aCompleterF||(aCompleterF==='oui'&&f.gmailId&&(!f.ttc||f.ttc==0));
-    return(!catF||f.cat===catF)&&(!logF||f.log===logF)&&(!stF||f.statut===stF)&&(!pdfF||(pdfF==='oui'?hasPdf:!hasPdf))&&(!regleF||f.regleby===regleF)&&matchSearch&&matchACompleter;
+    const matchAnnee=!anneeF||(f.date&&f.date.slice(0,4)===anneeF);
+    return(!catF||f.cat===catF)&&(!logF||f.log===logF)&&(!stF||f.statut===stF)&&(!pdfF||(pdfF==='oui'?hasPdf:!hasPdf))&&(!regleF||f.regleby===regleF)&&matchSearch&&matchACompleter&&matchAnnee;
   }).sort((a,b)=>{
     const na=a.num||'';const nb=b.num||'';
     const ma=na.match(/FAC-(\d{4})-(\d+)/i);
