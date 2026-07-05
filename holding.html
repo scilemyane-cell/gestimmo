@@ -84,6 +84,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .movements-table tr:hover td{background:var(--panel-hover)}
 .tag-avance{color:var(--cyan)}
 .tag-remboursement{color:var(--amber)}
+.tag-interet{color:var(--green)}
+.badge-statut{display:inline-block;padding:3px 9px;border-radius:100px;font-size:9px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em;border:1px solid currentColor}
 
 /* MODALS */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(2,3,8,.8);z-index:100;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
@@ -127,6 +129,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <button class="tab-btn" data-tab="participations" onclick="changerOnglet('participations')">🏢 Participations</button>
       <button class="tab-btn" data-tab="cca" onclick="changerOnglet('cca')">💱 Trésorerie & CCA</button>
       <button class="tab-btn" data-tab="dividendes" onclick="changerOnglet('dividendes')">💰 Dividendes</button>
+      <button class="tab-btn" data-tab="conventions" onclick="changerOnglet('conventions')">📜 Conventions</button>
+      <button class="tab-btn" data-tab="echeances" onclick="changerOnglet('echeances')">📅 Échéances</button>
     </div>
 
     <!-- SYNTHÈSE -->
@@ -160,6 +164,23 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
           <div class="kpi-sub">Participations + Solde CCA + Trésorerie propre</div>
         </div>
       </div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Quote-part imposable (régime mère-fille)</div>
+          <div class="kpi-val" id="kpi-quotepart" style="color:var(--amber)">0 €</div>
+          <div class="kpi-sub">5% des dividendes éligibles + 100% des non-éligibles</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Conventions réglementées</div>
+          <div class="kpi-val" id="kpi-conventions" style="color:var(--danger)">0 à approuver</div>
+          <div class="kpi-sub"><a href="#" onclick="changerOnglet('conventions');return false" style="color:var(--text3)">voir l'onglet →</a></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Prochaine échéance légale</div>
+          <div class="kpi-val" id="kpi-prochaine-echeance" style="color:var(--cyan);font-size:16px">Aucune</div>
+          <div class="kpi-sub" id="kpi-prochaine-echeance-date"></div>
+        </div>
+      </div>
       <div class="section-title">Dividendes par année</div>
       <div class="chart-wrap"><canvas id="chart-dividendes"></canvas></div>
     </div>
@@ -186,12 +207,27 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <!-- DIVIDENDES -->
     <div class="tab-panel" id="tab-dividendes">
       <div class="section-title">Dividendes reçus<button class="btn-add" onclick="ouvrirModalDividende()">+ Ajouter un dividende</button></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin:-10px 0 16px">Régime mère-fille : si la holding détient ≥5% de la filiale depuis ≥2 ans, seule une quote-part de 5% du dividende reste imposable à l'IS.</div>
       <div style="overflow-x:auto">
         <table class="movements-table">
-          <thead><tr><th>Année</th><th>Filiale</th><th>Date versement</th><th style="text-align:right">Montant</th><th>Notes</th><th></th></tr></thead>
+          <thead><tr><th>Année</th><th>Filiale</th><th>Date versement</th><th style="text-align:right">Montant</th><th>Régime</th><th style="text-align:right">Base imposable</th><th>Notes</th><th></th></tr></thead>
           <tbody id="dividendes-body"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- CONVENTIONS RÉGLEMENTÉES -->
+    <div class="tab-panel" id="tab-conventions">
+      <div class="section-title">Conventions réglementées<button class="btn-add" onclick="ouvrirModalConvention()">+ Nouvelle convention</button></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin:-10px 0 16px">Toute convention entre la holding et une filiale ayant un dirigeant commun (avance, prestation de services, garantie...) doit être approuvée en assemblée générale et mentionnée dans un rapport spécial.</div>
+      <div class="card-list" id="conventions-list"></div>
+    </div>
+
+    <!-- ÉCHÉANCES LÉGALES -->
+    <div class="tab-panel" id="tab-echeances">
+      <div class="section-title">Échéances légales<button class="btn-add" onclick="ouvrirModalEcheance()">+ Nouvelle échéance</button></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin:-10px 0 16px">Ex : AG annuelle d'approbation des comptes (dans les 6 mois suivant la clôture), dépôt de la liasse fiscale IS, affectation du résultat.</div>
+      <div class="card-list" id="echeances-list"></div>
     </div>
   </div>
 </div>
@@ -206,6 +242,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div class="form-group"><label>% détenu</label><input type="number" id="part-pct" step="0.01" placeholder="100"></div>
       <div class="form-group"><label>Valeur des titres (€)</label><input type="number" id="part-valeur" step="0.01" placeholder="0"></div>
     </div>
+    <div class="form-group"><label>Taux d'intérêt CCA (% par an) <span style="color:var(--text3);text-transform:none;font-weight:400">— pense à vérifier le taux plafond fiscal en vigueur</span></label><input type="number" id="part-taux" step="0.01" placeholder="ex: 4.5"></div>
     <div class="form-group"><label>Notes</label><textarea id="part-notes" rows="2" placeholder="optionnel"></textarea></div>
     <button class="btn-save" onclick="sauvegarderParticipation()">✓ Enregistrer</button>
   </div>
@@ -226,6 +263,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <select id="mvt-sens">
           <option value="avance">Avance (holding → filiale)</option>
           <option value="remboursement">Remboursement (filiale → holding)</option>
+          <option value="interet">Intérêts courus (CCA)</option>
         </select>
       </div>
     </div>
@@ -249,6 +287,12 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div class="form-group"><label>Date de versement</label><input type="date" id="div-date"></div>
     </div>
     <div class="form-group"><label>Montant (€)</label><input type="number" id="div-montant" step="0.01"></div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none">
+        <input type="checkbox" id="div-merefille" checked style="width:auto">
+        Éligible au régime mère-fille (détention ≥5% depuis ≥2 ans)
+      </label>
+    </div>
     <div class="form-group"><label>Notes</label><textarea id="div-notes" rows="2" placeholder="optionnel"></textarea></div>
     <button class="btn-save" onclick="sauvegarderDividende()">✓ Enregistrer</button>
   </div>
@@ -261,6 +305,58 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <div class="modal-title">Trésorerie propre de la holding</div>
     <div class="form-group"><label>Montant en compte bancaire (€)</label><input type="number" id="tres-montant" step="0.01"></div>
     <button class="btn-save" onclick="sauvegarderTresorerie()">✓ Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL CONVENTION -->
+<div class="modal-overlay" id="modal-convention">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModal('modal-convention')">×</button>
+    <div class="modal-title">Nouvelle convention réglementée</div>
+    <div class="form-group">
+      <label>Filiale concernée</label>
+      <select id="conv-filiale"></select>
+    </div>
+    <div class="form-group"><label>Type de convention</label>
+      <select id="conv-type">
+        <option value="avance">Avance / prêt en compte courant</option>
+        <option value="prestation">Prestation de services / management fees</option>
+        <option value="garantie">Garantie / caution</option>
+        <option value="autre">Autre</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Description</label><textarea id="conv-description" rows="2" placeholder="ex: Avance de trésorerie pour travaux"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Date de signature</label><input type="date" id="conv-date-signature"></div>
+      <div class="form-group"><label>Statut</label>
+        <select id="conv-statut">
+          <option value="a_approuver">⏳ À approuver en AG</option>
+          <option value="approuvee">✅ Approuvée en AG</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Date d'approbation AG <span style="color:var(--text3);text-transform:none;font-weight:400">(si approuvée)</span></label><input type="date" id="conv-date-ag"></div>
+    <button class="btn-save" onclick="sauvegarderConvention()">✓ Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL ÉCHÉANCE -->
+<div class="modal-overlay" id="modal-echeance">
+  <div class="modal-card">
+    <button class="modal-close" onclick="fermerModal('modal-echeance')">×</button>
+    <div class="modal-title">Nouvelle échéance légale</div>
+    <div class="form-group"><label>Libellé</label><input type="text" id="ech-libelle" placeholder="ex: AG annuelle — approbation des comptes 2025"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Date d'échéance</label><input type="date" id="ech-date"></div>
+      <div class="form-group"><label>Statut</label>
+        <select id="ech-statut">
+          <option value="a_faire">⏳ À faire</option>
+          <option value="fait">✅ Fait</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="ech-notes" rows="2" placeholder="optionnel"></textarea></div>
+    <button class="btn-save" onclick="sauvegarderEcheance()">✓ Enregistrer</button>
   </div>
 </div>
 
@@ -285,7 +381,7 @@ window._structureId = new URLSearchParams(window.location.search).get('id');
 if(!window._structureId){ window.location.href = 'dashboard.html'; }
 
 let currentUser = null;
-window.DATA = { participations: [], cca: [], dividendes: [], tresoreriePropre: 0 };
+window.DATA = { participations: [], cca: [], dividendes: [], tresoreriePropre: 0, conventions: [], echeances: [] };
 
 function appDataRef(){
   return doc(db, 'users', currentUser.uid, 'structures', window._structureId, 'appdata', 'data');
@@ -312,6 +408,8 @@ onAuthStateChanged(auth, async user => {
       window.DATA.cca = Array.isArray(ad.cca) ? ad.cca : [];
       window.DATA.dividendes = Array.isArray(ad.dividendes) ? ad.dividendes : [];
       window.DATA.tresoreriePropre = +ad.tresoreriePropre || 0;
+      window.DATA.conventions = Array.isArray(ad.conventions) ? ad.conventions : [];
+      window.DATA.echeances = Array.isArray(ad.echeances) ? ad.echeances : [];
     }
   } catch(e){ console.warn('Données holding introuvables, initialisation vide', e); }
 
@@ -331,7 +429,9 @@ window.sauvegarderDonnees = async function(){
       participations: window.DATA.participations,
       cca: window.DATA.cca,
       dividendes: window.DATA.dividendes,
-      tresoreriePropre: window.DATA.tresoreriePropre
+      tresoreriePropre: window.DATA.tresoreriePropre,
+      conventions: window.DATA.conventions,
+      echeances: window.DATA.echeances
     }, { merge: true });
   } catch(e){
     alert('Erreur de sauvegarde : ' + e.message);
@@ -347,6 +447,10 @@ window.seDeconnecter = async function(){
 <script>
 function fmt(n){ return Math.round(+n||0).toLocaleString('fr-FR') + ' €'; }
 function uid(){ return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+function todayStrLocal(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 
 function changerOnglet(tab){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
@@ -380,6 +484,21 @@ function dividendesAnneeCourante(){
   const y = new Date().getFullYear();
   return window.DATA.dividendes.filter(d=>+d.annee===y).reduce((s,d)=> s + (+d.montant||0), 0);
 }
+function baseImposableDividende(d){
+  // Régime mère-fille : 5% du montant reste imposable si éligible, sinon 100% imposable.
+  return d.merefille !== false ? (+d.montant||0) * 0.05 : (+d.montant||0);
+}
+function quotePartImposableTotal(){
+  return window.DATA.dividendes.reduce((s,d)=> s + baseImposableDividende(d), 0);
+}
+function conventionsAApprouver(){
+  return window.DATA.conventions.filter(c => c.statut !== 'approuvee').length;
+}
+function prochaineEcheance(){
+  const todayS = todayStrLocal();
+  const aVenir = window.DATA.echeances.filter(e => e.statut !== 'fait').sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  return aVenir.length ? aVenir[0] : null;
+}
 function renderSynthese(){
   const valPart = valeurParticipationsTotal();
   const cca = soldeCcaTotal();
@@ -392,6 +511,23 @@ function renderSynthese(){
   document.getElementById('kpi-dividendes').textContent = fmt(div);
   document.getElementById('kpi-dividendes-annee').textContent = fmt(dividendesAnneeCourante()) + ' cette année';
   document.getElementById('kpi-patrimoine').textContent = fmt(valPart + cca + tres);
+  document.getElementById('kpi-quotepart').textContent = fmt(quotePartImposableTotal());
+
+  const nbConv = conventionsAApprouver();
+  const kpiConv = document.getElementById('kpi-conventions');
+  kpiConv.textContent = nbConv + (nbConv>1?' à approuver':' à approuver');
+  kpiConv.style.color = nbConv>0 ? 'var(--danger)' : 'var(--green)';
+
+  const proch = prochaineEcheance();
+  if(proch){
+    document.getElementById('kpi-prochaine-echeance').textContent = proch.libelle;
+    const joursRestants = Math.ceil((new Date(proch.date) - new Date())/86400000);
+    const dateTxt = new Date(proch.date).toLocaleDateString('fr-FR');
+    document.getElementById('kpi-prochaine-echeance-date').textContent = joursRestants<0 ? `⚠ ${dateTxt} — en retard` : `${dateTxt} (dans ${joursRestants}j)`;
+  } else {
+    document.getElementById('kpi-prochaine-echeance').textContent = 'Aucune';
+    document.getElementById('kpi-prochaine-echeance-date').textContent = '';
+  }
 
   const parAnnee = {};
   window.DATA.dividendes.forEach(d => { parAnnee[d.annee] = (parAnnee[d.annee]||0) + (+d.montant||0); });
@@ -412,6 +548,13 @@ function renderSynthese(){
 
 // ── PARTICIPATIONS ──────────────────────────────────────────────────────
 window._editPartId = null;
+function interetsCourusEstimation(filialeNom, taux){
+  const solde = soldeCcaFiliale(filialeNom);
+  if(solde<=0 || !taux) return 0;
+  const debutAnnee = new Date(new Date().getFullYear(), 0, 1);
+  const joursEcoules = Math.max(0, Math.floor((new Date() - debutAnnee) / 86400000));
+  return solde * (+taux/100) * (joursEcoules/365);
+}
 function renderParticipations(){
   const list = document.getElementById('participations-list');
   if(!window.DATA.participations.length){
@@ -420,7 +563,7 @@ function renderParticipations(){
   }
   list.innerHTML = window.DATA.participations.map(p => `
     <div class="row-card">
-      <div class="row-main"><div class="row-title">${p.nom}</div><div class="row-sub">${p.notes||''}</div></div>
+      <div class="row-main"><div class="row-title">${p.nom}</div><div class="row-sub">${p.notes||''}${p.tauxInteret?' · Taux CCA '+p.tauxInteret+'%':''}</div></div>
       <div class="row-metrics">
         <div class="row-metric"><div class="row-metric-val" style="color:var(--cyan)">${p.pourcentage||0}%</div><div class="row-metric-label">Détenu</div></div>
         <div class="row-metric"><div class="row-metric-val">${fmt(p.valeurTitres)}</div><div class="row-metric-label">Valeur titres</div></div>
@@ -440,11 +583,13 @@ window.ouvrirModalParticipation = function(id){
     document.getElementById('part-nom').value = p.nom || '';
     document.getElementById('part-pct').value = p.pourcentage || '';
     document.getElementById('part-valeur').value = p.valeurTitres || '';
+    document.getElementById('part-taux').value = p.tauxInteret || '';
     document.getElementById('part-notes').value = p.notes || '';
   } else {
     document.getElementById('part-nom').value = '';
     document.getElementById('part-pct').value = '';
     document.getElementById('part-valeur').value = '';
+    document.getElementById('part-taux').value = '';
     document.getElementById('part-notes').value = '';
   }
   document.getElementById('modal-participation').classList.add('open');
@@ -456,6 +601,7 @@ window.sauvegarderParticipation = function(){
     nom,
     pourcentage: +document.getElementById('part-pct').value || 0,
     valeurTitres: +document.getElementById('part-valeur').value || 0,
+    tauxInteret: +document.getElementById('part-taux').value || 0,
     notes: document.getElementById('part-notes').value.trim()
   };
   if(window._editPartId){
@@ -488,11 +634,14 @@ function renderCca(){
   } else {
     soldesList.innerHTML = window.DATA.participations.map(p => {
       const solde = soldeCcaFiliale(p.nom);
+      const interets = interetsCourusEstimation(p.nom, p.tauxInteret);
       return `<div class="row-card">
-        <div class="row-main"><div class="row-title">${p.nom}</div><div class="row-sub">Compte courant d'associé</div></div>
+        <div class="row-main"><div class="row-title">${p.nom}</div><div class="row-sub">Compte courant d'associé${p.tauxInteret?' · taux '+p.tauxInteret+'%':' · aucun taux défini'}</div></div>
         <div class="row-metrics">
           <div class="row-metric"><div class="row-metric-val" style="color:${solde>=0?'var(--violet)':'var(--danger)'}">${fmt(solde)}</div><div class="row-metric-label">Solde (créance holding)</div></div>
+          ${interets>0 ? `<div class="row-metric"><div class="row-metric-val" style="color:var(--amber)">${fmt(interets)}</div><div class="row-metric-label">Intérêts courus (est. ${new Date().getFullYear()})</div></div>` : ''}
         </div>
+        ${interets>0 ? `<div class="row-actions"><button onclick="enregistrerInteretsCourus('${p.nom}', ${interets.toFixed(2)})" title="Enregistrer comme mouvement" style="width:auto;padding:0 10px;font-size:10px;font-family:var(--font-mono)">+ Enregistrer</button></div>` : ''}
       </div>`;
     }).join('');
   }
@@ -501,16 +650,25 @@ function renderCca(){
   window.DATA.cca.forEach(f => (f.mouvements||[]).forEach(m => allMouvements.push({ ...m, filiale: f.filiale })));
   allMouvements.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
   const body = document.getElementById('cca-mouvements-body');
+  const labels = { avance:'↗ Avance', remboursement:'↙ Remboursement', interet:'% Intérêts courus' };
   body.innerHTML = allMouvements.length ? allMouvements.map(m => `
     <tr>
       <td>${m.date||'—'}</td>
       <td>${m.filiale}</td>
-      <td class="tag-${m.sens}">${m.sens==='avance'?'↗ Avance':'↙ Remboursement'}</td>
+      <td class="tag-${m.sens}">${labels[m.sens]||m.sens}</td>
       <td style="text-align:right">${fmt(m.montant)}</td>
       <td style="color:var(--text3)">${m.notes||''}</td>
       <td><button onclick="supprimerMouvement('${m.filiale}','${m.id}')" title="Supprimer" style="background:rgba(255,84,112,.08);border:1px solid rgba(255,84,112,.25);color:#ff9fae;width:24px;height:24px;border-radius:5px;cursor:pointer;font-size:10px">🗑</button></td>
     </tr>`).join('') : '<tr><td colspan="6" style="color:var(--text3);padding:20px;text-align:center">Aucun mouvement enregistré.</td></tr>';
 }
+window.enregistrerInteretsCourus = function(filiale, montant){
+  if(!confirm(`Enregistrer ${fmt(montant)} d'intérêts courus pour ${filiale} au ${new Date().toLocaleDateString('fr-FR')} ?`)) return;
+  let f = window.DATA.cca.find(c=>c.filiale===filiale);
+  if(!f){ f = { filiale, mouvements: [] }; window.DATA.cca.push(f); }
+  f.mouvements.push({ id: uid(), date: todayStrLocal(), sens: 'interet', montant: +montant, notes: `Intérêts courus ${new Date().getFullYear()} (calcul automatique)` });
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
 window.ouvrirModalMouvement = function(){
   if(!window.DATA.participations.length){ alert("Ajoute d'abord une filiale dans l'onglet Participations."); return; }
   remplirSelectFiliales('mvt-filiale');
@@ -555,15 +713,18 @@ function renderDividendes(){
       <td>${d.filiale}</td>
       <td>${d.date||'—'}</td>
       <td style="text-align:right;color:var(--green)">${fmt(d.montant)}</td>
+      <td>${d.merefille!==false ? '<span class="badge-statut" style="color:var(--green)">Mère-fille</span>' : '<span class="badge-statut" style="color:var(--amber)">Non éligible</span>'}</td>
+      <td style="text-align:right;color:var(--amber)">${fmt(baseImposableDividende(d))}</td>
       <td style="color:var(--text3)">${d.notes||''}</td>
       <td><button onclick="supprimerDividende('${d.id}')" title="Supprimer" style="background:rgba(255,84,112,.08);border:1px solid rgba(255,84,112,.25);color:#ff9fae;width:24px;height:24px;border-radius:5px;cursor:pointer;font-size:10px">🗑</button></td>
-    </tr>`).join('') : '<tr><td colspan="6" style="color:var(--text3);padding:20px;text-align:center">Aucun dividende enregistré.</td></tr>';
+    </tr>`).join('') : '<tr><td colspan="8" style="color:var(--text3);padding:20px;text-align:center">Aucun dividende enregistré.</td></tr>';
 }
 window.ouvrirModalDividende = function(){
   remplirSelectFiliales('div-filiale');
   document.getElementById('div-annee').value = new Date().getFullYear();
   document.getElementById('div-date').value = '';
   document.getElementById('div-montant').value = '';
+  document.getElementById('div-merefille').checked = true;
   document.getElementById('div-notes').value = '';
   document.getElementById('modal-dividende').classList.add('open');
 };
@@ -576,6 +737,7 @@ window.sauvegarderDividende = function(){
     id: uid(), filiale, annee,
     date: document.getElementById('div-date').value,
     montant,
+    merefille: document.getElementById('div-merefille').checked,
     notes: document.getElementById('div-notes').value.trim()
   });
   fermerModal('modal-dividende');
@@ -600,11 +762,167 @@ window.sauvegarderTresorerie = function(){
   window.renderAll();
 };
 
+// ── CONVENTIONS RÉGLEMENTÉES ──────────────────────────────────────────
+const CONV_TYPE_LABELS = { avance:'Avance / prêt CCA', prestation:'Prestation de services', garantie:'Garantie / caution', autre:'Autre' };
+function renderConventions(){
+  const list = document.getElementById('conventions-list');
+  if(!window.DATA.conventions.length){
+    list.innerHTML = `<div class="empty-state"><div class="icon">📜</div><p>Aucune convention enregistrée pour l'instant.</p></div>`;
+    return;
+  }
+  const sorted = [...window.DATA.conventions].sort((a,b)=> (b.dateSignature||'').localeCompare(a.dateSignature||''));
+  list.innerHTML = sorted.map(c => `
+    <div class="row-card">
+      <div class="row-main">
+        <div class="row-title">${c.filiale} — ${CONV_TYPE_LABELS[c.type]||c.type}</div>
+        <div class="row-sub">${c.description||''}</div>
+      </div>
+      <div class="row-metrics">
+        <div class="row-metric"><div class="row-metric-val" style="font-size:11px">${c.dateSignature||'—'}</div><div class="row-metric-label">Signature</div></div>
+        <div class="row-metric">
+          <div class="row-metric-val">
+            <span class="badge-statut" style="color:${c.statut==='approuvee'?'var(--green)':'var(--danger)'}">${c.statut==='approuvee'?'✅ Approuvée':'⏳ À approuver'}</span>
+          </div>
+          <div class="row-metric-label">${c.dateAg ? 'AG du '+c.dateAg : 'Statut AG'}</div>
+        </div>
+      </div>
+      <div class="row-actions">
+        <button onclick="ouvrirModalConvention('${c.id}')" title="Modifier">✎</button>
+        <button class="danger" onclick="supprimerConvention('${c.id}')" title="Supprimer">🗑</button>
+      </div>
+    </div>`).join('');
+}
+window._editConvId = null;
+window.ouvrirModalConvention = function(id){
+  window._editConvId = id || null;
+  remplirSelectFiliales('conv-filiale');
+  if(id){
+    const c = window.DATA.conventions.find(x=>x.id===id);
+    document.getElementById('conv-filiale').value = c.filiale || '';
+    document.getElementById('conv-type').value = c.type || 'avance';
+    document.getElementById('conv-description').value = c.description || '';
+    document.getElementById('conv-date-signature').value = c.dateSignature || '';
+    document.getElementById('conv-statut').value = c.statut || 'a_approuver';
+    document.getElementById('conv-date-ag').value = c.dateAg || '';
+  } else {
+    document.getElementById('conv-type').value = 'avance';
+    document.getElementById('conv-description').value = '';
+    document.getElementById('conv-date-signature').value = new Date().toISOString().slice(0,10);
+    document.getElementById('conv-statut').value = 'a_approuver';
+    document.getElementById('conv-date-ag').value = '';
+  }
+  document.getElementById('modal-convention').classList.add('open');
+};
+window.sauvegarderConvention = function(){
+  const filiale = document.getElementById('conv-filiale').value;
+  if(!filiale){ alert("Ajoute d'abord une filiale dans l'onglet Participations."); return; }
+  const data = {
+    filiale,
+    type: document.getElementById('conv-type').value,
+    description: document.getElementById('conv-description').value.trim(),
+    dateSignature: document.getElementById('conv-date-signature').value,
+    statut: document.getElementById('conv-statut').value,
+    dateAg: document.getElementById('conv-date-ag').value
+  };
+  if(window._editConvId){
+    const idx = window.DATA.conventions.findIndex(x=>x.id===window._editConvId);
+    if(idx>-1) window.DATA.conventions[idx] = { ...window.DATA.conventions[idx], ...data };
+  } else {
+    window.DATA.conventions.push({ id: uid(), ...data });
+  }
+  fermerModal('modal-convention');
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+window.supprimerConvention = function(id){
+  if(!confirm('Supprimer cette convention ?')) return;
+  window.DATA.conventions = window.DATA.conventions.filter(c=>c.id!==id);
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+
+// ── ÉCHÉANCES LÉGALES ─────────────────────────────────────────────────
+function renderEcheances(){
+  const list = document.getElementById('echeances-list');
+  if(!window.DATA.echeances.length){
+    list.innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>Aucune échéance enregistrée pour l'instant.</p></div>`;
+    return;
+  }
+  const todayS = todayStrLocal();
+  const sorted = [...window.DATA.echeances].sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  list.innerHTML = sorted.map(e => {
+    const enRetard = e.statut!=='fait' && e.date && e.date < todayS;
+    const joursRestants = e.date ? Math.ceil((new Date(e.date) - new Date())/86400000) : null;
+    let statutTxt = '✅ Fait';
+    let statutColor = 'var(--green)';
+    if(e.statut !== 'fait'){
+      if(enRetard){ statutTxt = '⚠ En retard'; statutColor = 'var(--danger)'; }
+      else if(joursRestants!==null && joursRestants<=30){ statutTxt = `⏳ Dans ${joursRestants}j`; statutColor = 'var(--amber)'; }
+      else { statutTxt = '⏳ À faire'; statutColor = 'var(--text2)'; }
+    }
+    return `<div class="row-card">
+      <div class="row-main"><div class="row-title">${e.libelle}</div><div class="row-sub">${e.notes||''}</div></div>
+      <div class="row-metrics">
+        <div class="row-metric"><div class="row-metric-val" style="font-size:12px">${e.date ? new Date(e.date).toLocaleDateString('fr-FR') : '—'}</div><div class="row-metric-label">Échéance</div></div>
+        <div class="row-metric"><div class="row-metric-val"><span class="badge-statut" style="color:${statutColor}">${statutTxt}</span></div><div class="row-metric-label">Statut</div></div>
+      </div>
+      <div class="row-actions">
+        <button onclick="ouvrirModalEcheance('${e.id}')" title="Modifier">✎</button>
+        <button class="danger" onclick="supprimerEcheance('${e.id}')" title="Supprimer">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+window._editEchId = null;
+window.ouvrirModalEcheance = function(id){
+  window._editEchId = id || null;
+  if(id){
+    const e = window.DATA.echeances.find(x=>x.id===id);
+    document.getElementById('ech-libelle').value = e.libelle || '';
+    document.getElementById('ech-date').value = e.date || '';
+    document.getElementById('ech-statut').value = e.statut || 'a_faire';
+    document.getElementById('ech-notes').value = e.notes || '';
+  } else {
+    document.getElementById('ech-libelle').value = '';
+    document.getElementById('ech-date').value = '';
+    document.getElementById('ech-statut').value = 'a_faire';
+    document.getElementById('ech-notes').value = '';
+  }
+  document.getElementById('modal-echeance').classList.add('open');
+};
+window.sauvegarderEcheance = function(){
+  const libelle = document.getElementById('ech-libelle').value.trim();
+  if(!libelle){ alert('Le libellé est obligatoire.'); return; }
+  const data = {
+    libelle,
+    date: document.getElementById('ech-date').value,
+    statut: document.getElementById('ech-statut').value,
+    notes: document.getElementById('ech-notes').value.trim()
+  };
+  if(window._editEchId){
+    const idx = window.DATA.echeances.findIndex(x=>x.id===window._editEchId);
+    if(idx>-1) window.DATA.echeances[idx] = { ...window.DATA.echeances[idx], ...data };
+  } else {
+    window.DATA.echeances.push({ id: uid(), ...data });
+  }
+  fermerModal('modal-echeance');
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+window.supprimerEcheance = function(id){
+  if(!confirm('Supprimer cette échéance ?')) return;
+  window.DATA.echeances = window.DATA.echeances.filter(e=>e.id!==id);
+  window.sauvegarderDonnees();
+  window.renderAll();
+};
+
 window.renderAll = function(){
   try{ renderSynthese(); }catch(e){ console.warn('renderSynthese a échoué:', e); }
   try{ renderParticipations(); }catch(e){ console.warn('renderParticipations a échoué:', e); }
   try{ renderCca(); }catch(e){ console.warn('renderCca a échoué:', e); }
   try{ renderDividendes(); }catch(e){ console.warn('renderDividendes a échoué:', e); }
+  try{ renderConventions(); }catch(e){ console.warn('renderConventions a échoué:', e); }
+  try{ renderEcheances(); }catch(e){ console.warn('renderEcheances a échoué:', e); }
 };
 </script>
 </body>
