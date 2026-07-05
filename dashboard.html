@@ -3,82 +3,169 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mon espace — GestImmo</title>
+<title>Centre de contrôle — GestImmo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0a0e1a;--bg2:#111827;--bg3:#1a2235;--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--accent:#3b82f6;--green:#10b981;--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.12)}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+:root{
+  --bg:#05060c;
+  --bg2:#0a0d18;
+  --panel:rgba(148,170,255,.045);
+  --panel-hover:rgba(148,170,255,.08);
+  --line:rgba(140,180,255,.14);
+  --line-strong:rgba(94,214,255,.45);
+  --cyan:#4fd8ff;
+  --violet:#a78bff;
+  --amber:#ffb545;
+  --danger:#ff5470;
+  --text:#eef2fb;
+  --text2:#8f9ac2;
+  --text3:#525d82;
+  --font-display:'Sora',system-ui,sans-serif;
+  --font-body:'Inter',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 
-/* LOADER */
-#loader{display:flex;position:fixed;inset:0;background:var(--bg);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:16px}
-.spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(var(--line) 1px,transparent 1px),
+    linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:64px 64px;
+  opacity:.12;
+  mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 40%,transparent 100%);
+}
+body::after{
+  content:'';position:fixed;top:-20%;left:50%;transform:translateX(-50%);width:900px;height:600px;z-index:0;pointer-events:none;
+  background:radial-gradient(circle,rgba(79,216,255,.14),transparent 65%);
+  filter:blur(10px);
+}
+
+#loader{display:flex;position:fixed;inset:0;background:var(--bg);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:18px}
+.spinner{width:44px;height:44px;border:2px solid var(--line);border-top-color:var(--cyan);border-radius:50%;animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+#loader div.label{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--text3);text-transform:uppercase}
 
-/* APP */
-#app{display:none}
-.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
-.logo{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800}
-.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
-.user-menu{display:flex;align-items:center;gap:12px}
-.user-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:white;cursor:pointer}
-.btn-deconnexion{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s}
-.btn-deconnexion:hover{background:rgba(239,68,68,.2)}
+#app{display:none;position:relative;z-index:1}
+.topbar{background:rgba(10,13,24,.7);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:0 28px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:.01em}
+.logo-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;background:linear-gradient(135deg,rgba(79,216,255,.18),rgba(167,139,255,.18));border:1px solid var(--line-strong)}
+.logo-status{display:flex;align-items:center;gap:6px;margin-left:14px;padding:4px 10px 4px 8px;border:1px solid var(--line);border-radius:100px;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--text2);text-transform:uppercase}
+.pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 0 0 rgba(79,216,255,.6);animation:pulse 2.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,216,255,.55)}70%{box-shadow:0 0 0 7px rgba(79,216,255,0)}100%{box-shadow:0 0 0 0 rgba(79,216,255,0)}}
+.user-menu{display:flex;align-items:center;gap:14px}
+.hud-clock{font-family:var(--font-mono);font-size:12px;color:var(--text3);letter-spacing:.05em;display:none}
+.user-avatar{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--cyan),var(--violet));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#05060c;cursor:pointer;font-family:var(--font-mono)}
+.btn-deconnexion{background:rgba(255,84,112,.08);border:1px solid rgba(255,84,112,.25);color:#ff9fae;padding:7px 14px;border-radius:8px;font-size:11px;font-family:var(--font-mono);letter-spacing:.04em;font-weight:600;cursor:pointer;transition:.2s;text-transform:uppercase}
+.btn-deconnexion:hover{background:rgba(255,84,112,.16)}
 
-.main{max-width:1100px;margin:0 auto;padding:32px 24px}
-.welcome{margin-bottom:32px}
-.welcome h1{font-size:26px;font-weight:800;margin-bottom:6px}
-.welcome p{color:var(--text2);font-size:14px}
-.trial-banner{background:linear-gradient(135deg,rgba(59,130,246,.1),rgba(139,92,246,.1));border:1px solid rgba(59,130,246,.25);border-radius:12px;padding:14px 18px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
-.trial-banner p{font-size:13px;color:#93c5fd;font-weight:600}
-.trial-banner span{font-size:12px;color:var(--text3)}
+.main{max-width:1180px;margin:0 auto;padding:40px 28px 60px;position:relative}
 
-.section-title{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
-.btn-add{background:var(--accent);border:none;color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s}
-.btn-add:hover{background:#2563eb}
+.hero{display:grid;grid-template-columns:1fr 340px;gap:32px;margin-bottom:48px;align-items:center}
+.hero-eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--cyan);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.hero-eyebrow::before{content:'';width:16px;height:1px;background:var(--cyan)}
+.welcome h1{font-family:var(--font-display);font-size:32px;font-weight:700;margin-bottom:8px;letter-spacing:-.01em}
+.welcome p{color:var(--text2);font-size:14px;max-width:440px;line-height:1.5}
 
-.structures-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:32px}
-.structure-card{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:22px;cursor:pointer;transition:.2s}
-.structure-card:hover{border-color:rgba(59,130,246,.4);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
-.structure-type-badge{display:inline-block;padding:3px 10px;border-radius:100px;font-size:10px;font-weight:700;margin-bottom:12px}
-.structure-name{font-size:17px;font-weight:700;margin-bottom:4px}
-.structure-meta{font-size:12px;color:var(--text3);margin-bottom:14px}
-.structure-stats{display:flex;gap:16px;padding-top:12px;border-top:1px solid var(--border)}
-.structure-stat{text-align:center}
-.structure-stat-val{font-size:16px;font-weight:700;color:var(--accent)}
-.structure-stat-label{font-size:10px;color:var(--text3);margin-top:2px}
+.reactor-wrap{position:relative;width:300px;height:300px;margin:0 auto;display:flex;align-items:center;justify-content:center}
+.orbit-ring{position:absolute;border:1px dashed var(--line);border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%)}
+.orbit-ring.r1{width:150px;height:150px}
+.orbit-ring.r2{width:230px;height:230px}
+.orbit-ring.r3{width:300px;height:300px}
+.reactor-core{position:relative;width:104px;height:104px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(79,216,255,.28),rgba(167,139,255,.12) 60%,transparent 80%);border:1px solid var(--line-strong);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 40px rgba(79,216,255,.18),inset 0 0 24px rgba(79,216,255,.1);z-index:2}
+.reactor-core .val{font-family:var(--font-display);font-size:30px;font-weight:700;line-height:1}
+.reactor-core .lbl{font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;color:var(--text2);text-transform:uppercase;margin-top:4px}
+#orbit-nodes{position:absolute;inset:0}
+.orbit-spin{position:absolute;top:50%;left:50%;width:1px;height:1px;animation:spin-orbit linear infinite}
+@keyframes spin-orbit{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+.orbit-node{position:absolute;width:13px;height:13px;border-radius:50%;cursor:pointer;box-shadow:0 0 10px 1px currentColor;border:1.5px solid rgba(255,255,255,.5);transition:transform .15s}
+.orbit-node:hover{transform:scale(1.6)}
+@media(prefers-reduced-motion:reduce){.orbit-spin{animation:none}}
 
-.empty-state{text-align:center;padding:60px 20px;background:var(--bg2);border:2px dashed var(--border2);border-radius:20px}
-.empty-state .icon{font-size:48px;margin-bottom:16px}
-.empty-state h3{font-size:18px;font-weight:700;margin-bottom:8px}
-.empty-state p{font-size:14px;color:var(--text2);margin-bottom:24px;max-width:400px;margin-left:auto;margin-right:auto}
+.alert-strip{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:13px 18px;margin-bottom:36px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;font-family:var(--font-mono)}
+.alert-strip .left{display:flex;align-items:center;gap:10px}
+.alert-strip .left .icon{color:var(--amber);font-size:14px}
+.alert-strip p{font-size:12px;color:var(--text);font-weight:500;letter-spacing:.02em}
+.alert-strip span{font-size:11px;color:var(--text3)}
+.alert-strip button{background:rgba(79,216,255,.1);border:1px solid var(--line-strong);color:var(--cyan);padding:6px 14px;border-radius:7px;font-size:11px;font-family:var(--font-mono);cursor:pointer;letter-spacing:.04em}
 
-/* MODAL NOUVELLE STRUCTURE */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.section-title{font-family:var(--font-display);font-size:15px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;letter-spacing:.01em}
+.section-title .tag{font-family:var(--font-mono);font-size:10px;color:var(--text3);font-weight:400;letter-spacing:.08em;margin-left:10px;text-transform:uppercase}
+.btn-add{background:transparent;border:1px solid var(--line-strong);color:var(--cyan);padding:9px 16px;border-radius:8px;font-size:12px;font-family:var(--font-mono);font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s;letter-spacing:.03em}
+.btn-add:hover{background:rgba(79,216,255,.1)}
+
+.structures-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px;margin-bottom:36px}
+.structure-card{
+  position:relative;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:22px;cursor:pointer;transition:.2s;
+  clip-path:polygon(0 12px,12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%);
+}
+.structure-card:hover{background:var(--panel-hover);border-color:var(--line-strong);transform:translateY(-2px)}
+.structure-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.structure-type-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:5px;font-family:var(--font-mono);font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor}
+.structure-type-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.structure-name{font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:4px}
+.structure-meta{font-size:11px;color:var(--text3);margin-bottom:16px;font-family:var(--font-mono)}
+.structure-stats{display:flex;gap:18px;padding-top:14px;border-top:1px solid var(--line)}
+.structure-stat{text-align:left}
+.structure-stat-val{font-family:var(--font-mono);font-size:16px;font-weight:700}
+.structure-stat-label{font-size:9px;color:var(--text3);margin-top:3px;font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+.card-actions{display:flex;gap:6px;flex-shrink:0}
+.card-actions button{background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--text2);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:11px}
+.card-actions button.danger{background:rgba(255,84,112,.08);border-color:rgba(255,84,112,.25);color:#ff9fae}
+.card-actions button:hover{border-color:var(--line-strong);color:var(--text)}
+
+.add-card{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  border:1px dashed var(--line-strong);border-radius:4px;padding:22px;cursor:pointer;min-height:150px;color:var(--text2);transition:.2s;font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+}
+.add-card:hover{background:var(--panel);color:var(--cyan)}
+.add-card .plus{font-size:22px;font-family:var(--font-body);color:var(--cyan)}
+
+.empty-state{text-align:center;padding:70px 20px;background:var(--panel);border:1px dashed var(--line);border-radius:8px}
+.empty-state .icon{font-size:40px;margin-bottom:16px;opacity:.7}
+.empty-state h3{font-family:var(--font-display);font-size:17px;font-weight:700;margin-bottom:8px}
+.empty-state .mono{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin-bottom:10px}
+.empty-state p{font-size:13px;color:var(--text2);margin-bottom:24px;max-width:380px;margin-left:auto;margin-right:auto}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(2,3,8,.8);z-index:100;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
 .modal-overlay.open{display:flex}
-.modal-card{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:32px;width:480px;max-width:100%;max-height:90vh;overflow-y:auto;position:relative}
-.modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.06);border:none;color:var(--text2);font-size:18px;cursor:pointer;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center}
-.modal-title{font-size:20px;font-weight:800;margin-bottom:6px}
-.modal-sub{font-size:13px;color:var(--text3);margin-bottom:24px}
+.modal-card{background:var(--bg2);border:1px solid var(--line-strong);border-radius:6px;padding:32px;width:480px;max-width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 0 60px rgba(79,216,255,.06)}
+.modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text2);font-size:16px;cursor:pointer;width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.modal-title{font-family:var(--font-display);font-size:19px;font-weight:700;margin-bottom:6px}
+.modal-sub{font-size:12px;color:var(--text3);margin-bottom:24px;font-family:var(--font-mono);line-height:1.6}
 .form-group{margin-bottom:16px}
-.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-.form-group input,.form-group select,.form-group textarea{width:100%;padding:11px 14px;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:14px;transition:.2s;outline:none}
-.form-group input:focus,.form-group select:focus{border-color:var(--accent);background:rgba(59,130,246,.06)}
+.form-group label{display:block;font-size:10px;font-weight:600;color:var(--text2);margin-bottom:7px;text-transform:uppercase;letter-spacing:.08em;font-family:var(--font-mono)}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:11px 14px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;font-family:var(--font-body);transition:.2s;outline:none}
+.form-group input:focus,.form-group select:focus{border-color:var(--cyan);background:rgba(79,216,255,.05)}
 .form-group select option{background:var(--bg2)}
 .types-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
-.type-option{padding:10px 8px;background:rgba(255,255,255,.04);border:2px solid var(--border);border-radius:10px;text-align:center;cursor:pointer;transition:.2s;font-size:11px;font-weight:600}
-.type-option:hover{border-color:var(--accent);background:rgba(59,130,246,.08)}
-.type-option.selected{border-color:var(--accent);background:rgba(59,130,246,.12);color:var(--accent)}
-.type-option .type-icon{font-size:20px;margin-bottom:4px}
+.type-option{padding:10px 8px;background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:6px;text-align:center;cursor:pointer;transition:.2s;font-size:10px;font-weight:600;font-family:var(--font-mono);letter-spacing:.02em}
+.type-option:hover{border-color:var(--cyan)}
+.type-option.selected{border-color:var(--cyan);background:rgba(79,216,255,.1);color:var(--cyan)}
+.type-option .type-icon{font-size:19px;margin-bottom:4px}
 .colors-grid{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
-.color-option{width:32px;height:32px;border-radius:50%;cursor:pointer;transition:.2s;border:3px solid transparent}
-.color-option.selected{border-color:white;transform:scale(1.1)}
-.btn-save{width:100%;padding:13px;border:none;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:white;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;transition:.2s}
-.btn-save:hover{opacity:.9}
-.btn-save:disabled{opacity:.6;cursor:not-allowed}
+.color-option{width:30px;height:30px;border-radius:50%;cursor:pointer;transition:.2s;border:2px solid transparent}
+.color-option.selected{border-color:white;transform:scale(1.12)}
+.btn-save{width:100%;padding:13px;border:1px solid var(--line-strong);border-radius:8px;background:rgba(79,216,255,.1);color:var(--cyan);font-size:13px;font-family:var(--font-mono);font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;margin-top:8px;transition:.2s}
+.btn-save:hover{background:rgba(79,216,255,.18)}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+.btn-save.danger{border-color:rgba(255,84,112,.4);background:rgba(255,84,112,.1);color:#ff9fae}
+.btn-save.danger:hover{background:rgba(255,84,112,.18)}
 
+@media(max-width:820px){
+  .hero{grid-template-columns:1fr}
+  .reactor-wrap{margin-top:12px}
+}
 @media(max-width:480px){
-  .main{padding:16px 12px}
+  .main{padding:24px 14px}
   .types-grid{grid-template-columns:repeat(2,1fr)}
+  .reactor-wrap{width:230px;height:230px}
+  .orbit-ring.r1{width:120px;height:120px}
+  .orbit-ring.r2{width:175px;height:175px}
+  .orbit-ring.r3{width:230px;height:230px}
 }
 </style>
 </head>
@@ -86,36 +173,58 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 <div id="loader">
   <div class="spinner"></div>
-  <div style="font-size:14px;color:var(--text2)">Chargement...</div>
+  <div class="label">Initialisation du système</div>
 </div>
 
 <div id="app">
   <div class="topbar">
-    <div class="logo"><div class="logo-icon">🏠</div>GestImmo</div>
+    <div class="logo">
+      <div class="logo-icon">🏠</div>GestImmo
+      <div class="logo-status"><span class="pulse-dot"></span>Système en ligne</div>
+    </div>
     <div class="user-menu">
+      <span class="hud-clock" id="hud-clock"></span>
       <div class="user-avatar" id="user-avatar">?</div>
-      <span id="user-name" style="font-size:13px;color:var(--text2)"></span>
+      <span id="user-name" style="font-size:12px;color:var(--text2);font-family:var(--font-mono)"></span>
       <button class="btn-deconnexion" onclick="seDeconnecter()">Déconnexion</button>
     </div>
   </div>
 
   <div class="main">
-    <div class="welcome">
-      <h1 id="welcome-title">Bonjour 👋</h1>
-      <p id="welcome-sub">Gérez vos investissements immobiliers en un seul endroit.</p>
+    <div class="hero">
+      <div>
+        <div class="hero-eyebrow">Centre de contrôle</div>
+        <div class="welcome">
+          <h1 id="welcome-title">Bonjour 👋</h1>
+          <p id="welcome-sub">Vue d'ensemble de ton patrimoine et de tes structures locatives.</p>
+        </div>
+      </div>
+      <div class="reactor-wrap">
+        <div class="orbit-ring r1"></div>
+        <div class="orbit-ring r2"></div>
+        <div class="orbit-ring r3"></div>
+        <div id="orbit-nodes"></div>
+        <div class="reactor-core">
+          <div class="val" id="reactor-count">0</div>
+          <div class="lbl" id="reactor-label">Structures</div>
+        </div>
+      </div>
     </div>
 
-    <div class="trial-banner" id="trial-banner" style="display:none">
-      <div>
-        <p>🎁 Essai gratuit en cours</p>
-        <span id="trial-info">30 jours restants</span>
+    <div class="alert-strip" id="trial-banner" style="display:none">
+      <div class="left">
+        <span class="icon">◆</span>
+        <div>
+          <p>Essai gratuit en cours</p>
+          <span id="trial-info">30 jours restants</span>
+        </div>
       </div>
-      <button style="background:rgba(255,255,255,.1);border:none;color:white;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer">Passer au Pro →</button>
+      <button>Passer au Pro →</button>
     </div>
 
     <div class="section-title">
-      Mes structures
-      <button class="btn-add" onclick="ouvrirModalStructure()">+ Ajouter une structure</button>
+      Mes structures<span class="tag" id="structures-count-tag">0 actives</span>
+      <button class="btn-add" onclick="ouvrirModalStructure()">+ Nouvelle structure</button>
     </div>
 
     <div class="structures-grid" id="structures-grid">
@@ -166,11 +275,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div class="form-group">
       <label>Couleur</label>
       <div class="colors-grid" id="colors-grid">
-        <div class="color-option selected" data-color="#3b82f6" style="background:#3b82f6" onclick="selectionnerCouleur(this)"></div>
+        <div class="color-option selected" data-color="#4fd8ff" style="background:#4fd8ff" onclick="selectionnerCouleur(this)"></div>
+        <div class="color-option" data-color="#a78bff" style="background:#a78bff" onclick="selectionnerCouleur(this)"></div>
+        <div class="color-option" data-color="#ffb545" style="background:#ffb545" onclick="selectionnerCouleur(this)"></div>
         <div class="color-option" data-color="#10b981" style="background:#10b981" onclick="selectionnerCouleur(this)"></div>
-        <div class="color-option" data-color="#8b5cf6" style="background:#8b5cf6" onclick="selectionnerCouleur(this)"></div>
-        <div class="color-option" data-color="#f59e0b" style="background:#f59e0b" onclick="selectionnerCouleur(this)"></div>
-        <div class="color-option" data-color="#ef4444" style="background:#ef4444" onclick="selectionnerCouleur(this)"></div>
+        <div class="color-option" data-color="#ff5470" style="background:#ff5470" onclick="selectionnerCouleur(this)"></div>
         <div class="color-option" data-color="#ec4899" style="background:#ec4899" onclick="selectionnerCouleur(this)"></div>
         <div class="color-option" data-color="#06b6d4" style="background:#06b6d4" onclick="selectionnerCouleur(this)"></div>
         <div class="color-option" data-color="#84cc16" style="background:#84cc16" onclick="selectionnerCouleur(this)"></div>
@@ -181,10 +290,24 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   </div>
 </div>
 
+<!-- MODAL SUPPRESSION STRUCTURE -->
+<div class="modal-overlay" id="modal-suppression">
+  <div class="modal-card" style="width:420px">
+    <button class="modal-close" onclick="fermerModalSuppression()">×</button>
+    <div class="modal-title" style="color:#ff9fae">Supprimer cette structure ?</div>
+    <div class="modal-sub">Action <strong style="color:var(--text)">définitive</strong>. Toutes les données associées (logements, locataires, factures...) seront perdues.</div>
+    <div class="form-group">
+      <label>Tape le nom exact « <span id="supp-nom-cible" style="color:var(--text);text-transform:none"></span> » pour confirmer</label>
+      <input type="text" id="supp-nom-input" placeholder="Nom de la structure" oninput="document.getElementById('btn-confirmer-suppression').disabled = this.value !== window._structNomASupprimer">
+    </div>
+    <button class="btn-save danger" id="btn-confirmer-suppression" disabled onclick="confirmerSuppressionStructure()">🗑 Supprimer définitivement</button>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
@@ -201,7 +324,16 @@ const db = getFirestore(app);
 let currentUser = null;
 let userProfile = null;
 
-// ── AUTH STATE ────────────────────────────────────────────────────────
+function tickClock(){
+  const el = document.getElementById('hud-clock');
+  if(!el) return;
+  const now = new Date();
+  el.textContent = now.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'}) + '  ' + now.toLocaleTimeString('fr-FR');
+  el.style.display = 'block';
+}
+setInterval(tickClock, 1000);
+tickClock();
+
 onAuthStateChanged(auth, async user => {
   if(!user){
     window.location.href = 'index.html';
@@ -212,7 +344,6 @@ onAuthStateChanged(auth, async user => {
 });
 
 async function chargerDashboard(user){
-  // Charger profil
   const profileRef = doc(db, 'users', user.uid);
   let profile = {};
   try {
@@ -221,28 +352,107 @@ async function chargerDashboard(user){
   } catch(e){ console.warn('Profil non trouvé'); }
   userProfile = profile;
 
-  // Afficher UI
   const nom = profile.nom || user.displayName || user.email.split('@')[0];
   const initiales = nom.split(' ').map(p=>p[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('user-avatar').textContent = initiales;
   document.getElementById('user-name').textContent = nom;
   document.getElementById('welcome-title').textContent = `Bonjour ${nom.split(' ')[0]} 👋`;
 
-  // Banner trial
   if(profile.plan === 'trial' && profile.trialEnd){
     const joursRestants = Math.max(0, Math.ceil((new Date(profile.trialEnd) - new Date()) / 86400000));
     const banner = document.getElementById('trial-banner');
     banner.style.display = 'flex';
-    document.getElementById('trial-info').textContent = 
+    document.getElementById('trial-info').textContent =
       joursRestants > 0 ? `${joursRestants} jour${joursRestants>1?'s':''} restant${joursRestants>1?'s':''}` : 'Essai expiré';
   }
 
-  // Charger structures
   await chargerStructures(user.uid);
 
-  // Afficher app
   document.getElementById('loader').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+}
+
+const TYPE_LABELS = {
+  LMNP:'LMNP', SCI_IR:'SCI-IR', SCI_IS:'SCI-IS',
+  LMP:'LMP', NU_IR:'Location nue', NOM_PROPRE:'Nom propre'
+};
+
+// ── Helpers de calcul des stats réelles (répliqués depuis structure.html) ──
+function todayStrLocal(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function monthKeyLocal(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function isLocataireActifLocal(loc, dateStr){
+  if(!loc.dateEntree) return false;
+  if(loc.dateEntree > dateStr) return false;
+  if(loc.dateSortie && loc.dateSortie < dateStr) return false;
+  return true;
+}
+function getMontantPeriodeLocal(loc, mk){
+  if(loc.periodes && loc.periodes.length > 0){
+    const moisDate = mk + '-01';
+    const sorted = [...loc.periodes].sort((a,b)=>b.debut.localeCompare(a.debut));
+    const periode = sorted.find(p=>p.debut<=moisDate);
+    if(periode) return (+periode.loyerHC||0) + (+periode.charges||0);
+  }
+  return (+loc.loyerHC||0) + (+loc.charges||0);
+}
+async function chargerStatsStructure(uid, structureId){
+  try {
+    const snap = await getDoc(doc(db, 'users', uid, 'structures', structureId, 'appdata', 'data'));
+    if(!snap.exists()) return { logements: 0, locataires: 0, loyers: 0 };
+    const ad = snap.data();
+    const logements = Array.isArray(ad.logements) ? ad.logements.filter(l => l.actif !== false) : [];
+    const locataires = Array.isArray(ad.locataires) ? ad.locataires : [];
+    const todayS = todayStrLocal();
+    const mk = monthKeyLocal(new Date());
+    const locsActifs = locataires.filter(l => isLocataireActifLocal(l, todayS));
+    const loyers = locsActifs.reduce((sum, l) => sum + getMontantPeriodeLocal(l, mk), 0);
+    return { logements: logements.length, locataires: locsActifs.length, loyers };
+  } catch(e){
+    console.warn('Stats indisponibles pour', structureId, e);
+    return { logements: 0, locataires: 0, loyers: 0 };
+  }
+}
+
+function renderOrbit(structures){
+  const nodesWrap = document.getElementById('orbit-nodes');
+  const reactorCount = document.getElementById('reactor-count');
+  const reactorLabel = document.getElementById('reactor-label');
+  const countTag = document.getElementById('structures-count-tag');
+  reactorCount.textContent = structures.length;
+  reactorLabel.textContent = structures.length > 1 ? 'Structures' : 'Structure';
+  countTag.textContent = structures.length + (structures.length > 1 ? ' actives' : ' active');
+
+  nodesWrap.innerHTML = '';
+  const radii = [75, 115, 150];
+  structures.forEach((s, i) => {
+    const radius = radii[i % radii.length];
+    const duration = 22 + (i % 4) * 6;
+    const direction = i % 2 === 0 ? 'normal' : 'reverse';
+    const startAngle = (360 / Math.max(structures.length,1)) * i;
+    const spin = document.createElement('div');
+    spin.className = 'orbit-spin';
+    spin.style.animationDuration = duration + 's';
+    spin.style.animationDirection = direction;
+    spin.style.transform = `translate(-50%,-50%) rotate(${startAngle}deg)`;
+    const node = document.createElement('div');
+    node.className = 'orbit-node';
+    node.style.background = s.couleur || '#4fd8ff';
+    node.style.color = s.couleur || '#4fd8ff';
+    node.style.left = radius + 'px';
+    node.style.top = '0px';
+    node.title = s.nom;
+    node.onclick = () => {
+      const card = document.querySelector(`[data-structure-id="${s.id}"]`);
+      if(card){ card.scrollIntoView({behavior:'smooth', block:'center'}); card.style.borderColor = s.couleur; setTimeout(()=>card.style.borderColor='', 1400); }
+    };
+    spin.appendChild(node);
+    nodesWrap.appendChild(spin);
+  });
 }
 
 async function chargerStructures(uid){
@@ -252,60 +462,71 @@ async function chargerStructures(uid){
     if(snap.empty){
       grid.innerHTML = `
         <div class="empty-state" style="grid-column:1/-1">
-          <div class="icon">🏗️</div>
+          <div class="icon">🛰️</div>
+          <div class="mono">Aucun signal détecté</div>
           <h3>Aucune structure pour l'instant</h3>
           <p>Créez votre première structure (SCI, LMNP, LMP...) pour commencer à gérer vos logements et locataires.</p>
-          <button class="btn-add" onclick="ouvrirModalStructure()">+ Créer ma première structure</button>
+          <button class="btn-add" style="margin:0 auto" onclick="ouvrirModalStructure()">+ Créer ma première structure</button>
         </div>`;
+      renderOrbit([]);
       return;
     }
-    const types = {
-      LMNP:'LMNP', SCI_IR:'SCI-IR', SCI_IS:'SCI-IS',
-      LMP:'LMP', NU_IR:'Location nue', NOM_PROPRE:'Nom propre'
-    };
+    const structures = [];
+    snap.forEach(d => structures.push({ id: d.id, ...d.data() }));
+    renderOrbit(structures);
+
+    const statsList = await Promise.all(structures.map(s => chargerStatsStructure(uid, s.id)));
+
     let html = '';
-    snap.forEach(d => {
-      const s = d.data();
+    structures.forEach((s, i) => {
+      const stats = statsList[i] || { logements: 0, locataires: 0, loyers: 0 };
       html += `
-        <div class="structure-card" onclick="ouvrirStructure('${d.id}')" style="border-color:${s.couleur}33">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div class="structure-type-badge" style="background:${s.couleur}22;color:${s.couleur}">
-              ${types[s.type]||s.type}
+        <div class="structure-card" data-structure-id="${s.id}" onclick="ouvrirStructure('${s.id}')">
+          <div class="structure-top">
+            <div class="structure-type-badge" style="color:${s.couleur}">
+              ${TYPE_LABELS[s.type]||s.type}
             </div>
-            <button onclick="event.stopPropagation();ouvrirModalStructure('${d.id}')" title="Modifier" style="background:rgba(255,255,255,.06);border:none;color:var(--text2);width:26px;height:26px;border-radius:7px;cursor:pointer;font-size:12px;flex-shrink:0">✎</button>
+            <div class="card-actions">
+              <button onclick="event.stopPropagation();ouvrirModalStructure('${s.id}')" title="Modifier">✎</button>
+              <button class="danger" onclick="event.stopPropagation();ouvrirModalSuppression('${s.id}','${(s.nom||'').replace(/'/g,"\\'")}')" title="Supprimer">🗑</button>
+            </div>
           </div>
           <div class="structure-name">${s.nom}</div>
           <div class="structure-meta">${s.adresse||'Adresse non renseignée'}</div>
           <div class="structure-stats">
             <div class="structure-stat">
-              <div class="structure-stat-val" style="color:${s.couleur}">0</div>
+              <div class="structure-stat-val" style="color:${s.couleur}">${stats.logements}</div>
               <div class="structure-stat-label">Logements</div>
             </div>
             <div class="structure-stat">
-              <div class="structure-stat-val" style="color:${s.couleur}">0</div>
+              <div class="structure-stat-val" style="color:${s.couleur}">${stats.locataires}</div>
               <div class="structure-stat-label">Locataires</div>
             </div>
             <div class="structure-stat">
-              <div class="structure-stat-val" style="color:${s.couleur}">0 €</div>
+              <div class="structure-stat-val" style="color:${s.couleur}">${Math.round(stats.loyers).toLocaleString('fr-FR')} €</div>
               <div class="structure-stat-label">Loyers/mois</div>
             </div>
           </div>
         </div>`;
     });
+    html += `
+        <div class="add-card" onclick="ouvrirModalStructure()">
+          <div class="plus">+</div>
+          Nouvelle structure
+        </div>`;
     grid.innerHTML = html;
   } catch(e){
     console.error('Erreur chargement structures:', e);
-    grid.innerHTML = '<p style="color:var(--text3);padding:20px">Erreur de chargement.</p>';
+    grid.innerHTML = '<p style="color:var(--text3);padding:20px;font-family:var(--font-mono);font-size:12px">Erreur de chargement.</p>';
   }
 }
 
-// ── CRÉER / MODIFIER STRUCTURE ───────────────────────────────────────────
 window._editingStructureId = null;
 window.sauvegarderStructure = async function(){
   const nom = document.getElementById('struct-nom').value.trim();
   if(!nom){ alert('Le nom de la structure est obligatoire.'); return; }
   const type = document.querySelector('.type-option.selected')?.dataset.type || 'LMNP';
-  const couleur = document.querySelector('.color-option.selected')?.dataset.color || '#3b82f6';
+  const couleur = document.querySelector('.color-option.selected')?.dataset.color || '#4fd8ff';
   const btn = document.getElementById('btn-save-structure');
   btn.disabled = true; btn.textContent = window._editingStructureId ? '⏳ Enregistrement...' : '⏳ Création...';
   try {
@@ -335,6 +556,38 @@ window.sauvegarderStructure = async function(){
 
 window.ouvrirStructure = function(id){
   window.location.href = 'structure.html?id=' + encodeURIComponent(id);
+};
+
+window._structIdASupprimer = null;
+window._structNomASupprimer = null;
+window.ouvrirModalSuppression = function(id, nom){
+  window._structIdASupprimer = id;
+  window._structNomASupprimer = nom;
+  document.getElementById('supp-nom-cible').textContent = nom;
+  document.getElementById('supp-nom-input').value = '';
+  document.getElementById('btn-confirmer-suppression').disabled = true;
+  document.getElementById('modal-suppression').classList.add('open');
+};
+window.fermerModalSuppression = function(){
+  window._structIdASupprimer = null;
+  window._structNomASupprimer = null;
+  document.getElementById('modal-suppression').classList.remove('open');
+};
+window.confirmerSuppressionStructure = async function(){
+  const id = window._structIdASupprimer;
+  if(!id) return;
+  const btn = document.getElementById('btn-confirmer-suppression');
+  btn.disabled = true; btn.textContent = '⏳ Suppression...';
+  try {
+    await deleteDoc(doc(db, 'users', currentUser.uid, 'structures', id));
+    fermerModalSuppression();
+    await chargerStructures(currentUser.uid);
+  } catch(e){
+    alert('Erreur lors de la suppression: ' + e.message);
+    btn.disabled = false;
+  } finally {
+    btn.textContent = '🗑 Supprimer définitivement';
+  }
 };
 
 window.seDeconnecter = async function(){
@@ -393,7 +646,10 @@ function selectionnerCouleur(el){
 document.getElementById('modal-structure').addEventListener('click',function(e){
   if(e.target===this)fermerModalStructure();
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape')fermerModalStructure();});
+document.getElementById('modal-suppression').addEventListener('click',function(e){
+  if(e.target===this)fermerModalSuppression();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){fermerModalStructure();fermerModalSuppression();}});
 </script>
 </body>
 </html>
