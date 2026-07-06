@@ -138,7 +138,7 @@ onAuthStateChanged(auth, async (user) => {
   --font:'Segoe UI',system-ui,sans-serif;
 }
 html.theme-light{
-  --bg:#f4f6f9;--bg2:#ffffff;--bg3:#f1f5f9;
+  --bg:#eef1f5;--bg2:#f9fafb;--bg3:#eef1f5;
   --border:rgba(43,108,176,0.14);--border2:rgba(43,108,176,0.3);
   --accent:#2b6cb0;--accent2:#2c5282;--accent3:#2b6cb0;
   --text:#1a202c;--text2:#4a5568;--text3:#718096;
@@ -4540,6 +4540,20 @@ function renderParametres(){
         Pour scanner automatiquement tes factures, renseigne ta propre clé API Gemini — gratuite, à créer en 2 minutes sur
         <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com/apikey</a>.
         Elle reste stockée uniquement sur ton compte, jamais partagée.
+      </div>
+      <button class="btn btn-sm" onclick="toggleGeminiGuide()" id="btn-toggle-gemini-guide" style="margin-bottom:14px">📖 Voir le guide pas à pas pour créer ma clé</button>
+      <div id="gemini-guide" style="display:none;margin-bottom:18px;padding:16px 18px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;font-size:12px;line-height:1.7;color:var(--text2)">
+        <ol style="margin:0;padding-left:20px">
+          <li>Clique sur <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);font-weight:600">aistudio.google.com/apikey</a> (ça ouvre un nouvel onglet).</li>
+          <li>Connecte-toi avec ton compte Google si demandé.</li>
+          <li>Clique sur le bouton bleu <strong style="color:var(--text)">« Create API key »</strong> (Créer une clé API).</li>
+          <li>S'il te demande un projet : choisis <strong style="color:var(--text)">« Create API key in new project »</strong> (le plus simple si c'est ta première clé), sinon sélectionne un projet Google Cloud existant.</li>
+          <li>Une clé apparaît à l'écran, un long texte du genre <code style="background:var(--bg2);padding:1px 5px;border-radius:4px">AIzaSy...</code>. Clique sur l'icône de copie 📋 juste à côté.</li>
+          <li>Reviens sur cette page, colle la clé dans le champ ci-dessous, puis clique sur <strong style="color:var(--text)">« ✓ Enregistrer »</strong>.</li>
+        </ol>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);color:var(--text3)">
+          💡 C'est entièrement gratuit pour un usage normal (largement suffisant pour scanner tes factures). Ta clé est personnelle : ne la partage avec personne, elle reste stockée uniquement sur ton compte GestImmo.
+        </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <input type="password" id="gemini-key-input" placeholder="Colle ta clé API Gemini ici" value="${getGeminiKey()}" style="flex:1;min-width:240px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none">
@@ -9093,6 +9107,13 @@ function saveSplitFacture(){
 }
 
 // ── CLÉ API GEMINI (OCR factures) — stockée au niveau du compte utilisateur ──
+window.toggleGeminiGuide=function(){
+  const guide=document.getElementById('gemini-guide');
+  const btn=document.getElementById('btn-toggle-gemini-guide');
+  const on=guide.style.display==='none';
+  guide.style.display=on?'block':'none';
+  btn.textContent=on?'📖 Masquer le guide':'📖 Voir le guide pas à pas pour créer ma clé';
+};
 function getGeminiKey(){
   return localStorage.getItem('gestimmo_gemini_key') || '';
 }
