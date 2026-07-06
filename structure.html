@@ -46,7 +46,7 @@ window._authReady = new Promise((resolve) => { window._authReadyResolve = resolv
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs, query, where, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
@@ -65,6 +65,12 @@ window._doc = doc;
 window._getDoc = getDoc;
 window._setDoc = setDoc;
 window._onSnapshot = onSnapshot;
+window._collection = collection;
+window._getDocs = getDocs;
+window._query = query;
+window._where = where;
+window._deleteDoc = deleteDoc;
+window._serverTimestamp = serverTimestamp;
 window._dbReady = true;
 window._signOut = () => signOut(auth);
 
@@ -85,12 +91,35 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = 'index.html';
     return;
   }
-  window._currentUid = user.uid;
+  window._authUid = user.uid; // La personne réellement connectée (peut différer du propriétaire des données)
   window._currentUserEmail = user.email;
+  const ownerParam = _params.get('owner');
+  window._currentUid = ownerParam || user.uid; // Propriétaire des données à afficher
+
+  // Détermine le rôle de la personne connectée sur cette structure
+  if(ownerParam && ownerParam !== user.uid){
+    try{
+      const collabSnap = await getDoc(doc(db, 'users', ownerParam, 'structures', window._structureId, 'collaborateurs', user.uid));
+      if(!collabSnap.exists()){
+        alert("Tu n'as plus accès à cette structure partagée.");
+        window.location.href = 'dashboard.html';
+        return;
+      }
+      window._myRole = collabSnap.data().role || 'lecture';
+    }catch(e){
+      alert("Impossible de vérifier ton accès à cette structure.");
+      window.location.href = 'dashboard.html';
+      return;
+    }
+  } else {
+    window._myRole = 'owner';
+  }
+  window._canEdit = window._myRole==='owner'||window._myRole==='saisie'||window._myRole==='admin';
+  window._canAdmin = window._myRole==='owner'||window._myRole==='admin';
 
   // Charge les infos de la structure (nom, adresse, type) pour personnaliser l'app
   try {
-    const structSnap = await getDoc(doc(db, 'users', user.uid, 'structures', window._structureId));
+    const structSnap = await getDoc(doc(db, 'users', window._currentUid, 'structures', window._structureId));
     window._structureInfo = structSnap.exists() ? structSnap.data() : { nom: 'Ma structure', adresse: '' };
   } catch(e){
     window._structureInfo = { nom: 'Ma structure', adresse: '' };
@@ -2341,6 +2370,7 @@ function renderFactures(){
 }
 
 function ajouterFacture(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible d'ajouter une facture."); return; }
   const ttcInput=parseFloat(document.getElementById('f-ttc').value)||0;
   const four=document.getElementById('f-four').value.trim();
   if(!four||ttcInput<=0){alert('Fournisseur et montant TTC requis.');return;}
@@ -2471,6 +2501,7 @@ function confirmerLierDrive(){
 }
 
 async function supprimerFacture(idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de supprimer une facture."); return; }
   if(!confirm('Supprimer cette facture ?'))return;
   const d=loadData();
   const f=d.factures[idx];
@@ -2544,6 +2575,7 @@ function closeModal(){
   editIdx=null;
 }
 function saveEdit(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier une facture."); return; }
   if(editIdx===null)return;
   if(document.getElementById('e-split-toggle').checked){ saveEditAsSplit(); return; }
   const ttcEdit=parseFloat(document.getElementById('e-ttc').value)||0;
@@ -4439,6 +4471,28 @@ function renderParametres(){
       </div>
     </div>
 
+    ${window._canAdmin ? `
+    <!-- Utilisateurs & droits d'accès -->
+    <div class="table-wrap" style="padding:24px;margin-bottom:24px">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">👥 Utilisateurs & droits d'accès</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px">
+        Invite d'autres personnes à accéder à cette structure précise (elles ne verront pas tes autres structures). Elles recevront l'accès automatiquement à leur prochaine connexion sur GestImmo avec l'email indiqué.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+        <input type="email" id="invite-email-input" placeholder="Email de la personne à inviter" style="flex:1;min-width:220px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none">
+        <select id="invite-role-select" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px">
+          <option value="lecture">Lecture seule</option>
+          <option value="saisie">Peut saisir des factures</option>
+          <option value="admin">Administrateur</option>
+        </select>
+        <button class="btn btn-sm" onclick="inviterUtilisateur()" style="background:var(--accent3);border-color:var(--accent2)">+ Inviter</button>
+      </div>
+      <div id="invite-status" style="font-size:11px;margin-bottom:16px;display:none"></div>
+      <div id="collaborateurs-list" style="margin-bottom:8px"></div>
+      <div id="invitations-list"></div>
+    </div>
+    ` : ''}
+
     <!-- Logements -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
@@ -4618,6 +4672,91 @@ function renderParametres(){
   `;
   afficherApercuLogoTampon();
   renderGeminiKeysList();
+  if(window._canAdmin) renderCollaborateursEtInvitations();
+}
+
+// ── UTILISATEURS & DROITS D'ACCÈS ────────────────────────────────────────
+window.inviterUtilisateur=async function(){
+  const emailInput=document.getElementById('invite-email-input');
+  const roleSelect=document.getElementById('invite-role-select');
+  const status=document.getElementById('invite-status');
+  const email=(emailInput.value||'').trim().toLowerCase();
+  const role=roleSelect.value;
+  if(!email||!email.includes('@')){
+    status.style.display='block';status.style.color='var(--red)';status.textContent='Entre un email valide.';
+    return;
+  }
+  if(email===window._currentUserEmail?.toLowerCase()){
+    status.style.display='block';status.style.color='var(--red)';status.textContent='Tu ne peux pas t\'inviter toi-même.';
+    return;
+  }
+  try{
+    await window._setDoc(window._doc(window._db,'invitations', window._structureId+'_'+email.replace(/[^a-z0-9]/g,'_')), {
+      email, ownerUid: window._currentUid, structureId: window._structureId,
+      structureNom: (getCTXConfig()?.nom)||'Structure', role,
+      dateCreation: window._serverTimestamp(), statut: 'en_attente'
+    });
+    emailInput.value='';
+    status.style.display='block';status.style.color='var(--green)';status.textContent='✓ Invitation envoyée. Elle prendra effet à la prochaine connexion de cette personne sur GestImmo.';
+    renderCollaborateursEtInvitations();
+  }catch(e){
+    console.error(e);
+    status.style.display='block';status.style.color='var(--red)';status.textContent='Erreur lors de l\'envoi de l\'invitation.';
+  }
+};
+
+window.retirerCollaborateur=async function(uid,email){
+  if(!confirm('Retirer l\'accès de '+email+' à cette structure ?'))return;
+  try{
+    await window._deleteDoc(window._doc(window._db,'users',window._currentUid,'structures',window._structureId,'collaborateurs',uid));
+    await window._deleteDoc(window._doc(window._db,'partagesUtilisateur',uid,'acces',window._structureId));
+    renderCollaborateursEtInvitations();
+  }catch(e){ console.error(e); alert('Erreur lors du retrait.'); }
+};
+
+window.annulerInvitation=async function(inviteId){
+  try{
+    await window._deleteDoc(window._doc(window._db,'invitations',inviteId));
+    renderCollaborateursEtInvitations();
+  }catch(e){ console.error(e); alert('Erreur lors de l\'annulation.'); }
+};
+
+async function renderCollaborateursEtInvitations(){
+  const collabWrap=document.getElementById('collaborateurs-list');
+  const inviteWrap=document.getElementById('invitations-list');
+  if(!collabWrap||!inviteWrap)return;
+  collabWrap.innerHTML='<div style="font-size:11px;color:var(--text3)">Chargement...</div>';
+  try{
+    const collabSnap=await window._getDocs(window._collection(window._db,'users',window._currentUid,'structures',window._structureId,'collaborateurs'));
+    const roleLabels={lecture:'Lecture seule',saisie:'Saisie de factures',admin:'Administrateur'};
+    if(collabSnap.empty){
+      collabWrap.innerHTML='<div style="font-size:11px;color:var(--text3);font-style:italic">Aucun utilisateur invité pour l\'instant.</div>';
+    } else {
+      collabWrap.innerHTML=collabSnap.docs.map(d=>{
+        const c=d.data();
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
+          <span style="font-size:12px;color:var(--text2);flex:1">👤 ${c.email} — <strong style="color:var(--text)">${roleLabels[c.role]||c.role}</strong></span>
+          <button class="btn btn-sm" onclick="retirerCollaborateur('${d.id}','${(c.email||'').replace(/'/g,"\\'")}')" style="background:transparent;border-color:var(--red);color:var(--red);padding:4px 10px">Retirer</button>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){ collabWrap.innerHTML='<div style="font-size:11px;color:var(--red)">Erreur de chargement.</div>'; console.error(e); }
+
+  try{
+    const q=window._query(window._collection(window._db,'invitations'), window._where('ownerUid','==',window._currentUid), window._where('structureId','==',window._structureId), window._where('statut','==','en_attente'));
+    const inviteSnap=await window._getDocs(q);
+    if(inviteSnap.empty){
+      inviteWrap.innerHTML='';
+    } else {
+      inviteWrap.innerHTML='<div style="font-size:11px;color:var(--text3);margin-bottom:8px">En attente d\'acceptation :</div>'+inviteSnap.docs.map(d=>{
+        const inv=d.data();
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border:1px dashed var(--border);border-radius:8px;margin-bottom:6px">
+          <span style="font-size:12px;color:var(--text3);flex:1">⏳ ${inv.email} — invité(e) comme ${inv.role}</span>
+          <button class="btn btn-sm" onclick="annulerInvitation('${d.id}')" style="background:transparent;border-color:var(--text3);color:var(--text3);padding:4px 10px">Annuler</button>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){ console.error(e); }
 }
 
 let _editLogIdx=null;
@@ -10594,6 +10733,13 @@ window._authReady.then(async () => {
   };
 
   document.getElementById('badge-date').textContent=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  if(window._myRole && window._myRole!=='owner'){
+    const roleLabels={lecture:'Lecture seule',saisie:'Saisie de factures',admin:'Administrateur'};
+    const banner=document.createElement('div');
+    banner.style.cssText='background:rgba(246,173,85,.12);border-bottom:1px solid rgba(246,173,85,.35);color:var(--orange);font-size:12px;font-weight:600;text-align:center;padding:8px;';
+    banner.textContent='👥 Structure partagée avec toi — rôle : '+(roleLabels[window._myRole]||window._myRole)+(window._myRole==='lecture'?' (consultation uniquement, aucune modification possible)':'');
+    document.body.insertBefore(banner, document.body.firstChild);
+  }
   updateThemeButton();
   initContexteUI();
   refreshLOGS();
