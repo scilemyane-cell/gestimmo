@@ -353,7 +353,8 @@ footer{background:var(--bg2);border-top:1px solid var(--border);padding:48px 5vw
 
     <!-- INSCRIPTION -->
     <div id="view-register">
-      <div class="trial-banner">🎁 30 jours gratuits — toutes fonctionnalités incluses</div>
+      <div class="trial-banner" id="trial-banner-normal">🎁 30 jours gratuits — toutes fonctionnalités incluses</div>
+      <div class="trial-banner" id="invite-banner" style="display:none;background:rgba(139,92,246,.15);border-color:rgba(139,92,246,.4);color:#c4b5fd"></div>
       <div class="modal-title">Créer mon compte</div>
       <div class="modal-sub">Sans carte bancaire requise</div>
       <div class="form-group"><label>Prénom & Nom</label><input type="text" id="reg-nom" placeholder="Jean Dupont" autocomplete="name"></div>
@@ -557,7 +558,23 @@ document.getElementById('modal-auth').addEventListener('click', function(e){
 // Fermer avec Escape
 document.addEventListener('keydown', e => { if(e.key==='Escape') fermerAuth(); });
 
-// ── ANIMATIONS SCROLL ────────────────────────────────────────────────
+// ── ARRIVÉE VIA UN LIEN D'INVITATION ─────────────────────────────────
+(function gererLienInvitation(){
+  const params = new URLSearchParams(window.location.search);
+  const inviteEmail = params.get('email');
+  const inviteStructure = params.get('structure');
+  if(inviteEmail){
+    document.getElementById('reg-email').value = inviteEmail;
+    document.getElementById('log-email').value = inviteEmail;
+    document.getElementById('trial-banner-normal').style.display = 'none';
+    const banner = document.getElementById('invite-banner');
+    banner.style.display = 'block';
+    banner.textContent = inviteStructure
+      ? `👋 Tu as été invité(e) à rejoindre "${inviteStructure}" sur GestImmo — connecte-toi ou crée un compte avec cette adresse pour accepter.`
+      : `👋 Tu as été invité(e) à rejoindre une structure sur GestImmo — connecte-toi ou crée un compte avec cette adresse pour accepter.`;
+    ouvrirAuth('register');
+  }
+})();
 const observer = new IntersectionObserver(entries => {
   entries.forEach(e => {
     if(e.isIntersecting) e.target.classList.add('visible');

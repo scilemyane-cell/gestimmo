@@ -4697,12 +4697,26 @@ window.inviterUtilisateur=async function(){
       dateCreation: window._serverTimestamp(), statut: 'en_attente'
     });
     emailInput.value='';
-    status.style.display='block';status.style.color='var(--green)';status.textContent='✓ Invitation envoyée. Elle prendra effet à la prochaine connexion de cette personne sur GestImmo.';
+    const structureNom=(getCTXConfig()?.nom)||'Structure';
+    const lien='https://scilemyane-cell.github.io/gestimmo/index.html?invite='+encodeURIComponent(window._structureId+'_'+email.replace(/[^a-z0-9]/g,'_'))+'&email='+encodeURIComponent(email)+'&structure='+encodeURIComponent(structureNom);
+    status.style.display='block';status.style.color='var(--green)';
+    status.innerHTML='✓ Invitation créée. Envoie ce lien à la personne (par SMS, WhatsApp, email...) :<br><div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input type="text" readonly value="'+lien+'" id="invite-link-output" style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text2);font-size:11px"><button class="btn btn-sm" onclick="copierLienInvitation()" style="flex-shrink:0">📋 Copier</button></div>';
     renderCollaborateursEtInvitations();
   }catch(e){
     console.error(e);
     status.style.display='block';status.style.color='var(--red)';status.textContent='Erreur lors de l\'envoi de l\'invitation.';
   }
+};
+
+window.copierLienInvitation=function(){
+  const input=document.getElementById('invite-link-output');
+  if(!input)return;
+  input.select();
+  navigator.clipboard.writeText(input.value).then(()=>{
+    alert('Lien copié ! Colle-le où tu veux (SMS, WhatsApp, email...).');
+  }).catch(()=>{
+    alert('Copie manuelle : sélectionne le texte du champ et fais Ctrl+C.');
+  });
 };
 
 window.retirerCollaborateur=async function(uid,email){
