@@ -11,8 +11,8 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="GestImmo — La gestion locative professionnelle pour les investisseurs immobiliers. SCI, LMNP, LMP, location nue.">
-<title>GestImmo — Gestion locative professionnelle</title>
+<meta name="description" content="GestImmo — La gestion locative simple pour tous : un propriétaire, une SCI familiale, un investisseur multi-biens. Comptabilité complète, quittances, baux, rentabilité réelle.">
+<title>GestImmo — Gestion locative pour tous</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -187,8 +187,9 @@ footer{background:var(--bg2);border-top:1px solid var(--border);padding:48px 5vw
       <div class="logo-icon"><svg width="30" height="30" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><polygon points="27.5,55 50,25 72.5,55" fill="#FFFFFF"/><rect x="31.5" y="53" width="37" height="32" rx="3" fill="#FFFFFF"/><rect x="46" y="68" width="8" height="17" fill="#0B1C30"/><polyline points="27,78 42,60 53,69 66,45 80,28" fill="none" stroke="#22D3B4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="80" cy="28" r="5" fill="#22D3B4"/></svg></div>GestImmo
     </a>
     <div class="nav-links">
+      <a href="#comptabilite">Comptabilité</a>
       <a href="#features">Fonctionnalités</a>
-      <a href="#structures">Structures</a>
+      <a href="#structures">Pour qui ?</a>
       <a href="#pricing">Tarifs</a>
     </div>
     <div class="nav-cta">
@@ -202,11 +203,11 @@ footer{background:var(--bg2);border-top:1px solid var(--border);padding:48px 5vw
 <section class="hero">
   <div style="position:relative;z-index:1">
     <div class="hero-badge">🚀 30 jours d'essai gratuit — sans carte bancaire</div>
-    <h1>La gestion locative<br>pensée pour les investisseurs</h1>
-    <p>Quittances, baux, états des lieux, rentabilité nette, patrimoine consolidé. SCI, LMNP, LMP, location nue — tout en un seul endroit.</p>
+    <h1>La gestion locative simple,<br>que vous ayez 1 bien ou 20</h1>
+    <p>Quittances, baux, états des lieux, comptabilité complète et rentabilité réelle. Que vous louiez la maison de famille, gériez une SCI entre proches, ou pilotiez un vrai patrimoine locatif — tout est au même endroit.</p>
     <div class="hero-ctas">
       <button class="btn-hero btn-hero-primary" onclick="ouvrirAuth('register')">✨ Commencer gratuitement</button>
-      <a href="#features" class="btn-hero btn-hero-secondary">Voir les fonctionnalités →</a>
+      <a href="#comptabilite" class="btn-hero btn-hero-secondary">Découvrir la comptabilité →</a>
     </div>
     <p class="hero-note">30 jours gratuits · Aucune carte requise · Annulable à tout moment</p>
   </div>
@@ -214,38 +215,56 @@ footer{background:var(--bg2);border-top:1px solid var(--border);padding:48px 5vw
 
 <!-- STATS -->
 <div class="stats">
-  <div class="stat"><div class="stat-val">5</div><div class="stat-label">Structures supportées</div></div>
+  <div class="stat"><div class="stat-val">7</div><div class="stat-label">Types de structures gérables</div></div>
   <div class="stat"><div class="stat-val">100%</div><div class="stat-label">Conforme loi 89-462</div></div>
   <div class="stat"><div class="stat-val">∞</div><div class="stat-label">Logements & locataires</div></div>
   <div class="stat"><div class="stat-val">PC + 📱</div><div class="stat-label">Toutes plateformes</div></div>
 </div>
 
+<!-- COMPTABILITÉ -->
+<section class="section" id="comptabilite">
+  <div class="section-label">Le point fort de GestImmo</div>
+  <h2 class="section-title">Une comptabilité qui fait vraiment le travail</h2>
+  <p class="section-sub">Pas juste un carnet de dépenses : un vrai suivi financier, aussi précis que ce que ferait un comptable — mais automatisé et gratuit.</p>
+  <div class="features-grid">
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(59,130,246,.15)">🤖</div><h3>Lecture automatique des factures</h3><p>Prends une photo ou importe le PDF : le montant, le fournisseur, la date et la TVA se remplissent tout seuls.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(16,185,129,.15)">🧩</div><h3>Répartition sur plusieurs biens</h3><p>Une seule facture concerne 3 logements ? Répartis le montant entre eux, à parts égales ou au centime près.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(139,92,246,.15)">📈</div><h3>Rentabilité nette réelle</h3><p>Par logement ou consolidée : distingue rentabilité fiscale et cash-flow réel, capital remboursé mis à part.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(245,158,11,.15)">🧾</div><h3>Régularisation des charges</h3><p>Calcule automatiquement ce que doit chaque locataire en fin d'année, prêt à envoyer.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(239,68,68,.15)">📊</div><h3>Récap fiscal prêt pour le comptable</h3><p>Revenus, charges, intérêts d'emprunt, résultat net — exportable en PDF, filtrable par année.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(59,130,246,.15)">☁️</div><h3>Sauvegarde sur ton propre Drive</h3><p>Toutes tes factures et justificatifs archivés automatiquement sur ton Google Drive personnel.</p></div>
+  </div>
+</section>
+
 <!-- FEATURES -->
 <section class="section" id="features">
   <div class="section-label">Fonctionnalités</div>
-  <h2 class="section-title">Tout ce dont vous avez besoin</h2>
-  <p class="section-sub">Conçu par et pour des investisseurs immobiliers. Chaque fonctionnalité répond à un vrai besoin terrain.</p>
+  <h2 class="section-title">Et tout le reste, aussi</h2>
+  <p class="section-sub">Au-delà de la comptabilité : tout ce qu'il faut pour gérer sereinement, du premier bien loué au patrimoine complet.</p>
   <div class="features-grid">
     <div class="feature-card"><div class="feature-icon" style="background:rgba(59,130,246,.15)">📄</div><h3>Quittances automatiques</h3><p>Générées et envoyées par email à chaque encaissement. Logo, signature, date de paiement.</p></div>
     <div class="feature-card"><div class="feature-icon" style="background:rgba(16,185,129,.15)">📝</div><h3>Baux & états des lieux</h3><p>Contrats pré-remplis automatiquement. EDL interactif pièce par pièce.</p></div>
-    <div class="feature-card"><div class="feature-icon" style="background:rgba(139,92,246,.15)">📈</div><h3>Rentabilité nette réelle</h3><p>Distingue rentabilité fiscale et cash-flow réel. Capital remboursé séparé.</p></div>
     <div class="feature-card"><div class="feature-icon" style="background:rgba(245,158,11,.15)">🏛️</div><h3>Vue patrimoine</h3><p>Toutes vos structures consolidées : coût de revient, valeur de marché, plus-value latente.</p></div>
-    <div class="feature-card"><div class="feature-icon" style="background:rgba(239,68,68,.15)">📊</div><h3>Récap fiscal annuel</h3><p>Document prêt pour votre comptable. Revenus, charges, intérêts, résultat net.</p></div>
-    <div class="feature-card"><div class="feature-icon" style="background:rgba(59,130,246,.15)">☁️</div><h3>Synchronisation cloud</h3><p>Vos données synchronisées en temps réel entre tous vos appareils.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(239,68,68,.15)">🔑</div><h3>Multi-comptes API</h3><p>Plusieurs clés de lecture automatique enregistrées, bascule toute seule en cas de limite atteinte.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(139,92,246,.15)">🗂️</div><h3>Plusieurs biens, un seul endroit</h3><p>Organise et réordonne tes structures comme tu veux, d'un simple glisser-déposer.</p></div>
+    <div class="feature-card"><div class="feature-icon" style="background:rgba(59,130,246,.15)">🌓</div><h3>Mode clair ou sombre</h3><p>À toi de choisir l'ambiance qui te convient, à tout moment.</p></div>
   </div>
 </section>
 
 <!-- STRUCTURES -->
 <section class="structures-section" id="structures">
   <div class="structures-inner">
-    <div class="section-label">Structures supportées</div>
-    <h2 class="section-title">Toutes vos structures immobilières</h2>
+    <div class="section-label">Pour qui ?</div>
+    <h2 class="section-title">Quelle que soit ta situation</h2>
+    <p class="section-sub" style="margin-bottom:8px">Pas besoin d'être un investisseur aguerri. GestImmo s'adapte à ce que tu gères vraiment.</p>
     <div class="structures-grid">
-      <div class="structure-card"><div class="structure-badge" style="background:rgba(59,130,246,.15);color:#93c5fd">SCI-IR</div><h3>SCI à l'IR</h3><p>Revenus fonciers remontant chez les associés.</p></div>
+      <div class="structure-card"><div class="structure-badge" style="background:rgba(16,185,129,.15);color:#6ee7b7">Simple</div><h3>Nom propre</h3><p>Tu loues un bien directement, sans société — le cas le plus courant.</p></div>
+      <div class="structure-card"><div class="structure-badge" style="background:rgba(59,130,246,.15);color:#93c5fd">SCI-IR</div><h3>SCI à l'IR</h3><p>Revenus fonciers remontant chez les associés — SCI familiale typique.</p></div>
       <div class="structure-card"><div class="structure-badge" style="background:rgba(139,92,246,.15);color:#c4b5fd">SCI-IS</div><h3>SCI à l'IS</h3><p>Amortissement du bien, résultat en bénéfice ou déficit.</p></div>
-      <div class="structure-card"><div class="structure-badge" style="background:rgba(16,185,129,.15);color:#6ee7b7">LMNP</div><h3>LMNP</h3><p>Régime réel ou micro-BIC.</p></div>
+      <div class="structure-card"><div class="structure-badge" style="background:rgba(16,185,129,.15);color:#6ee7b7">LMNP</div><h3>LMNP</h3><p>Location meublée, régime réel ou micro-BIC.</p></div>
       <div class="structure-card"><div class="structure-badge" style="background:rgba(245,158,11,.15);color:#fcd34d">LMP</div><h3>LMP</h3><p>Régime des BIC avec imputation des déficits.</p></div>
       <div class="structure-card"><div class="structure-badge" style="background:rgba(239,68,68,.15);color:#fca5a5">Nu-IR</div><h3>Location nue</h3><p>Revenus fonciers déclarés à l'IR.</p></div>
+      <div class="structure-card"><div class="structure-badge" style="background:rgba(139,92,246,.15);color:#c4b5fd">Holding</div><h3>Holding</h3><p>Pour ceux qui structurent un patrimoine à plusieurs sociétés.</p></div>
     </div>
   </div>
 </section>
@@ -299,8 +318,8 @@ footer{background:var(--bg2);border-top:1px solid var(--border);padding:48px 5vw
 
 <!-- CTA FINAL -->
 <section class="cta-final">
-  <h2>Prêt à professionnaliser<br>votre gestion locative ?</h2>
-  <p>Rejoignez des investisseurs qui gèrent leur patrimoine avec GestImmo.</p>
+  <h2>Prêt à simplifier<br>ta gestion locative ?</h2>
+  <p>Rejoins celles et ceux qui gèrent leur bien — un ou plusieurs — avec GestImmo.</p>
   <button class="btn-hero btn-hero-primary" onclick="ouvrirAuth('register')">✨ Démarrer mon essai gratuit de 30 jours</button>
   <p style="margin-top:16px;font-size:13px;color:var(--text3)">Sans engagement · Sans carte bancaire · Annulable à tout moment</p>
 </section>
@@ -310,9 +329,9 @@ footer{background:var(--bg2);border-top:1px solid var(--border);padding:48px 5vw
   <div class="footer-grid">
     <div class="footer-brand">
       <a href="#" class="logo" style="text-decoration:none"><div class="logo-icon"><svg width="30" height="30" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><polygon points="27.5,55 50,25 72.5,55" fill="#FFFFFF"/><rect x="31.5" y="53" width="37" height="32" rx="3" fill="#FFFFFF"/><rect x="46" y="68" width="8" height="17" fill="#0B1C30"/><polyline points="27,78 42,60 53,69 66,45 80,28" fill="none" stroke="#22D3B4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="80" cy="28" r="5" fill="#22D3B4"/></svg></div>GestImmo</a>
-      <p>La gestion locative professionnelle pour les investisseurs immobiliers français.</p>
+      <p>La gestion locative simple et complète, pour tous les propriétaires — d'un bien à tout un patrimoine.</p>
     </div>
-    <div class="footer-col"><h4>Produit</h4><a href="#features">Fonctionnalités</a><a href="#pricing">Tarifs</a><a href="#structures">Structures</a></div>
+    <div class="footer-col"><h4>Produit</h4><a href="#comptabilite">Comptabilité</a><a href="#features">Fonctionnalités</a><a href="#pricing">Tarifs</a><a href="#structures">Pour qui ?</a></div>
     <div class="footer-col"><h4>Légal</h4><a href="#">Mentions légales</a><a href="#">CGU</a><a href="#">Confidentialité</a></div>
     <div class="footer-col"><h4>Support</h4><a href="#">Centre d'aide</a><a href="#">Contact</a></div>
   </div>
