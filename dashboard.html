@@ -308,7 +308,7 @@ body::after{
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, getDocs, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
@@ -341,8 +341,33 @@ onAuthStateChanged(auth, async user => {
     return;
   }
   currentUser = user;
+  await accepterInvitationsEnAttente(user);
   await chargerDashboard(user);
 });
+
+// ── ACCEPTATION AUTOMATIQUE DES INVITATIONS EN ATTENTE ──────────────────
+// Si quelqu'un a invité cette adresse email sur une de ses structures, on active
+// l'accès partagé dès la connexion (pas d'action manuelle nécessaire).
+async function accepterInvitationsEnAttente(user){
+  if(!user.email) return;
+  try{
+    const q = query(collection(db, 'invitations'), where('email', '==', user.email.toLowerCase()), where('statut', '==', 'en_attente'));
+    const snap = await getDocs(q);
+    if(snap.empty) return;
+    for(const inviteDoc of snap.docs){
+      const inv = inviteDoc.data();
+      try{
+        await setDoc(doc(db, 'users', inv.ownerUid, 'structures', inv.structureId, 'collaborateurs', user.uid), {
+          email: user.email, role: inv.role, dateAjout: serverTimestamp()
+        });
+        await setDoc(doc(db, 'partagesUtilisateur', user.uid, 'acces', inv.structureId), {
+          ownerUid: inv.ownerUid, structureId: inv.structureId, structureNom: inv.structureNom || '', role: inv.role
+        });
+        await updateDoc(doc(db, 'invitations', inviteDoc.id), { statut: 'acceptee' });
+      }catch(e){ console.error('Erreur acceptation invitation:', e); }
+    }
+  }catch(e){ console.error('Erreur vérification invitations:', e); }
+}
 
 async function chargerDashboard(user){
   const profileRef = doc(db, 'users', user.uid);
@@ -479,7 +504,22 @@ async function chargerStructures(uid){
   const grid = document.getElementById('structures-grid');
   try {
     const snap = await getDocs(collection(db, 'users', uid, 'structures'));
-    if(snap.empty){
+    // Récupère aussi les structures partagées par d'autres utilisateurs avec ce compte
+    let structuresPartagees = [];
+    try{
+      const partageSnap = await getDocs(collection(db, 'partagesUtilisateur', uid, 'acces'));
+      const partageDocs = await Promise.all(partageSnap.docs.map(async d=>{
+        const acces = d.data();
+        try{
+          const structSnap = await getDoc(doc(db, 'users', acces.ownerUid, 'structures', acces.structureId));
+          if(!structSnap.exists()) return null;
+          return { id: structSnap.id, ...structSnap.data(), _ownerUid: acces.ownerUid, _monRole: acces.role, _partagee: true };
+        }catch(e){ return null; }
+      }));
+      structuresPartagees = partageDocs.filter(Boolean);
+    }catch(e){ console.warn('Erreur chargement structures partagées:', e); }
+
+    if(snap.empty && !structuresPartagees.length){
       grid.innerHTML = `
         <div class="empty-state" style="grid-column:1/-1">
           <div class="icon">🛰️</div>
@@ -492,12 +532,13 @@ async function chargerStructures(uid){
       return;
     }
     const structures = [];
-    snap.forEach(d => structures.push({ id: d.id, ...d.data() }));
+    snap.forEach(d => structures.push({ id: d.id, ...d.data(), _ownerUid: uid, _partagee: false }));
     structures.sort((a,b)=>(a.ordre??9999)-(b.ordre??9999));
-    window._currentStructuresOrder = structures.map(s=>s.id);
+    structures.push(...structuresPartagees);
+    window._currentStructuresOrder = structures.filter(s=>!s._partagee).map(s=>s.id);
     renderOrbit(structures);
 
-    const statsList = await Promise.all(structures.map(s => s.type === 'HOLDING' ? chargerStatsHolding(uid, s.id) : chargerStatsStructure(uid, s.id)));
+    const statsList = await Promise.all(structures.map(s => s.type === 'HOLDING' ? chargerStatsHolding(s._ownerUid||uid, s.id) : chargerStatsStructure(s._ownerUid||uid, s.id)));
 
     let html = '';
     structures.forEach((s, i) => {
@@ -529,20 +570,23 @@ async function chargerStructures(uid){
               <div class="structure-stat-label">Loyers/mois</div>
             </div>`;
       html += `
-        <div class="structure-card" draggable="true" data-structure-id="${s.id}"
+        <div class="structure-card" draggable="${!s._partagee}" data-structure-id="${s.id}"
+          ${!s._partagee ? `
           ondragstart="onStructureDragStart(event,'${s.id}')"
           ondragover="onStructureDragOver(event)"
           ondrop="onStructureDrop(event,'${s.id}')"
-          ondragend="onStructureDragEnd(event)"
-          onclick="ouvrirStructure('${s.id}','${s.type}')">
+          ondragend="onStructureDragEnd(event)"` : ''}
+          onclick="ouvrirStructure('${s.id}','${s.type}','${s._ownerUid}')">
           <div class="structure-top">
             <div class="structure-type-badge" style="color:${s.couleur}">
-              ${TYPE_LABELS[s.type]||s.type}
+              ${TYPE_LABELS[s.type]||s.type}${s._partagee?` · <span style="color:var(--text3)">partagée</span>`:''}
             </div>
             <div class="card-actions">
+              ${s._partagee ? `<span title="Partagée avec toi (rôle : ${s._monRole})" style="padding:0 4px;color:var(--text3)">👥</span>` : `
               <span title="Glisser pour réorganiser" style="cursor:grab;padding:0 4px;color:var(--text3)">⠿</span>
               <button onclick="event.stopPropagation();ouvrirModalStructure('${s.id}')" title="Modifier">✎</button>
               <button class="danger" onclick="event.stopPropagation();ouvrirModalSuppression('${s.id}','${(s.nom||'').replace(/'/g,"\\'")}')" title="Supprimer">🗑</button>
+              `}
             </div>
           </div>
           <div class="structure-name">${s.nom}</div>
@@ -635,9 +679,11 @@ window.sauvegarderStructure = async function(){
   }
 };
 
-window.ouvrirStructure = function(id, type){
+window.ouvrirStructure = function(id, type, ownerUid){
   const page = type === 'HOLDING' ? 'holding.html' : 'structure.html';
-  window.location.href = page + '?id=' + encodeURIComponent(id);
+  let url = page + '?id=' + encodeURIComponent(id);
+  if(ownerUid && currentUser && ownerUid !== currentUser.uid) url += '&owner=' + encodeURIComponent(ownerUid);
+  window.location.href = url;
 };
 
 window._structIdASupprimer = null;
