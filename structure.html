@@ -96,12 +96,14 @@ onAuthStateChanged(auth, async (user) => {
     window._structureInfo = { nom: 'Ma structure', adresse: '' };
   }
 
-  // Charge la clé API Gemini personnelle (si pas déjà en local sur cet appareil)
-  if(!localStorage.getItem('gestimmo_gemini_key')){
+  // Charge les clés API Gemini personnelles (si pas déjà en local sur cet appareil)
+  if(!localStorage.getItem('gestimmo_gemini_keys')){
     try {
       const userSnap = await getDoc(doc(db, 'users', user.uid));
-      const savedKey = userSnap.exists() ? userSnap.data().geminiApiKey : '';
-      if(savedKey) localStorage.setItem('gestimmo_gemini_key', savedKey);
+      const data = userSnap.exists() ? userSnap.data() : {};
+      let keys = Array.isArray(data.geminiApiKeys) ? data.geminiApiKeys.filter(Boolean) : [];
+      if(!keys.length && data.geminiApiKey) keys = [data.geminiApiKey]; // migration ancienne clé unique
+      if(keys.length) localStorage.setItem('gestimmo_gemini_keys', JSON.stringify(keys));
     } catch(e){ /* pas grave, l'utilisateur pourra la ressaisir */ }
   }
 
@@ -1668,9 +1670,8 @@ function resetSaisieFields(){
 }
 
 async function extractFactureInfo(b64){
-  const geminiKey=getGeminiKey();
-  if(!geminiKey){
-    alert("Pour scanner automatiquement une facture, ajoute d'abord ta clé API Gemini gratuite dans Paramètres (section \"Lecture automatique des factures\").");
+  if(!getGeminiKeys().length){
+    alert("Pour scanner automatiquement une facture, ajoute d'abord au moins une clé API Gemini gratuite dans Paramètres (section \"Lecture automatique des factures\").");
     return null;
   }
   const loader=document.getElementById('upload-extracting');
@@ -1678,10 +1679,7 @@ async function extractFactureInfo(b64){
   try{
     const base64Data=b64.split(',')[1];
     const mimeType=b64.startsWith('data:image')?'image/jpeg':'application/pdf';
-    const resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key='+encodeURIComponent(geminiKey),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
+    const data=await callGeminiAPI('gemini-2.5-flash-lite',{
         contents:[{
           parts:[
             {inline_data:{mime_type:mimeType,data:base64Data}},
@@ -1691,10 +1689,7 @@ Règles : date au format YYYY-MM-DD, montant_ttc en nombre décimal (montant TTC
           ]
         }],
         generationConfig:{temperature:0,maxOutputTokens:500}
-      })
     });
-    const data=await resp.json();
-    if(data.error)throw new Error(data.error.message||'Erreur API');
     const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
     if(!text)throw new Error('Réponse vide');
     const clean=text.replace(/```json|```/g,'').trim();
@@ -4537,9 +4532,9 @@ function renderParametres(){
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
       <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">🤖 Lecture automatique des factures (OCR)</div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:16px">
-        Pour scanner automatiquement tes factures, renseigne ta propre clé API Gemini — gratuite, à créer en 2 minutes sur
+        Pour scanner automatiquement tes factures, renseigne une ou plusieurs clés API Gemini — gratuites, à créer en 2 minutes sur
         <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com/apikey</a>.
-        Elle reste stockée uniquement sur ton compte, jamais partagée.
+        Ajouter plusieurs clés permet à l'app de basculer automatiquement sur la suivante si la première atteint sa limite d'utilisation gratuite. Elles restent stockées uniquement sur ton compte, jamais partagées.
       </div>
       <button class="btn btn-sm" onclick="toggleGeminiGuide()" id="btn-toggle-gemini-guide" style="margin-bottom:14px">📖 Voir le guide pas à pas pour créer ma clé</button>
       <div id="gemini-guide" style="display:none;margin-bottom:18px;padding:16px 18px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;font-size:12px;line-height:1.7;color:var(--text2)">
@@ -4549,18 +4544,19 @@ function renderParametres(){
           <li>Clique sur le bouton bleu <strong style="color:var(--text)">« Create API key »</strong> (Créer une clé API).</li>
           <li>S'il te demande un projet : choisis <strong style="color:var(--text)">« Create API key in new project »</strong> (le plus simple si c'est ta première clé), sinon sélectionne un projet Google Cloud existant.</li>
           <li>Une clé apparaît à l'écran, un long texte du genre <code style="background:var(--bg2);padding:1px 5px;border-radius:4px">AIzaSy...</code>. Clique sur l'icône de copie 📋 juste à côté.</li>
-          <li>Reviens sur cette page, colle la clé dans le champ ci-dessous, puis clique sur <strong style="color:var(--text)">« ✓ Enregistrer »</strong>.</li>
+          <li>Reviens sur cette page, colle la clé dans le champ ci-dessous, puis clique sur <strong style="color:var(--text)">« + Ajouter cette clé »</strong>.</li>
         </ol>
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);color:var(--text3)">
-          💡 C'est entièrement gratuit pour un usage normal (largement suffisant pour scanner tes factures). Ta clé est personnelle : ne la partage avec personne, elle reste stockée uniquement sur ton compte GestImmo.
+          💡 C'est entièrement gratuit pour un usage normal. Pour scanner beaucoup de factures d'affilée sans attendre, tu peux répéter cette opération avec un autre compte Google et ajouter ainsi plusieurs clés — l'app passera automatiquement à la suivante dès qu'une clé atteint sa limite gratuite.
         </div>
       </div>
+      <div id="gemini-keys-list" style="margin-bottom:14px"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input type="password" id="gemini-key-input" placeholder="Colle ta clé API Gemini ici" value="${getGeminiKey()}" style="flex:1;min-width:240px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none">
+        <input type="password" id="gemini-key-input" placeholder="Colle une clé API Gemini ici" style="flex:1;min-width:240px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none">
         <button class="btn btn-sm" onclick="toggleGeminiKeyVisibility()" id="btn-toggle-gemini-key" style="flex-shrink:0">👁 Afficher</button>
-        <button class="btn btn-sm" onclick="sauvegarderGeminiKey()" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">✓ Enregistrer</button>
+        <button class="btn btn-sm" onclick="ajouterGeminiKey()" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">+ Ajouter cette clé</button>
       </div>
-      <div id="gemini-key-status" style="font-size:11px;color:var(--green);margin-top:8px;display:none">✓ Clé enregistrée</div>
+      <div id="gemini-key-status" style="font-size:11px;color:var(--green);margin-top:8px;display:none">✓ Clé ajoutée</div>
     </div>
 
     <!-- Danger zone -->
@@ -4603,6 +4599,7 @@ function renderParametres(){
     </div>
   `;
   afficherApercuLogoTampon();
+  renderGeminiKeysList();
 }
 
 let _editLogIdx=null;
@@ -6308,20 +6305,16 @@ function importCreditPhoto(event,logKey){
 }
 
 async function analyzeCreditPhoto(b64,logKey){
-  const geminiKey=getGeminiKey();
   const status=document.getElementById('fc-import-status-'+logKey);
-  if(!geminiKey){
-    if(status){status.style.display='inline';status.style.color='#fc8181';status.textContent='⚠ Ajoute ta clé API Gemini dans Paramètres pour utiliser cette fonction.';}
+  if(!getGeminiKeys().length){
+    if(status){status.style.display='inline';status.style.color='#fc8181';status.textContent='⚠ Ajoute au moins une clé API Gemini dans Paramètres pour utiliser cette fonction.';}
     return;
   }
   if(status){status.style.display='inline';status.style.color='var(--text2)';status.textContent='⏳ Analyse en cours...';}
   try{
     const base64Data=b64.split(',')[1];
     const mimeType=b64.split(';')[0].replace('data:','')||'image/jpeg';
-    const resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key='+encodeURIComponent(geminiKey),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
+    const data=await callGeminiAPI('gemini-2.5-flash-lite',{
         contents:[{
           parts:[
             {inline_data:{mime_type:mimeType,data:base64Data}},
@@ -6331,10 +6324,7 @@ Règles : capital = montant total emprunté en euros (nombre, sans espace ni sym
           ]
         }],
         generationConfig:{temperature:0,maxOutputTokens:300}
-      })
     });
-    const data=await resp.json();
-    if(data.error)throw new Error(data.error.message||'Erreur API');
     const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
     if(!text)throw new Error('Réponse vide');
     const clean=text.replace(/```json|```/g,'').trim();
@@ -9114,8 +9104,57 @@ window.toggleGeminiGuide=function(){
   guide.style.display=on?'block':'none';
   btn.textContent=on?'📖 Masquer le guide':'📖 Voir le guide pas à pas pour créer ma clé';
 };
+function getGeminiKeys(){
+  try{
+    const raw=localStorage.getItem('gestimmo_gemini_keys');
+    const arr=raw?JSON.parse(raw):[];
+    return Array.isArray(arr)?arr.filter(Boolean):[];
+  }catch(e){ return []; }
+}
 function getGeminiKey(){
-  return localStorage.getItem('gestimmo_gemini_key') || '';
+  const keys=getGeminiKeys();
+  return keys[0]||'';
+}
+async function saveGeminiKeys(keys){
+  localStorage.setItem('gestimmo_gemini_keys',JSON.stringify(keys));
+  try{
+    await window._setDoc(window._doc(window._db,'users',window._currentUid),{geminiApiKeys:keys},{merge:true});
+  }catch(e){ console.error('Erreur sauvegarde clés Gemini:',e); }
+}
+window.ajouterGeminiKey=async function(){
+  const inp=document.getElementById('gemini-key-input');
+  const val=(inp.value||'').trim();
+  if(!val)return;
+  const keys=getGeminiKeys();
+  if(keys.includes(val)){ inp.value=''; renderGeminiKeysList(); return; }
+  keys.push(val);
+  await saveGeminiKeys(keys);
+  inp.value='';
+  renderGeminiKeysList();
+  const status=document.getElementById('gemini-key-status');
+  if(status){ status.style.display='block'; setTimeout(()=>status.style.display='none',2500); }
+};
+window.supprimerGeminiKey=async function(idx){
+  const keys=getGeminiKeys();
+  keys.splice(idx,1);
+  await saveGeminiKeys(keys);
+  renderGeminiKeysList();
+};
+function renderGeminiKeysList(){
+  const wrap=document.getElementById('gemini-keys-list');
+  if(!wrap)return;
+  const keys=getGeminiKeys();
+  if(!keys.length){
+    wrap.innerHTML='<div style="font-size:11px;color:var(--text3);font-style:italic">Aucune clé enregistrée pour le moment.</div>';
+    return;
+  }
+  wrap.innerHTML=keys.map((k,i)=>{
+    const masked=k.length>10?k.slice(0,6)+'••••••••'+k.slice(-4):'••••••••';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
+      <span style="font-family:monospace;font-size:12px;color:var(--text2);flex:1">${i===0?'🔑 Clé principale':'🔑 Clé de secours '+i} — ${masked}</span>
+      <button class="btn btn-sm" onclick="supprimerGeminiKey(${i})" style="background:transparent;border-color:var(--red);color:var(--red);padding:4px 10px">✕</button>
+    </div>`;
+  }).join('');
 }
 window.toggleGeminiKeyVisibility=function(){
   const inp=document.getElementById('gemini-key-input');
@@ -9125,15 +9164,42 @@ window.toggleGeminiKeyVisibility=function(){
   inp.type=showing?'password':'text';
   btn.textContent=showing?'👁 Afficher':'🙈 Masquer';
 };
-window.sauvegarderGeminiKey=async function(){
-  const val=(document.getElementById('gemini-key-input').value||'').trim();
-  localStorage.setItem('gestimmo_gemini_key',val);
-  try{
-    await window._setDoc(window._doc(window._db,'users',window._currentUid),{geminiApiKey:val},{merge:true});
-  }catch(e){ console.error('Erreur sauvegarde clé Gemini:',e); }
-  const status=document.getElementById('gemini-key-status');
-  if(status){ status.style.display='block'; setTimeout(()=>status.style.display='none',2500); }
-};
+
+// Appelle l'API Gemini en essayant chaque clé enregistrée l'une après l'autre :
+// si une clé est limitée (quota atteint), bascule automatiquement sur la suivante.
+async function callGeminiAPI(model, requestBody){
+  const keys=getGeminiKeys();
+  if(!keys.length){
+    const err=new Error('AUCUNE_CLE');
+    throw err;
+  }
+  let lastError=null;
+  for(let i=0;i<keys.length;i++){
+    try{
+      const resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+encodeURIComponent(keys[i]),{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(requestBody)
+      });
+      const data=await resp.json();
+      if(data.error){
+        const msg=(data.error.message||'').toLowerCase();
+        const isQuota=data.error.status==='RESOURCE_EXHAUSTED'||resp.status===429||msg.includes('quota')||msg.includes('rate limit');
+        lastError=new Error(data.error.message||'Erreur API Gemini');
+        if(isQuota && i<keys.length-1){
+          console.warn(`Clé Gemini #${i+1} limitée, passage à la suivante...`);
+          continue;
+        }
+        throw lastError;
+      }
+      return data;
+    }catch(e){
+      lastError=e;
+      if(i===keys.length-1) throw lastError;
+    }
+  }
+  throw lastError||new Error('Échec de toutes les clés Gemini');
+}
 
 // ── THÈME CLAIR / SOMBRE ────────────────────────────────────────────────
 function updateThemeButton(){
@@ -9395,7 +9461,7 @@ function showSubTab(id){
 const GOOGLE_CLIENT_ID = '658875106145-j8simu5rb93ko75hndipga72v29ohck9.apps.googleusercontent.com';
 // Scope Drive seul : "drive.file" est classé NON SENSIBLE par Google — aucune vérification
 // nécessaire, ça fonctionne pour tous les utilisateurs dès maintenant.
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email';
 // Scope Gmail séparé, à activer plus tard (nécessite la vérification Google — voir Paramètres)
 const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.labels';
 let driveAccessToken = null;
@@ -10698,9 +10764,9 @@ async function sendChatbotMessage(){
   const question=input.value.trim();
   if(!question)return;
   const messages=document.getElementById('chatbot-messages');
-  const geminiKey=getGeminiKey();
+  const geminiKey=getGeminiKeys().length;
   if(!geminiKey){
-    messages.innerHTML+=`<div style="background:rgba(252,129,129,.1);border:1px solid rgba(252,129,129,.3);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--red);align-self:flex-start">Ajoute d'abord ta clé API Gemini dans Paramètres pour utiliser l'assistant.</div>`;
+    messages.innerHTML+=`<div style="background:rgba(252,129,129,.1);border:1px solid rgba(252,129,129,.3);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--red);align-self:flex-start">Ajoute d'abord au moins une clé API Gemini dans Paramètres pour utiliser l'assistant.</div>`;
     input.value='';
     return;
   }
@@ -10727,20 +10793,14 @@ Ton rôle :
 
 Règles : réponds toujours en français, avec des chiffres précis en euros (format 1 234,56 €). Sois direct et concis. Si une donnée manque, dis-le clairement.`;
 
-    const resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(geminiKey),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
+    const data=await callGeminiAPI('gemini-2.5-flash',{
         system_instruction:{parts:[{text:systemPrompt}]},
         contents:[{
           parts:[{text:`Données actuelles du projet :\n\n${context}\n\nQuestion : ${question}`}]
         }],
         generationConfig:{temperature:0.1,maxOutputTokens:1000}
-      })
     });
-    const data=await resp.json();
     document.getElementById(loadingId).remove();
-    if(data.error)throw new Error(data.error.message||'Erreur API');
     const text=data.candidates?.[0]?.content?.parts?.[0]?.text||"Désolé, je n'ai pas pu répondre.";
     messages.innerHTML+=`<div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text);align-self:flex-start;max-width:90%;white-space:pre-wrap">${text}</div>`;
   }catch(e){
