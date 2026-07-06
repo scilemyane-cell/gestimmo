@@ -1096,11 +1096,26 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>Date</label><input type="date" id="e-date"></div>
       <div class="form-group"><label>Fournisseur</label><input type="text" id="e-four"></div>
       <div class="form-group"><label>Catégorie</label><select id="e-cat"></select></div>
-      <div class="form-group"><label>Logement</label>
+      <div class="form-group" id="e-log-group"><label>Logement</label>
         <select id="e-log">
           <option value="Logement A">Logement A</option><option value="Logement B">Logement B</option>
           <option value="Logement C">Logement C</option><option value="Commun">Commun / Global</option>
         </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="e-split-toggle" onchange="toggleEditSplit()" style="width:16px;height:16px;cursor:pointer">
+          <span>Diviser cette facture sur plusieurs logements (elle sera remplacée par plusieurs lignes séparées)</span>
+        </label>
+        <div id="e-split-panel" style="display:none;margin-top:10px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px">
+          <div style="display:flex;gap:16px;margin-bottom:10px;font-size:12px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="e-split-mode" value="egale" checked onchange="toggleEditSplit()"> Répartition égale</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="e-split-mode" value="manuel" onchange="toggleEditSplit()"> Répartition manuelle (montants personnalisés)</label>
+          </div>
+          <div id="e-split-desc" style="font-size:11px;color:var(--text3);margin-bottom:10px">Le montant TTC sera divisé à parts égales entre les logements cochés. Une ligne de facture distincte sera créée pour chacun.</div>
+          <div id="e-split-checkboxes" style="display:flex;flex-direction:column;gap:6px"></div>
+          <div id="e-split-total-info" style="display:none;margin-top:10px;font-size:12px;font-weight:600"></div>
+        </div>
       </div>
       <div class="form-group"><label>Statut</label>
         <select id="e-statut">
@@ -2482,6 +2497,12 @@ async function supprimerFacture(idx){
 function openEdit(idx){
   editIdx=idx;editPdfB64=null;editPdfName=null;
   const{factures}=loadData();const f=factures[idx];
+  // Réinitialiser le panneau de division (ne doit jamais rester coché d'une ouverture précédente)
+  document.getElementById('e-split-toggle').checked=false;
+  document.getElementById('e-log-group').style.display='block';
+  document.getElementById('e-split-panel').style.display='none';
+  const egaleRadioE=document.querySelector('input[name="e-split-mode"][value="egale"]');
+  if(egaleRadioE)egaleRadioE.checked=true;
   document.getElementById('e-num').value=f.num||'';
   document.getElementById('e-date').value=f.date||'';
   document.getElementById('e-four').value=f.four||'';
@@ -2529,6 +2550,7 @@ function closeModal(){
 }
 function saveEdit(){
   if(editIdx===null)return;
+  if(document.getElementById('e-split-toggle').checked){ saveEditAsSplit(); return; }
   const ttcEdit=parseFloat(document.getElementById('e-ttc').value)||0;
   const tva=parseFloat(document.getElementById('e-tva').value)||20;
   const ht=+(ttcEdit/(1+tva/100)).toFixed(2);
@@ -2557,6 +2579,140 @@ function saveEdit(){
   closeModal();renderFactures();
 }
 document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// ── DIVISER UNE FACTURE EXISTANTE (depuis la modale d'édition) ─────────
+window.toggleEditSplit=function(){
+  const on=document.getElementById('e-split-toggle').checked;
+  document.getElementById('e-log-group').style.display=on?'none':'block';
+  document.getElementById('e-split-panel').style.display=on?'block':'none';
+  const modeEl=document.querySelector('input[name="e-split-mode"]:checked');
+  const mode=modeEl?modeEl.value:'egale';
+  document.getElementById('e-split-desc').textContent=mode==='manuel'
+    ?'Saisis le montant exact pour chaque logement coché. La somme doit correspondre au montant TTC total.'
+    :'Le montant TTC sera divisé à parts égales entre les logements cochés. Une ligne de facture distincte sera créée pour chacun.';
+  if(on){
+    const cfg=getCTXConfig();
+    const prevChecked={};const prevAmounts={};
+    document.querySelectorAll('.e-split-log').forEach(el=>{prevChecked[el.value]=el.checked;});
+    document.querySelectorAll('.e-split-amount').forEach(el=>{prevAmounts[el.dataset.log]=el.value;});
+    document.getElementById('e-split-checkboxes').innerHTML=cfg.logements.map(l=>{
+      const lbl=l.label.replace(/"/g,'&quot;');
+      const checked=prevChecked[l.label]?'checked':'';
+      const amount=prevAmounts[l.label]||'';
+      const amountInput=mode==='manuel'
+        ?`<input type="number" step="0.01" class="e-split-amount" data-log="${lbl}" placeholder="Montant €" value="${amount}" oninput="updateEditSplitTotal()" style="width:100px;margin-left:auto;padding:4px 8px;font-size:12px">`
+        :'';
+      return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
+        <input type="checkbox" class="e-split-log" value="${lbl}" ${checked} onchange="updateEditSplitTotal()" style="width:15px;height:15px;cursor:pointer">
+        <span>${l.label}</span>
+        ${amountInput}
+      </label>`;
+    }).join('');
+    document.getElementById('e-split-total-info').style.display=mode==='manuel'?'block':'none';
+    updateEditSplitTotal();
+  }
+};
+
+window.updateEditSplitTotal=function(){
+  const modeEl=document.querySelector('input[name="e-split-mode"]:checked');
+  const mode=modeEl?modeEl.value:'egale';
+  const infoEl=document.getElementById('e-split-total-info');
+  if(mode!=='manuel'||!infoEl)return;
+  document.querySelectorAll('.e-split-log').forEach(cb=>{
+    const amountInput=document.querySelector(`.e-split-amount[data-log="${cb.value.replace(/"/g,'&quot;')}"]`);
+    if(amountInput)amountInput.disabled=!cb.checked;
+  });
+  const ttcTotal=parseFloat(document.getElementById('e-ttc').value)||0;
+  let saisi=0;
+  document.querySelectorAll('.e-split-log:checked').forEach(cb=>{
+    const amountInput=document.querySelector(`.e-split-amount[data-log="${cb.value.replace(/"/g,'&quot;')}"]`);
+    saisi+=parseFloat(amountInput?.value)||0;
+  });
+  const diff=+(ttcTotal-saisi).toFixed(2);
+  if(Math.abs(diff)<0.01){
+    infoEl.style.color='var(--green,#68d391)';
+    infoEl.textContent=`✓ Total réparti : ${saisi.toFixed(2)} € — correspond au montant TTC`;
+  } else if(diff>0){
+    infoEl.style.color='#f6ad55';
+    infoEl.textContent=`Il reste ${diff.toFixed(2)} € à répartir (saisi : ${saisi.toFixed(2)} € sur ${ttcTotal.toFixed(2)} €)`;
+  } else {
+    infoEl.style.color='#e53e3e';
+    infoEl.textContent=`⚠ Dépassement de ${Math.abs(diff).toFixed(2)} € (saisi : ${saisi.toFixed(2)} € sur ${ttcTotal.toFixed(2)} €)`;
+  }
+};
+
+// Remplace la facture éditée par plusieurs lignes séparées (une par logement coché)
+function saveEditAsSplit(){
+  const ttcInput=parseFloat(document.getElementById('e-ttc').value)||0;
+  const tva=parseFloat(document.getElementById('e-tva').value)||20;
+  const splitLogs=Array.from(document.querySelectorAll('.e-split-log:checked')).map(el=>el.value);
+  if(splitLogs.length<2){alert('Coche au moins 2 logements pour diviser cette facture, ou décoche la case pour l\'enregistrer normalement.');return;}
+  const modeEl=document.querySelector('input[name="e-split-mode"]:checked');
+  const mode=modeEl?modeEl.value:'egale';
+  let manualAmounts=null;
+  if(mode==='manuel'){
+    manualAmounts={};
+    let somme=0;
+    for(const logVal of splitLogs){
+      const amountInput=document.querySelector(`.e-split-amount[data-log="${logVal.replace(/"/g,'&quot;')}"]`);
+      const val=+(parseFloat(amountInput?.value)||0);
+      manualAmounts[logVal]=val;somme+=val;
+    }
+    if(Math.abs(somme-ttcInput)>0.02){
+      alert('La somme des montants saisis ('+somme.toFixed(2)+' €) ne correspond pas au montant TTC total ('+ttcInput.toFixed(2)+' €). Corrige les montants avant d\'enregistrer.');
+      return;
+    }
+  }
+
+  const d=loadData();
+  const original=d.factures[editIdx];
+  if(!original)return;
+  const existingDriveLink=original.driveLink||null;
+  const existingLocalPdf=loadPdf(editIdx);
+  const baseNum=document.getElementById('e-num').value.trim();
+  const baseCmd=document.getElementById('e-cmd').value.trim();
+  const baseDesc=document.getElementById('e-desc').value.trim();
+  const date=document.getElementById('e-date').value;
+  const four=document.getElementById('e-four').value.trim();
+  const cat=document.getElementById('e-cat').value;
+  const statut=document.getElementById('e-statut').value;
+  const regleby=document.getElementById('e-regleby').value;
+  const datepay=document.getElementById('e-datepay').value;
+  const inclus=document.getElementById('e-inclus').checked;
+
+  // Retirer l'ancienne facture, en réalignant les PDF locaux (même logique que supprimerFacture)
+  d.factures.splice(editIdx,1);
+  for(let i=editIdx;i<d.factures.length;i++){
+    const next=loadPdf(i+1);
+    if(next)savePdf(i,next);else removePdf(i);
+  }
+  removePdf(d.factures.length);
+
+  const nbParts=splitLogs.length;
+  const startIdx=d.factures.length;
+  const splitGroupId='SPLIT-'+Date.now().toString(36);
+  splitLogs.forEach((logVal,i)=>{
+    const partTtc=manualAmounts?+manualAmounts[logVal].toFixed(2):+(ttcInput/nbParts).toFixed(2);
+    const partHt=+(partTtc/(1+tva/100)).toFixed(2);
+    d.factures.push({
+      num: baseNum?baseNum+'-'+(i+1):'',
+      date, four, cat, log:logVal,
+      ht:partHt,tva,ttc:partTtc,
+      statut, regleby, cmd:baseCmd,
+      desc: baseDesc?baseDesc+' (part '+(i+1)+'/'+nbParts+')':'Part '+(i+1)+'/'+nbParts+' d\'une facture divisée',
+      hasPdf: !!(existingDriveLink||existingLocalPdf),
+      driveLink: existingDriveLink||undefined,
+      inclus,
+      splitGroupId
+    });
+  });
+  if(existingLocalPdf && !existingDriveLink){
+    savePdf(startIdx, existingLocalPdf); // le PDF local (pas encore sur Drive) reste rattaché à la première part uniquement
+  }
+  const ok=saveFactures(d.factures);
+  if(!ok){alert('Erreur de stockage — données trop volumineuses.');return;}
+  closeModal();renderFactures();
+}
 
 // ── PDF VIEWER ────────────────────────────────────────────────────────────
 function viewPdf(idx,name){
