@@ -493,6 +493,8 @@ async function chargerStructures(uid){
     }
     const structures = [];
     snap.forEach(d => structures.push({ id: d.id, ...d.data() }));
+    structures.sort((a,b)=>(a.ordre??9999)-(b.ordre??9999));
+    window._currentStructuresOrder = structures.map(s=>s.id);
     renderOrbit(structures);
 
     const statsList = await Promise.all(structures.map(s => s.type === 'HOLDING' ? chargerStatsHolding(uid, s.id) : chargerStatsStructure(uid, s.id)));
@@ -527,12 +529,18 @@ async function chargerStructures(uid){
               <div class="structure-stat-label">Loyers/mois</div>
             </div>`;
       html += `
-        <div class="structure-card" data-structure-id="${s.id}" onclick="ouvrirStructure('${s.id}','${s.type}')">
+        <div class="structure-card" draggable="true" data-structure-id="${s.id}"
+          ondragstart="onStructureDragStart(event,'${s.id}')"
+          ondragover="onStructureDragOver(event)"
+          ondrop="onStructureDrop(event,'${s.id}')"
+          ondragend="onStructureDragEnd(event)"
+          onclick="ouvrirStructure('${s.id}','${s.type}')">
           <div class="structure-top">
             <div class="structure-type-badge" style="color:${s.couleur}">
               ${TYPE_LABELS[s.type]||s.type}
             </div>
             <div class="card-actions">
+              <span title="Glisser pour réorganiser" style="cursor:grab;padding:0 4px;color:var(--text3)">⠿</span>
               <button onclick="event.stopPropagation();ouvrirModalStructure('${s.id}')" title="Modifier">✎</button>
               <button class="danger" onclick="event.stopPropagation();ouvrirModalSuppression('${s.id}','${(s.nom||'').replace(/'/g,"\\'")}')" title="Supprimer">🗑</button>
             </div>
@@ -556,6 +564,45 @@ async function chargerStructures(uid){
 }
 
 window._editingStructureId = null;
+
+// ── RÉORGANISATION DES STRUCTURES (glisser-déposer) ─────────────────────
+let _draggedStructureId = null;
+window.onStructureDragStart = function(e, id){
+  _draggedStructureId = id;
+  e.currentTarget.style.opacity = '0.4';
+  e.dataTransfer.effectAllowed = 'move';
+};
+window.onStructureDragEnd = function(e){
+  e.currentTarget.style.opacity = '';
+};
+window.onStructureDragOver = function(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+};
+window.onStructureDrop = async function(e, targetId){
+  e.preventDefault();
+  if(!_draggedStructureId || _draggedStructureId === targetId) return;
+  const order = window._currentStructuresOrder ? [...window._currentStructuresOrder] : [];
+  const fromIdx = order.indexOf(_draggedStructureId);
+  const toIdx = order.indexOf(targetId);
+  if(fromIdx === -1 || toIdx === -1) return;
+  order.splice(fromIdx, 1);
+  order.splice(toIdx, 0, _draggedStructureId);
+  window._currentStructuresOrder = order;
+  _draggedStructureId = null;
+  await persisterOrdreStructures(order);
+  if(currentUser) chargerStructures(currentUser.uid);
+};
+async function persisterOrdreStructures(order){
+  try{
+    await Promise.all(order.map((id, i) =>
+      updateDoc(doc(db, 'users', currentUser.uid, 'structures', id), { ordre: i })
+    ));
+  }catch(e){
+    console.error('Erreur sauvegarde ordre des structures:', e);
+  }
+}
+
 window.sauvegarderStructure = async function(){
   const nom = document.getElementById('struct-nom').value.trim();
   if(!nom){ alert('Le nom de la structure est obligatoire.'); return; }
