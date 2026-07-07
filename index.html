@@ -384,13 +384,26 @@ footer{background:var(--bg2);border-top:1px solid var(--border);padding:48px 5vw
       </button>
       <div class="auth-switch">Pas encore de compte ? <a onclick="basculerVue('register')">Créer un compte gratuit</a></div>
     </div>
+
+    <!-- VÉRIFICATION EMAIL -->
+    <div id="view-verify" style="display:none">
+      <div class="modal-title">Vérifie ton email 📧</div>
+      <div class="modal-sub">Un lien de confirmation a été envoyé à<br><strong id="verify-email-address" style="color:var(--text)"></strong></div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:24px;text-align:center">
+        Clique sur le lien reçu par email pour activer ton compte, puis reviens ici et clique sur "Continuer".
+      </div>
+      <button class="btn-auth" id="btn-verify-continue" onclick="jaiVerifie()">J'ai vérifié, continuer →</button>
+      <div class="auth-divider">ou</div>
+      <button class="btn-outline" style="width:100%;padding:12px" onclick="renvoyerEmailVerification()">Renvoyer l'email</button>
+      <div class="auth-switch" style="margin-top:16px">Mauvaise adresse ? <a onclick="basculerVue('register')">Recommencer l'inscription</a></div>
+    </div>
   </div>
 </div>
 
 <!-- FIREBASE SDK -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, sendEmailVerification, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -446,6 +459,11 @@ async function apresConnexion(user, estNouvel=false){
     if(estNouvel){
       await creerProfilUtilisateur(user, document.getElementById('reg-nom')?.value);
     }
+    if(!user.emailVerified){
+      document.getElementById('loader').classList.remove('show');
+      afficherVueVerification(user.email);
+      return;
+    }
     // Rediriger vers le dashboard
     window.location.href = 'dashboard.html';
   } catch(e){
@@ -457,8 +475,8 @@ async function apresConnexion(user, estNouvel=false){
 
 // ── AUTH STATE ───────────────────────────────────────────────────────
 onAuthStateChanged(auth, user => {
-  if(user && window.location.pathname.endsWith('index.html')){
-    // Déjà connecté → aller au dashboard
+  if(user && user.emailVerified && window.location.pathname.endsWith('index.html')){
+    // Déjà connecté et vérifié → aller au dashboard
     window.location.href = 'dashboard.html';
   }
 });
@@ -476,7 +494,10 @@ window.sInscrire = async function(){
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, pwd);
     await updateProfile(cred.user, { displayName: nom });
-    await apresConnexion(cred.user, true);
+    await creerProfilUtilisateur(cred.user, nom);
+    await sendEmailVerification(cred.user);
+    setLoading('btn-register', false);
+    afficherVueVerification(email);
   } catch(e){
     setLoading('btn-register', false);
     const msgs = {
@@ -497,6 +518,11 @@ window.seConnecter = async function(){
   setLoading('btn-login', true);
   try {
     const cred = await signInWithEmailAndPassword(auth, email, pwd);
+    if(!cred.user.emailVerified){
+      setLoading('btn-login', false);
+      afficherVueVerification(email);
+      return;
+    }
     await apresConnexion(cred.user, false);
   } catch(e){
     setLoading('btn-login', false);
@@ -521,6 +547,41 @@ window.connexionGoogle = async function(){
     if(e.code !== 'auth/popup-closed-by-user'){
       showMsg('Erreur Google: ' + e.message);
     }
+  }
+};
+
+// ── VÉRIFICATION EMAIL ─────────────────────────────────────────────────
+window.afficherVueVerification = function(email){
+  document.getElementById('modal-auth').classList.add('open');
+  basculerVue('verify');
+  document.getElementById('verify-email-address').textContent = email || auth.currentUser?.email || '';
+};
+
+window.renvoyerEmailVerification = async function(){
+  const user = auth.currentUser;
+  if(!user){ showMsg('Session expirée, reconnecte-toi.', 'error'); basculerVue('login'); return; }
+  try {
+    await sendEmailVerification(user);
+    showMsg('📧 Email renvoyé ! Vérifie ta boîte (et les spams).', 'success');
+  } catch(e){
+    if(e.code === 'auth/too-many-requests'){
+      showMsg('Trop de demandes. Patiente un peu avant de renvoyer.', 'error');
+    } else {
+      showMsg('Erreur lors de l\'envoi : ' + e.message, 'error');
+    }
+  }
+};
+
+window.jaiVerifie = async function(){
+  const user = auth.currentUser;
+  if(!user){ basculerVue('login'); return; }
+  setLoading('btn-verify-continue', true);
+  await user.reload();
+  setLoading('btn-verify-continue', false);
+  if(user.emailVerified){
+    window.location.href = 'dashboard.html';
+  } else {
+    showMsg('Ton email n\'est pas encore confirmé. Clique sur le lien reçu par email, puis réessaie.', 'error');
   }
 };
 
@@ -550,6 +611,7 @@ function fermerAuth(){
 function basculerVue(vue){
   document.getElementById('view-register').style.display = vue==='register' ? 'block' : 'none';
   document.getElementById('view-login').style.display = vue==='login' ? 'block' : 'none';
+  document.getElementById('view-verify').style.display = vue==='verify' ? 'block' : 'none';
   document.getElementById('auth-msg').classList.remove('show');
 }
 document.getElementById('modal-auth').addEventListener('click', function(e){
