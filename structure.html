@@ -959,7 +959,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="f-split-mode" value="egale" checked onchange="toggleFactureSplit()"> Répartition égale</label>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="f-split-mode" value="manuel" onchange="toggleFactureSplit()"> Répartition manuelle (montants personnalisés)</label>
           </div>
-          <div id="f-split-desc" style="font-size:11px;color:var(--text3);margin-bottom:10px">Le montant TTC sera divisé à parts égales entre les logements cochés. Une ligne de facture distincte sera créée pour chacun.</div>
+          <div id="f-split-desc" style="font-size:11px;color:var(--text3);margin-bottom:10px">Le montant TTC sera divisé à parts égales entre les logements cochés. Une seule facture sera conservée, avec le détail de répartition par logement (pas de doublon dans les exports).</div>
           <div id="f-split-checkboxes" style="display:flex;flex-direction:column;gap:6px"></div>
           <div id="f-split-total-info" style="display:none;margin-top:10px;font-size:12px;font-weight:600"></div>
         </div>
@@ -1136,14 +1136,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group" style="grid-column:1/-1">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="e-split-toggle" onchange="toggleEditSplit()" style="width:16px;height:16px;cursor:pointer">
-          <span>Diviser cette facture sur plusieurs logements (elle sera remplacée par plusieurs lignes séparées)</span>
+          <span>Répartir cette facture sur plusieurs logements (une seule facture, avec le détail par logement en en-tête)</span>
         </label>
         <div id="e-split-panel" style="display:none;margin-top:10px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px">
           <div style="display:flex;gap:16px;margin-bottom:10px;font-size:12px">
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="e-split-mode" value="egale" checked onchange="toggleEditSplit()"> Répartition égale</label>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="e-split-mode" value="manuel" onchange="toggleEditSplit()"> Répartition manuelle (montants personnalisés)</label>
           </div>
-          <div id="e-split-desc" style="font-size:11px;color:var(--text3);margin-bottom:10px">Le montant TTC sera divisé à parts égales entre les logements cochés. Une ligne de facture distincte sera créée pour chacun.</div>
+          <div id="e-split-desc" style="font-size:11px;color:var(--text3);margin-bottom:10px">Le montant TTC sera divisé à parts égales entre les logements cochés. Une seule facture sera conservée, avec le détail de répartition par logement (pas de doublon dans les exports).</div>
           <div id="e-split-checkboxes" style="display:flex;flex-direction:column;gap:6px"></div>
           <div id="e-split-total-info" style="display:none;margin-top:10px;font-size:12px;font-weight:600"></div>
         </div>
@@ -1532,6 +1532,35 @@ function getFactureShares(f, cfgLogements){
   }
   return [{log:f.log, montant:ttc}];
 }
+// Rattache un texte libre (ex: détecté par l'IA sur une facture, "Lot A", "Appt B"...) au logement
+// réel correspondant dans la config de la structure. Retourne le label exact du logement, ou null.
+function matchLogementLabel(text, cfgLogements){
+  if(!text)return null;
+  const norm=s=>(s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+  const t=norm(text);
+  if(!t)return null;
+  let found=cfgLogements.find(l=>norm(l.label)===t||norm(l.key)===t);
+  if(found)return found.label;
+  found=cfgLogements.find(l=>t.includes(norm(l.label))||norm(l.label).includes(t)||t.includes(norm(l.key))||norm(l.key).includes(t));
+  return found?found.label:null;
+}
+// Texte lisible du/des logement(s) d'une facture, pour les exports (CSV, PDF)
+function getLogDisplayText(f){
+  if(f.repartition && f.repartition.length){
+    return f.repartition.map(r=>r.log+' ('+fmt(r.montant)+')').join(' + ');
+  }
+  return f.log||'';
+}
+// Badge HTML du/des logement(s) d'une facture, pour les tableaux à l'écran
+function renderLogBadgeHTML(f){
+  if(f.repartition && f.repartition.length){
+    const detail=f.repartition.map(r=>r.log+' : '+fmt(r.montant)).join('  ·  ');
+    return `<span class="log-badge" style="background:#b794f426;color:#b794f4" title="${detail.replace(/"/g,'&quot;')}">🔀 ${f.repartition.length} logements</span>`;
+  }
+  const lcObj=LOGS.find(l=>l.key===f.log);
+  const lc=lcObj?lcObj.color:'#b794f4';
+  return `<span class="log-badge" style="background:${lc}26;color:${lc}">${f.log||'—'}</span>`;
+}
 function getReelTotals(factures){
   const cfg=getCTXConfig();
   const byCat={},byLog={Commun:0};
@@ -1675,6 +1704,9 @@ function resetSaisieFields(){
   const flog=document.getElementById('f-log');if(flog)flog.value='Logement A';
   const fstatut=document.getElementById('f-statut');if(fstatut)fstatut.value='En attente';
   const fregleby=document.getElementById('f-regleby');if(fregleby)fregleby.value='';
+  // Désactiver une éventuelle répartition auto-détectée par l'IA
+  const fsplit=document.getElementById('f-split-toggle');
+  if(fsplit&&fsplit.checked){fsplit.checked=false;toggleFactureSplit();}
   // Champs vue split
   ['sv-num','sv-date','sv-datepay','sv-four','sv-ttc','sv-cmd','sv-desc'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
@@ -1708,16 +1740,18 @@ async function extractFactureInfo(b64){
   try{
     const base64Data=b64.split(',')[1];
     const mimeType=b64.startsWith('data:image')?'image/jpeg':'application/pdf';
+    const cfgLogsNames=getCTXConfig().logements.map(l=>l.label).join(', ');
     const data=await callGeminiAPI('gemini-2.5-flash-lite',{
         contents:[{
           parts:[
             {inline_data:{mime_type:mimeType,data:base64Data}},
             {text:`Analyse cette facture et extrais les informations. Réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour :
-{"numero":"numéro de facture","date":"YYYY-MM-DD","fournisseur":"nom de l'entreprise émettrice de la facture (celle qui vend/facture, PAS le client SCI LEMYANE)","montant_ttc":0,"tva_pct":20,"description":"description courte de la prestation"}
-Règles : date au format YYYY-MM-DD, montant_ttc en nombre décimal (montant TTC total à payer), tva_pct = 20 ou 10 ou 5.5 ou 0. Pour le fournisseur, prends le nom commercial principal de l'entreprise (sans le slogan/groupe affiché dans le logo, juste le nom usuel court, ex: "Clisson Metal" pas "Clisson Metal Groupe Clisson"). Si info absente mets chaine vide ou 0.`}
+{"numero":"numéro de facture","date":"YYYY-MM-DD","fournisseur":"nom de l'entreprise émettrice de la facture (celle qui vend/facture, PAS le client SCI LEMYANE)","montant_ttc":0,"tva_pct":20,"description":"description courte de la prestation","repartition":[{"logement":"nom du logement concerné par cette ligne ou ce groupe de lignes","montant":0}]}
+Règles : date au format YYYY-MM-DD, montant_ttc en nombre décimal (montant TTC total à payer), tva_pct = 20 ou 10 ou 5.5 ou 0. Pour le fournisseur, prends le nom commercial principal de l'entreprise (sans le slogan/groupe affiché dans le logo, juste le nom usuel court, ex: "Clisson Metal" pas "Clisson Metal Groupe Clisson"). Si info absente mets chaine vide ou 0.
+Pour "repartition" : les logements existants sont : ${cfgLogsNames}. Si la facture contient plusieurs lignes ou plusieurs montants clairement rattachés à des logements différents (numéro de lot, adresse, appartement, désignation explicite), regroupe-les par logement et indique le sous-total TTC de chaque logement dans ce tableau (la somme doit correspondre à montant_ttc). Si la facture concerne un seul logement ou ne permet pas de distinguer clairement plusieurs logements, laisse "repartition" en tableau vide [].`}
           ]
         }],
-        generationConfig:{temperature:0,maxOutputTokens:500}
+        generationConfig:{temperature:0,maxOutputTokens:700}
     });
     const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
     if(!text)throw new Error('Réponse vide');
@@ -1758,6 +1792,42 @@ Règles : date au format YYYY-MM-DD, montant_ttc en nombre décimal (montant TTC
     const svNumField=document.getElementById('sv-num');
     if(svNumField&&!svNumField.value)svNumField.value=next;
 
+    // ── RÉPARTITION AUTOMATIQUE DÉTECTÉE PAR L'IA ──
+    // Si la facture contient plusieurs lignes clairement rattachées à des logements différents,
+    // on active et pré-remplit directement le panneau de répartition (pas besoin de calculer à la main).
+    let repartitionMsg='';
+    if(Array.isArray(info.repartition)&&info.repartition.length>=2){
+      const cfg=getCTXConfig();
+      const grouped={};
+      info.repartition.forEach(r=>{
+        const label=matchLogementLabel(r.logement,cfg.logements);
+        const montant=+r.montant||0;
+        if(label&&montant>0)grouped[label]=(grouped[label]||0)+montant;
+      });
+      const detectedRepartition=Object.entries(grouped).map(([log,montant])=>({log,montant:+montant.toFixed(2)}));
+      const sommeDetectee=detectedRepartition.reduce((s,r)=>s+r.montant,0);
+      const tolerance=Math.max(0.5,(info.montant_ttc||0)*0.02);
+      if(detectedRepartition.length>=2&&Math.abs(sommeDetectee-(info.montant_ttc||0))<tolerance){
+        const toggle=document.getElementById('f-split-toggle');
+        if(toggle){
+          toggle.checked=true;
+          const manuelRadio=document.querySelector('input[name="f-split-mode"][value="manuel"]');
+          if(manuelRadio)manuelRadio.checked=true;
+          document.getElementById('f-split-checkboxes').innerHTML=''; // repart d'une base propre
+          toggleFactureSplit();
+          detectedRepartition.forEach(r=>{
+            const safeLog=r.log.replace(/"/g,'&quot;');
+            const cb=document.querySelector(`.f-split-log[value="${safeLog}"]`);
+            if(cb)cb.checked=true;
+            const amountInput=document.querySelector(`.f-split-amount[data-log="${safeLog}"]`);
+            if(amountInput)amountInput.value=r.montant;
+          });
+          updateSplitTotal();
+          repartitionMsg=` 🔀 Répartition sur ${detectedRepartition.length} logements détectée automatiquement — vérifie les montants ci-dessous.`;
+        }
+      }
+    }
+
     // ── DÉTECTION DE DOUBLONS ──
     let dupMsg='';
     if(info.montant_ttc>0){
@@ -1793,7 +1863,7 @@ Règles : date au format YYYY-MM-DD, montant_ttc en nombre décimal (montant TTC
         warn.style.background='rgba(252,129,129,.08)';
         warn.style.border='1px solid rgba(252,129,129,.3)';
       } else {
-        warn.innerHTML='✅ IA : champs remplis automatiquement — vérifiez et corrigez si besoin <button onclick="resetSaisieFields()" style="margin-left:8px;background:rgba(100,116,139,.15);border:1px solid rgba(100,116,139,.3);border-radius:6px;color:var(--text2);cursor:pointer;font-size:11px;font-weight:600;padding:3px 10px">✕ Réinitialiser</button>';
+        warn.innerHTML='✅ IA : champs remplis automatiquement — vérifiez et corrigez si besoin'+repartitionMsg+' <button onclick="resetSaisieFields()" style="margin-left:8px;background:rgba(100,116,139,.15);border:1px solid rgba(100,116,139,.3);border-radius:6px;color:var(--text2);cursor:pointer;font-size:11px;font-weight:600;padding:3px 10px">✕ Réinitialiser</button>';
         warn.style.color='#68d391';
         warn.style.fontWeight='400';
         warn.style.background='rgba(104,211,145,.08)';
@@ -2017,14 +2087,13 @@ function renderSynthese(){
   // 5 dernières factures
   const last5=[...factures].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
   document.getElementById('synth-last-factures').innerHTML=last5.map(f=>{
-    const lcObj=LOGS.find(l=>l.key===f.log);const lc=lcObj?lcObj.color:'#b794f4';
     const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':'#b794f4';
     return`<tr>
       <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${f.cat}</td>
-      <td><span class="log-badge" style="background:${lc}26;color:${lc}">${f.log}</span></td>
+      <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-weight:600">${fmt(f.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:500">${f.statut}</td>
     </tr>`;
@@ -2308,7 +2377,7 @@ function renderFactures(){
     const matchSearch=!searchF||(f.four||'').toLowerCase().includes(searchF)||(f.num||'').toLowerCase().includes(searchF)||(f.desc||'').toLowerCase().includes(searchF)||(f.cat||'').toLowerCase().includes(searchF);
     const matchACompleter=!aCompleterF||(aCompleterF==='oui'&&f.gmailId&&(!f.ttc||f.ttc==0));
     const matchAnnee=!anneeF||(f.date&&f.date.slice(0,4)===anneeF);
-    return(!catF||f.cat===catF)&&(!logF||f.log===logF)&&(!stF||f.statut===stF)&&(!pdfF||(pdfF==='oui'?hasPdf:!hasPdf))&&(!regleF||f.regleby===regleF)&&matchSearch&&matchACompleter&&matchAnnee;
+    return(!catF||f.cat===catF)&&(!logF||(f.repartition&&f.repartition.length?f.repartition.some(r=>r.log===logF):f.log===logF))&&(!stF||f.statut===stF)&&(!pdfF||(pdfF==='oui'?hasPdf:!hasPdf))&&(!regleF||f.regleby===regleF)&&matchSearch&&matchACompleter&&matchAnnee;
   }).sort((a,b)=>{
     const na=a.num||'';const nb=b.num||'';
     const ma=na.match(/FAC-(\d{4})-(\d+)/i);
@@ -2329,7 +2398,6 @@ function renderFactures(){
   document.getElementById('factures-tbody').innerHTML=filtered.map(f=>{
     const ri=f._ri;
     const hasPdf=!!loadPdf(ri);
-    const lcObj=LOGS.find(l=>l.key===f.log);const lc=lcObj?lcObj.color:'#b794f4';
     const excluStyle=f.inclus===false?'opacity:0.5;':'';
     // Calcul alerte retard paiement
     let alertClass='';let alertBadge='';
@@ -2346,7 +2414,7 @@ function renderFactures(){
       <td style="color:var(--text2)">${f.date||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}</td>
       <td style="color:var(--text2);font-size:11px">${f.cat}</td>
-      <td><span class="log-badge" style="background:${lc}26;color:${lc}">${f.log}</span></td>
+      <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(f.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:500">${f.statut}${alertBadge}</td>
       <td style="font-size:11px;color:var(--accent)">${f.cmd||'—'}</td>
@@ -2401,47 +2469,43 @@ function ajouterFacture(){
   }
 
   const d=loadData();
-  const cibles=isSplit?splitLogs:[document.getElementById('f-log').value];
-  const nbParts=cibles.length;
-  const splitGroupId=isSplit?('SPLIT-'+Date.now().toString(36)):null;
   const baseNum=document.getElementById('f-num').value.trim();
   const baseCmd=document.getElementById('f-cmd').value.trim();
   const baseDesc=document.getElementById('f-desc').value.trim();
-  const startIdx=d.factures.length;
-  const newIdxs=[];
+  const ht=+(ttcInput/(1+tva/100)).toFixed(2);
+  const newIdx=d.factures.length;
 
-  cibles.forEach((logVal,i)=>{
-    const partTtc=manualAmounts?+manualAmounts[logVal].toFixed(2):+(ttcInput/nbParts).toFixed(2);
-    const partHt=+(partTtc/(1+tva/100)).toFixed(2);
-    d.factures.push({
-      num: isSplit ? (baseNum?baseNum+'-'+(i+1):'') : baseNum,
-      date:document.getElementById('f-date').value,
-      datepay:document.getElementById('f-datepay').value,
-      four,
-      cat:document.getElementById('f-cat').value,
+  const factureObj={
+    num: baseNum,
+    date:document.getElementById('f-date').value,
+    datepay:document.getElementById('f-datepay').value,
+    four,
+    cat:document.getElementById('f-cat').value,
+    log: isSplit ? 'Réparti' : document.getElementById('f-log').value,
+    ht,tva,ttc:ttcInput,
+    statut:document.getElementById('f-statut').value,
+    regleby:document.getElementById('f-regleby').value,
+    cmd:baseCmd,
+    desc: baseDesc,
+    hasPdf:!!pendingPdfB64,
+    inclus:true
+  };
+  if(isSplit){
+    const nbParts=splitLogs.length;
+    factureObj.repartition=splitLogs.map(logVal=>({
       log:logVal,
-      ht:partHt,tva,ttc:partTtc,
-      statut:document.getElementById('f-statut').value,
-      regleby:document.getElementById('f-regleby').value,
-      cmd:baseCmd,
-      desc: isSplit ? (baseDesc?baseDesc+' (part '+(i+1)+'/'+nbParts+')':'Part '+(i+1)+'/'+nbParts+' d\'une facture répartie') : baseDesc,
-      hasPdf:!!pendingPdfB64,
-      inclus:true,
-      splitGroupId
-    });
-    newIdxs.push(startIdx+i);
-  });
+      montant: manualAmounts?+manualAmounts[logVal].toFixed(2):+(ttcInput/nbParts).toFixed(2)
+    }));
+  }
+  d.factures.push(factureObj);
 
   const ok=saveFactures(d.factures);
   if(!ok){alert('Erreur de stockage — données trop volumineuses.');return;}
   if(pendingPdfB64){
     const ffour=(document.getElementById('f-four').value||'facture').replace(/[^a-zA-Z0-9]/g,'_');
-    newIdxs.forEach((newIdx,i)=>{
-      const fnum=d.factures[newIdx].num||'FAC-'+(newIdx+1);
-      const fcmd=baseCmd;
-      const fname=fnum+(fcmd?'_BC'+fcmd.replace(/[^a-zA-Z0-9]/g,'_'):'')+'_'+ffour+'.pdf';
-      savePdfWithDrive(newIdx, pendingPdfB64, fname);
-    });
+    const fnum=d.factures[newIdx].num||'FAC-'+(newIdx+1);
+    const fname=fnum+(baseCmd?'_BC'+baseCmd.replace(/[^a-zA-Z0-9]/g,'_'):'')+'_'+ffour+'.pdf';
+    savePdfWithDrive(newIdx, pendingPdfB64, fname);
   }
   if(isSplit){
     document.getElementById('f-split-toggle').checked=false;
@@ -2533,7 +2597,7 @@ function openEdit(idx){
   document.getElementById('e-date').value=f.date||'';
   document.getElementById('e-four').value=f.four||'';
   document.getElementById('e-cat').value=f.cat;
-  document.getElementById('e-log').value=f.log;
+  document.getElementById('e-log').value=f.repartition&&f.repartition.length?(f.repartition[0].log||''):f.log;
   document.getElementById('e-statut').value=f.statut;
   document.getElementById('e-regleby').value=f.regleby||'';
   document.getElementById('e-datepay').value=f.datepay||'';
@@ -2563,6 +2627,24 @@ function openEdit(idx){
     pdfPreviewSection.style.display='block';
   } else if(pdfPreviewSection){
     pdfPreviewSection.style.display='none';
+  }
+  // Si la facture est déjà répartie sur plusieurs logements, préremplir le panneau de division
+  if(f.repartition && f.repartition.length){
+    document.getElementById('e-split-toggle').checked=true;
+    const montants=f.repartition.map(r=>+r.montant||0);
+    const isEgale=montants.every(m=>Math.abs(m-montants[0])<0.02);
+    const modeRadio=document.querySelector(`input[name="e-split-mode"][value="${isEgale?'egale':'manuel'}"]`);
+    if(modeRadio)modeRadio.checked=true;
+    document.getElementById('e-split-checkboxes').innerHTML=''; // repart d'une base propre
+    toggleEditSplit();
+    f.repartition.forEach(r=>{
+      const safeLog=r.log.replace(/"/g,'&quot;');
+      const cb=document.querySelector(`.e-split-log[value="${safeLog}"]`);
+      if(cb)cb.checked=true;
+      const amountInput=document.querySelector(`.e-split-amount[data-log="${safeLog}"]`);
+      if(amountInput)amountInput.value=r.montant;
+    });
+    updateEditSplitTotal();
   }
 }
 function removeCurrentPdf(idx){removePdf(idx);const d=loadData();if(d.factures[idx])d.factures[idx].hasPdf=false;saveFactures(d.factures);document.getElementById('e-pdf-current').style.display='none';}
@@ -2616,7 +2698,7 @@ window.toggleEditSplit=function(){
   const mode=modeEl?modeEl.value:'egale';
   document.getElementById('e-split-desc').textContent=mode==='manuel'
     ?'Saisis le montant exact pour chaque logement coché. La somme doit correspondre au montant TTC total.'
-    :'Le montant TTC sera divisé à parts égales entre les logements cochés. Une ligne de facture distincte sera créée pour chacun.';
+    :'Le montant TTC sera divisé à parts égales entre les logements cochés. Une seule facture sera conservée, avec le détail de répartition par logement (pas de doublon dans les exports).';
   if(on){
     const cfg=getCTXConfig();
     const prevChecked={};const prevAmounts={};
@@ -2694,48 +2776,34 @@ function saveEditAsSplit(){
   const d=loadData();
   const original=d.factures[editIdx];
   if(!original)return;
-  const existingDriveLink=original.driveLink||null;
-  const existingLocalPdf=loadPdf(editIdx);
+  const nbParts=splitLogs.length;
+  const repartition=splitLogs.map(logVal=>({
+    log:logVal,
+    montant: manualAmounts?+manualAmounts[logVal].toFixed(2):+(ttcInput/nbParts).toFixed(2)
+  }));
+  const ht=+(ttcInput/(1+tva/100)).toFixed(2);
   const baseNum=document.getElementById('e-num').value.trim();
   const baseCmd=document.getElementById('e-cmd').value.trim();
   const baseDesc=document.getElementById('e-desc').value.trim();
-  const date=document.getElementById('e-date').value;
-  const four=document.getElementById('e-four').value.trim();
-  const cat=document.getElementById('e-cat').value;
-  const statut=document.getElementById('e-statut').value;
-  const regleby=document.getElementById('e-regleby').value;
-  const datepay=document.getElementById('e-datepay').value;
-  const inclus=document.getElementById('e-inclus').checked;
 
-  // Retirer l'ancienne facture, en réalignant les PDF locaux (même logique que supprimerFacture)
-  d.factures.splice(editIdx,1);
-  for(let i=editIdx;i<d.factures.length;i++){
-    const next=loadPdf(i+1);
-    if(next)savePdf(i,next);else removePdf(i);
-  }
-  removePdf(d.factures.length);
-
-  const nbParts=splitLogs.length;
-  const startIdx=d.factures.length;
-  const splitGroupId='SPLIT-'+Date.now().toString(36);
-  splitLogs.forEach((logVal,i)=>{
-    const partTtc=manualAmounts?+manualAmounts[logVal].toFixed(2):+(ttcInput/nbParts).toFixed(2);
-    const partHt=+(partTtc/(1+tva/100)).toFixed(2);
-    d.factures.push({
-      num: baseNum?baseNum+'-'+(i+1):'',
-      date, four, cat, log:logVal,
-      ht:partHt,tva,ttc:partTtc,
-      statut, regleby, cmd:baseCmd,
-      desc: baseDesc?baseDesc+' (part '+(i+1)+'/'+nbParts+')':'Part '+(i+1)+'/'+nbParts+' d\'une facture divisée',
-      hasPdf: !!(existingDriveLink||existingLocalPdf),
-      driveLink: existingDriveLink||undefined,
-      inclus,
-      splitGroupId
-    });
-  });
-  if(existingLocalPdf && !existingDriveLink){
-    savePdf(startIdx, existingLocalPdf); // le PDF local (pas encore sur Drive) reste rattaché à la première part uniquement
-  }
+  // On garde la même ligne (même driveLink, même PDF local) et on lui ajoute simplement
+  // le tableau de répartition — plus de duplication en plusieurs factures.
+  d.factures[editIdx]={
+    ...original,
+    num: baseNum,
+    date:document.getElementById('e-date').value,
+    four:document.getElementById('e-four').value.trim(),
+    cat:document.getElementById('e-cat').value,
+    log:'Réparti',
+    ht,tva,ttc:ttcInput,
+    statut:document.getElementById('e-statut').value,
+    regleby:document.getElementById('e-regleby').value,
+    datepay:document.getElementById('e-datepay').value,
+    cmd:baseCmd,
+    desc: baseDesc,
+    inclus:document.getElementById('e-inclus').checked,
+    repartition
+  };
   const ok=saveFactures(d.factures);
   if(!ok){alert('Erreur de stockage — données trop volumineuses.');return;}
   closeModal();renderFactures();
@@ -2760,7 +2828,7 @@ function exportCSV(){
   const{factures}=loadData();
   if(!factures.length){alert('Aucune facture à exporter.');return;}
   const cols=['N° Facture','N° Commande','Date','Fournisseur','Catégorie','Logement','TTC €','Statut','Réglé par','Description','PDF joint'];
-  const rows=factures.map((f,i)=>[f.num,f.cmd||'',f.date,f.four,f.cat,f.log,f.ttc,f.statut,f.regleby||'',f.desc,loadPdf(i)?'Oui':'Non'].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';'));
+  const rows=factures.map((f,i)=>[f.num,f.cmd||'',f.date,f.four,f.cat,getLogDisplayText(f),f.ttc,f.statut,f.regleby||'',f.desc,loadPdf(i)?'Oui':'Non'].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';'));
   const csv='\uFEFF'+cols.join(';')+'\n'+rows.join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='SCI_Lemyane_Factures_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
@@ -2769,7 +2837,7 @@ function exportPDF(){
   const{byCat:prev}=getBudgetTotals(budget);const{byCat:reel}=getReelTotals(factures);
   let tPrev=0,tReel=0;CATEGORIES.forEach(c=>{tPrev+=prev[c.name]||0;tReel+=reel[c.name]||0;});
   const catRows=CATEGORIES.map(c=>`<tr><td>${c.name}</td><td style="text-align:right">${fmt(prev[c.name]||0)}</td><td style="text-align:right">${fmt(reel[c.name]||0)}</td><td style="text-align:right;color:${(prev[c.name]||0)-(reel[c.name]||0)>=0?'#276749':'#c53030'}">${fmtE((prev[c.name]||0)-(reel[c.name]||0))}</td></tr>`).join('');
-  const rows=factures.map((f,i)=>`<tr><td>${f.num||'—'}</td><td>${f.date||'—'}</td><td>${f.four||'—'}</td><td>${f.cat}</td><td>${f.log}</td><td style="text-align:right">${fmt(f.ttc)}</td><td>${f.statut}</td><td>${f.cmd||'—'}</td><td><strong>${f.regleby||'—'}</strong></td><td style="text-align:center">${loadPdf(i)?'✓':''}</td></tr>`).join('');
+  const rows=factures.map((f,i)=>`<tr><td>${f.num||'—'}</td><td>${f.date||'—'}</td><td>${f.four||'—'}</td><td>${f.cat}</td><td>${getLogDisplayText(f)}</td><td style="text-align:right">${fmt(f.ttc)}</td><td>${f.statut}</td><td>${f.cmd||'—'}</td><td><strong>${f.regleby||'—'}</strong></td><td style="text-align:center">${loadPdf(i)?'✓':''}</td></tr>`).join('');
   const cfg=getCTXConfig();
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${cfg.nom}</title>
   <style>body{font-family:Arial,sans-serif;font-size:12px;color:#1a202c;padding:32px}h1{font-size:18px;color:#2b6cb0;margin-bottom:4px}p.sub{color:#718096;font-size:11px;margin-bottom:24px}h2{font-size:13px;color:#2b6cb0;margin:20px 0 10px;border-bottom:2px solid #bee3f8;padding-bottom:4px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{text-align:left;padding:8px;background:#ebf8ff;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#2c5282}td{padding:7px 8px;font-size:11px;border-bottom:1px solid #e2e8f0}.kpi-grid{display:flex;gap:16px;margin-bottom:24px}.kpi{flex:1;background:#f0f9ff;border:1px solid #bee3f8;border-radius:8px;padding:12px}.kpi label{display:block;font-size:10px;color:#718096;text-transform:uppercase;margin-bottom:4px}.kpi span{font-size:18px;font-weight:700;color:#2b6cb0}</style></head><body>
@@ -3073,7 +3141,6 @@ function renderAnnuel(){
     return na.localeCompare(nb2);
   });
   document.getElementById('annuel-tbody').innerHTML=filteredSorted.map(f=>{
-    const lcObj=LOGS.find(l=>l.key===f.log);const lc=lcObj?lcObj.color:'#b794f4';
     const excluStyle=f.inclus===false?'opacity:0.5;':'';
     // Calcul alerte retard paiement
     let alertClass='';let alertBadge='';
@@ -3089,7 +3156,7 @@ function renderAnnuel(){
       <td style="color:var(--text2)">${f.datepay||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${f.cat}</td>
-      <td><span class="log-badge" style="background:${lc}26;color:${lc}">${f.log}</span></td>
+      <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-weight:600">${fmt(f.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:500">${f.statut}${alertBadge}</td>
       <td style="font-size:11px;color:var(--accent)">${f.cmd||'—'}</td>
@@ -3118,7 +3185,7 @@ function exportComptablePDF(){
   const detailSorted=filtered.slice().sort((a,b)=>(a.num||'').localeCompare(b.num||''));
   const detailRows=detailSorted.map(f=>`<tr>
     <td>${f.num||'—'}</td><td>${f.date||'—'}</td><td>${f.datepay||'—'}</td>
-    <td>${f.four||'—'}</td><td>${f.cat}</td><td>${f.log}</td>
+    <td>${f.four||'—'}</td><td>${f.cat}</td><td>${getLogDisplayText(f)}</td>
     <td style="text-align:right">${fmt(f.ttc)}</td><td>${f.statut}</td>
   </tr>`).join('');
 
@@ -9518,7 +9585,7 @@ window.toggleFactureSplit=function(){
   const mode=modeEl?modeEl.value:'egale';
   document.getElementById('f-split-desc').textContent=mode==='manuel'
     ?'Saisis le montant exact pour chaque logement coché. La somme doit correspondre au montant TTC total.'
-    :'Le montant TTC sera divisé à parts égales entre les logements cochés. Une ligne de facture distincte sera créée pour chacun.';
+    :'Le montant TTC sera divisé à parts égales entre les logements cochés. Une seule facture sera conservée, avec le détail de répartition par logement (pas de doublon dans les exports).';
   if(on){
     const cfg=getCTXConfig();
     // Conserver les cases déjà cochées et montants déjà saisis lors d'un changement de mode
@@ -10925,7 +10992,7 @@ function buildDataContext(){
   const facAttente=facIncluses.filter(f=>f.statut==='En attente');
   ctx+=`\n--- FACTURES (${factures.length} total: ${facPayees.length} payées, ${facAttente.length} en attente, ${facExclues.length} exclues) ---\n`;
   factures.slice().sort((a,b)=>(a.num||'').localeCompare(b.num||'')).forEach(f=>{
-    ctx+=`${f.num||'?'} | ${f.date||'?'} | ${f.four||'?'} | ${f.cat} | ${f.log} | ${fmt(f.ttc)} | ${f.statut} | réglé: ${f.regleby||'—'}${f.inclus===false?' | EXCLU DU BUDGET':''}${f.desc?' | '+f.desc:''}\n`;
+    ctx+=`${f.num||'?'} | ${f.date||'?'} | ${f.four||'?'} | ${f.cat} | ${getLogDisplayText(f)} | ${fmt(f.ttc)} | ${f.statut} | réglé: ${f.regleby||'—'}${f.inclus===false?' | EXCLU DU BUDGET':''}${f.desc?' | '+f.desc:''}\n`;
   });
 
   // Locataires et loyers
