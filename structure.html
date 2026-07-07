@@ -986,12 +986,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         <input type="checkbox" id="f-lignes-toggle" style="width:16px;height:16px;cursor:pointer">
         <span>🧾 Cette facture contient plusieurs lignes pour plusieurs logements — coche AVANT d'importer le PDF pour attribuer chaque ligne toi-même</span>
       </label>
-      <div id="f-lignes-panel" style="display:none;margin-top:10px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Choisis le logement de chaque ligne détectée sur la facture. Les lignes attribuées au même logement seront additionnées automatiquement.</div>
-        <div id="f-lignes-rows" style="display:flex;flex-direction:column;gap:10px"></div>
-        <div id="f-lignes-total-info" style="margin-top:10px;font-size:12px;font-weight:600"></div>
-        <button type="button" class="btn btn-sm" onclick="validerLignesFacture()" style="margin-top:10px;background:var(--accent3);border-color:var(--accent2)">✓ Valider la répartition</button>
-      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">Le PDF s'ouvrira dans la vue de lecture assistée — le panneau d'attribution des lignes apparaîtra là-bas, à droite du document.</div>
     </div>
 
     <!-- UPLOAD PDF -->
@@ -1813,7 +1808,7 @@ Pour "lignes" : liste CHAQUE ligne ou bloc de lignes distinct de la facture (reg
     let repartitionMsg='';
     if(lireLignes && Array.isArray(info.lignes) && info.lignes.length){
       renderLignesPanel(info.lignes, info.tva_pct||20);
-      repartitionMsg=' 🧾 Lignes détectées — attribue un logement à chacune dans le panneau ci-dessus, puis clique sur "Valider la répartition".';
+      repartitionMsg=' 🧾 Lignes détectées — attribue un logement à chacune dans le panneau ci-dessous, puis clique sur "Valider la répartition".';
     } else if(lireLignes){
       repartitionMsg=' ⚠ Aucune ligne distincte détectée sur cette facture — remplis le logement normalement.';
     }
@@ -1844,8 +1839,8 @@ Pour "lignes" : liste CHAQUE ligne ou bloc de lignes distinct de la facture (reg
         dupMsg=`⚠️ DOUBLON POSSIBLE : une facture ${dup.num||''} de ${dup.four} pour ${fmt(dup.ttc)} datée du ${dup.date||'?'} existe déjà !`;
       }
     }
-    const warn=document.getElementById('upload-warn')||document.getElementById('sv-warn');
-    if(warn){
+    const warnEls=[document.getElementById('upload-warn'),document.getElementById('sv-warn')].filter(Boolean);
+    warnEls.forEach(warn=>{
       if(dupMsg){
         warn.innerHTML=dupMsg+' <button onclick="resetSaisieFields()" style="margin-left:8px;background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.4);border-radius:6px;color:var(--red);cursor:pointer;font-size:11px;font-weight:600;padding:3px 10px">✕ Réinitialiser</button>';
         warn.style.color='#fc8181';
@@ -1860,17 +1855,17 @@ Pour "lignes" : liste CHAQUE ligne ou bloc de lignes distinct de la facture (reg
         warn.style.border='1px solid rgba(104,211,145,.25)';
       }
       warn.style.display='block';
-    }
+    });
   }catch(e){
     console.error('Extraction IA échouée:',e);
-    const warn=document.getElementById('upload-warn')||document.getElementById('sv-warn');
-    if(warn){
+    const warnEls=[document.getElementById('upload-warn'),document.getElementById('sv-warn')].filter(Boolean);
+    warnEls.forEach(warn=>{
       warn.textContent='⚠ Extraction IA échouée : '+e.message+' — remplissez manuellement';
       warn.style.color='#f6ad55';
       warn.style.background='rgba(246,173,85,.08)';
       warn.style.border='1px solid rgba(246,173,85,.25)';
       warn.style.display='block';
-    }
+    });
   }finally{loader.style.display='none';}
 }
 function showUploadPreview(name,size,isEdit){
@@ -9258,6 +9253,11 @@ function closeSplitView(){
   document.getElementById('split-pdf-frame').src='';
   document.getElementById('split-pdf-frame').srcdoc='';
   window._splitEditMode=null;
+  _pendingRepartition=null;
+  _lignesFactureData=[];
+  const svLignesPanel=document.getElementById('sv-lignes-panel');if(svLignesPanel)svLignesPanel.style.display='none';
+  const svRecap=document.getElementById('sv-repartition-recap');if(svRecap)svRecap.style.display='none';
+  const svLogField=document.getElementById('sv-log-field');if(svLogField)svLogField.style.display='block';
 }
 
 function saveSplitFacture(){
@@ -9273,7 +9273,13 @@ function saveSplitFacture(){
       d.factures[idx].datepay=document.getElementById('sv-datepay').value;
       d.factures[idx].four=document.getElementById('sv-four').value.trim();
       d.factures[idx].cat=document.getElementById('sv-cat').value;
-      d.factures[idx].log=document.getElementById('sv-log').value;
+      if(_pendingRepartition && _pendingRepartition.length>=2){
+        d.factures[idx].log='Réparti';
+        d.factures[idx].repartition=_pendingRepartition;
+      } else {
+        d.factures[idx].log=document.getElementById('sv-log').value;
+        delete d.factures[idx].repartition;
+      }
       d.factures[idx].ht=ht;d.factures[idx].tva=tva;d.factures[idx].ttc=ttc;
       d.factures[idx].statut=document.getElementById('sv-statut').value;
       d.factures[idx].desc=document.getElementById('sv-desc').value.trim();
@@ -9281,6 +9287,7 @@ function saveSplitFacture(){
       saveFactures(d.factures);
     }
     window._splitEditMode=null;
+    _pendingRepartition=null;
     closeSplitView();
     renderFactures();
     return;
@@ -9292,13 +9299,13 @@ function saveSplitFacture(){
   const ht=+(ttc/(1+tva/100)).toFixed(2);
   const d=loadData();
   const newIdx=d.factures.length;
-  d.factures.push({
+  const factureObj={
     num:document.getElementById('sv-num').value.trim(),
     date:document.getElementById('sv-date').value,
     datepay:document.getElementById('sv-datepay').value,
     four,
     cat:document.getElementById('sv-cat').value,
-    log:document.getElementById('sv-log').value,
+    log: (_pendingRepartition&&_pendingRepartition.length>=2) ? 'Réparti' : document.getElementById('sv-log').value,
     ht,tva,ttc,
     statut:document.getElementById('sv-statut').value,
     regleby:document.getElementById('sv-regleby').value,
@@ -9306,7 +9313,9 @@ function saveSplitFacture(){
     desc:document.getElementById('sv-desc').value.trim(),
     hasPdf:!!pendingPdfB64,
     inclus:true
-  });
+  };
+  if(_pendingRepartition && _pendingRepartition.length>=2) factureObj.repartition=_pendingRepartition;
+  d.factures.push(factureObj);
   const ok=saveFactures(d.factures);
   if(!ok){alert('Erreur de stockage.');return;}
   if(pendingPdfB64){
@@ -9319,6 +9328,12 @@ function saveSplitFacture(){
   // Reset
   ['sv-num','sv-date','sv-four','sv-ttc','sv-datepay','sv-desc'].forEach(id=>document.getElementById(id).value='');
   ['f-num','f-date','f-four','f-ttc','f-datepay','f-desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  _pendingRepartition=null;
+  _lignesFactureData=[];
+  const svLignesPanel=document.getElementById('sv-lignes-panel');if(svLignesPanel)svLignesPanel.style.display='none';
+  const svRecap=document.getElementById('sv-repartition-recap');if(svRecap)svRecap.style.display='none';
+  const svLogField=document.getElementById('sv-log-field');if(svLogField)svLogField.style.display='block';
+  const flignes=document.getElementById('f-lignes-toggle');if(flignes)flignes.checked=false;
   clearUpload(false);
   const msg=document.getElementById('sv-msg');msg.style.display='block';
   setTimeout(()=>{msg.style.display='none';closeSplitView();},1500);
@@ -9570,7 +9585,10 @@ window.toggleModule=async function(moduleId){
 // Affiche chaque ligne détectée par l'IA avec un sélecteur de logement, pour que
 // l'utilisateur attribue lui-même chaque ligne (plus fiable que de faire deviner l'IA
 // quand la facture ne mentionne pas explicitement "Logement A/B/C").
+// Le panneau vit dans la vue "lecture assistée" (split-view), qui s'ouvre systématiquement
+// à l'upload d'un PDF — c'est elle qui est réellement visible à l'écran à ce moment-là.
 let _lignesFactureData=[];
+let _pendingRepartition=null; // répartition validée, consommée par ajouterFacture()/saveSplitFacture() à l'enregistrement
 function renderLignesPanel(lignes, tvaPct){
   const cfg=getCTXConfig();
   _lignesFactureData=lignes.map(l=>({
@@ -9578,21 +9596,22 @@ function renderLignesPanel(lignes, tvaPct){
     reference:l.reference||'',
     montant: +((+l.montant_ht||0)*(1+(+tvaPct||20)/100)).toFixed(2)
   }));
-  const panel=document.getElementById('f-lignes-panel');
-  const rows=document.getElementById('f-lignes-rows');
+  const panel=document.getElementById('sv-lignes-panel');
+  const rows=document.getElementById('sv-lignes-rows');
+  const recap=document.getElementById('sv-repartition-recap');
+  if(recap)recap.style.display='none';
   const logOptions=cfg.logements.map(l=>`<option value="${l.label.replace(/"/g,'&quot;')}">${l.label}</option>`).join('');
   rows.innerHTML=_lignesFactureData.map((l,i)=>{
-    const guess=matchLogementLabel(l.reference,cfg.logements);
     return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px;background:var(--bg2);border-radius:8px">
-      <div style="flex:2;min-width:160px">
+      <div style="flex:2;min-width:140px">
         <div style="font-size:12px;font-weight:600">${(l.desc||'Ligne '+(i+1)).replace(/</g,'&lt;')}</div>
         ${l.reference?`<div style="font-size:10px;color:var(--text3)">Réf. sur la facture : ${l.reference.replace(/</g,'&lt;')}</div>`:''}
       </div>
-      <input type="number" step="0.01" class="f-ligne-montant" data-idx="${i}" value="${l.montant}" oninput="updateLignesTotal()" style="width:95px;padding:5px 8px;font-size:12px">
-      <select class="f-ligne-logement" data-idx="${i}" onchange="updateLignesTotal()" style="flex:1;min-width:150px;padding:5px 8px;font-size:12px">
-        <option value="">— Choisir un logement —</option>
+      <input type="number" step="0.01" class="sv-ligne-montant" data-idx="${i}" value="${l.montant}" oninput="updateLignesTotal()" style="width:90px;padding:5px 8px;font-size:12px">
+      <select class="sv-ligne-logement" data-idx="${i}" onchange="updateLignesTotal()" style="flex:1;min-width:130px;padding:5px 8px;font-size:12px">
+        <option value="">— Choisir —</option>
         ${logOptions}
-        <option value="__commun__">Commun (réparti à parts égales)</option>
+        <option value="__commun__">Commun (parts égales)</option>
       </select>
     </div>`;
   }).join('');
@@ -9600,19 +9619,19 @@ function renderLignesPanel(lignes, tvaPct){
   _lignesFactureData.forEach((l,i)=>{
     const guess=matchLogementLabel(l.reference,cfg.logements);
     if(guess){
-      const sel=document.querySelector(`.f-ligne-logement[data-idx="${i}"]`);
+      const sel=document.querySelector(`.sv-ligne-logement[data-idx="${i}"]`);
       if(sel)sel.value=guess;
     }
   });
-  panel.style.display='block';
+  if(panel)panel.style.display='block';
   updateLignesTotal();
 }
 window.updateLignesTotal=function(){
-  const infoEl=document.getElementById('f-lignes-total-info');
+  const infoEl=document.getElementById('sv-lignes-total-info');
   if(!infoEl)return;
-  const ttcTotal=parseFloat(document.getElementById('f-ttc').value)||0;
+  const ttcTotal=parseFloat(document.getElementById('sv-ttc').value)||0;
   let saisi=0;
-  document.querySelectorAll('.f-ligne-montant').forEach(el=>{saisi+=parseFloat(el.value)||0;});
+  document.querySelectorAll('.sv-ligne-montant').forEach(el=>{saisi+=parseFloat(el.value)||0;});
   const diff=+(ttcTotal-saisi).toFixed(2);
   if(Math.abs(diff)<0.02){
     infoEl.style.color='var(--green,#68d391)';
@@ -9626,9 +9645,9 @@ window.validerLignesFacture=function(){
   const cfg=getCTXConfig();
   const rows=[];
   let manque=false;
-  document.querySelectorAll('.f-ligne-logement').forEach(sel=>{
+  document.querySelectorAll('.sv-ligne-logement').forEach(sel=>{
     const idx=+sel.dataset.idx;
-    const montantEl=document.querySelector(`.f-ligne-montant[data-idx="${idx}"]`);
+    const montantEl=document.querySelector(`.sv-ligne-montant[data-idx="${idx}"]`);
     const montant=parseFloat(montantEl?.value)||0;
     if(!sel.value){manque=true;return;}
     rows.push({logement:sel.value,montant});
@@ -9647,7 +9666,7 @@ window.validerLignesFacture=function(){
     }
   });
   let repartition=Object.entries(buckets).filter(([,m])=>m>0.01).map(([log,montant])=>({log,montant}));
-  const ttcTotal=parseFloat(document.getElementById('f-ttc').value)||repartition.reduce((s,r)=>s+r.montant,0);
+  const ttcTotal=parseFloat(document.getElementById('sv-ttc').value)||repartition.reduce((s,r)=>s+r.montant,0);
   // Recaler proportionnellement pour que la somme corresponde exactement au TTC de la facture
   const sommeBrute=repartition.reduce((s,r)=>s+r.montant,0);
   if(sommeBrute>0 && ttcTotal>0){
@@ -9656,31 +9675,33 @@ window.validerLignesFacture=function(){
     const ecart=+(ttcTotal-repartition.reduce((s,r)=>s+r.montant,0)).toFixed(2);
     if(Math.abs(ecart)>=0.01)repartition[repartition.length-1].montant=+(repartition[repartition.length-1].montant+ecart).toFixed(2);
   }
+  const panel=document.getElementById('sv-lignes-panel');
+  const recap=document.getElementById('sv-repartition-recap');
   if(repartition.length<2){
     // Toutes les lignes pointent vers le même logement : pas besoin de répartition, facture normale
-    const toggle=document.getElementById('f-split-toggle');
-    if(toggle&&toggle.checked){toggle.checked=false;toggleFactureSplit();}
-    if(repartition.length===1)document.getElementById('f-log').value=repartition[0].log;
-    document.getElementById('f-lignes-panel').style.display='none';
+    _pendingRepartition=null;
+    if(repartition.length===1)document.getElementById('sv-log').value=repartition[0].log;
+    if(panel)panel.style.display='none';
     alert('Toutes les lignes ont été attribuées au même logement : la facture sera enregistrée normalement, sans répartition.');
     return;
   }
-  // Appliquer au panneau de répartition standard (checkboxes + montants manuels)
-  const toggle=document.getElementById('f-split-toggle');
-  toggle.checked=true;
-  const manuelRadio=document.querySelector('input[name="f-split-mode"][value="manuel"]');
-  if(manuelRadio)manuelRadio.checked=true;
-  document.getElementById('f-split-checkboxes').innerHTML='';
-  toggleFactureSplit();
-  repartition.forEach(r=>{
-    const safeLog=r.log.replace(/"/g,'&quot;');
-    const cb=document.querySelector(`.f-split-log[value="${safeLog}"]`);
-    if(cb)cb.checked=true;
-    const amountInput=document.querySelector(`.f-split-amount[data-log="${safeLog}"]`);
-    if(amountInput)amountInput.value=r.montant;
-  });
-  updateSplitTotal();
-  document.getElementById('f-lignes-panel').style.display='none';
+  _pendingRepartition=repartition;
+  if(panel)panel.style.display='none';
+  const logGroup=document.getElementById('sv-log-field');
+  if(logGroup)logGroup.style.display='none';
+  if(recap){
+    recap.style.display='block';
+    recap.innerHTML='✓ Répartition validée : '+repartition.map(r=>r.log+' ('+fmt(r.montant)+')').join(' + ')+' <a href="#" onclick="annulerRepartitionLignes();return false" style="color:var(--text2);margin-left:8px">Modifier</a>';
+  }
+};
+window.annulerRepartitionLignes=function(){
+  _pendingRepartition=null;
+  const recap=document.getElementById('sv-repartition-recap');
+  if(recap)recap.style.display='none';
+  const logGroup=document.getElementById('sv-log-field');
+  if(logGroup)logGroup.style.display='block';
+  const panel=document.getElementById('sv-lignes-panel');
+  if(panel&&_lignesFactureData.length)panel.style.display='block';
 };
 
 // ── RÉPARTITION D'UNE FACTURE SUR PLUSIEURS LOGEMENTS ───────────────────
@@ -10966,7 +10987,7 @@ window._authReady.then(async () => {
         </div>
       </div>
       <div class="split-field"><label>Catégorie</label><select id="sv-cat"></select></div>
-      <div class="split-field"><label>Logement</label>
+      <div class="split-field" id="sv-log-field"><label>Logement</label>
         <select id="sv-log">
           <option value="Logement A">Logement A</option>
           <option value="Logement B">Logement B</option>
@@ -10974,6 +10995,14 @@ window._authReady.then(async () => {
           <option value="Commun">Commun / Global</option>
         </select>
       </div>
+      <div id="sv-lignes-panel" style="display:none;margin:6px 0 16px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--accent)">🧾 Attribution des lignes par logement</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Choisis le logement de chaque ligne détectée. Les lignes attribuées au même logement seront additionnées.</div>
+        <div id="sv-lignes-rows" style="display:flex;flex-direction:column;gap:10px"></div>
+        <div id="sv-lignes-total-info" style="margin-top:10px;font-size:12px;font-weight:600"></div>
+        <button type="button" onclick="validerLignesFacture()" style="margin-top:10px;background:var(--accent3);border:1px solid var(--accent2);border-radius:8px;padding:9px;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;width:100%">✓ Valider la répartition</button>
+      </div>
+      <div id="sv-repartition-recap" style="display:none;margin:6px 0 16px;padding:12px 14px;background:rgba(104,211,145,.08);border:1px solid rgba(104,211,145,.3);border-radius:10px;font-size:12px;color:var(--green)"></div>
       <div class="split-field"><label>Montant TTC (€)</label><input type="number" id="sv-ttc" placeholder="0.00" step="0.01"></div>
       <div class="split-field"><label>Date de paiement</label><input type="date" id="sv-datepay"></div>
       <div class="split-field"><label>Statut</label>
