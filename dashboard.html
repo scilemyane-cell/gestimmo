@@ -185,6 +185,7 @@ body::after{
     </div>
     <div class="user-menu">
       <span class="hud-clock" id="hud-clock"></span>
+      <button onclick="exporterSauvegardeManuelle()" title="Télécharger une sauvegarde complète de toutes tes données" style="background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.35);border-radius:8px;color:var(--cyan,#63b3ed);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">💾 Sauvegarder</button>
       <div class="user-avatar" id="user-avatar">?</div>
       <span id="user-name" style="font-size:12px;color:var(--text2);font-family:var(--font-mono)"></span>
       <button class="btn-deconnexion" onclick="seDeconnecter()">Déconnexion</button>
@@ -397,7 +398,86 @@ async function chargerDashboard(user){
 
   document.getElementById('loader').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+
+  // Sauvegarde automatique (silencieuse) — ne redéclenche que si la dernière
+  // sauvegarde date de plus de BACKUP_INTERVAL_DAYS, pour ne pas re-télécharger
+  // un fichier à chaque ouverture de l'app.
+  verifierEtLancerSauvegardeAuto(user.uid);
 }
+
+// ── SAUVEGARDE COMPLÈTE DES DONNÉES (structures, factures, locataires, budget...) ──
+// Exporte tout ce qui appartient à l'utilisateur en un fichier JSON téléchargé
+// localement. Pas de serveur, pas de coût, pas de carte bancaire requise —
+// en échange, ce n'est pas un vrai "cron" côté serveur : ça se déclenche à
+// l'ouverture de l'app, au maximum une fois tous les BACKUP_INTERVAL_DAYS jours.
+const BACKUP_INTERVAL_DAYS = 7;
+async function verifierEtLancerSauvegardeAuto(uid){
+  try{
+    const snap = await getDoc(doc(db, 'users', uid));
+    const profile = snap.exists() ? snap.data() : {};
+    const derniere = profile.lastBackupDate ? new Date(profile.lastBackupDate) : null;
+    const joursDepuis = derniere ? (new Date() - derniere) / 86400000 : Infinity;
+    if(joursDepuis < BACKUP_INTERVAL_DAYS) return; // pas encore le moment
+    await exporterSauvegardeComplete(uid, true);
+  }catch(e){ console.error('Erreur vérification sauvegarde auto:', e); }
+}
+
+async function exporterSauvegardeComplete(uid, silencieux){
+  const backup = { exportDate: new Date().toISOString(), uid, profil: null, structures: [] };
+  try{
+    const profileSnap = await getDoc(doc(db, 'users', uid));
+    if(profileSnap.exists()){
+      const p = { ...profileSnap.data() };
+      delete p.geminiApiKeys; // ne jamais inclure de clés API dans un fichier téléchargé
+      backup.profil = p;
+    }
+    const structuresSnap = await getDocs(collection(db, 'users', uid, 'structures'));
+    for(const structDoc of structuresSnap.docs){
+      const entree = { id: structDoc.id, meta: structDoc.data(), appdata: null, collaborateurs: [] };
+      try{
+        const appdataSnap = await getDoc(doc(db, 'users', uid, 'structures', structDoc.id, 'appdata', 'data'));
+        if(appdataSnap.exists()) entree.appdata = appdataSnap.data();
+      }catch(e){ console.warn('Erreur export appdata structure', structDoc.id, e); }
+      try{
+        const collabSnap = await getDocs(collection(db, 'users', uid, 'structures', structDoc.id, 'collaborateurs'));
+        collabSnap.forEach(c => entree.collaborateurs.push({ id: c.id, ...c.data() }));
+      }catch(e){ /* pas grave si vide */ }
+      backup.structures.push(entree);
+    }
+
+    const json = JSON.stringify(backup, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const dateStr = new Date().toISOString().slice(0,10);
+    const filename = `gestimmo-sauvegarde-${dateStr}.json`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+
+    await setDoc(doc(db, 'users', uid), { lastBackupDate: new Date().toISOString() }, { merge: true });
+
+    if(silencieux) afficherToastSauvegarde(filename);
+    else alert('✓ Sauvegarde téléchargée : ' + filename);
+  }catch(e){
+    console.error('Erreur export sauvegarde:', e);
+    if(!silencieux) alert('Erreur lors de la sauvegarde : ' + e.message);
+  }
+}
+
+function afficherToastSauvegarde(filename){
+  const toast = document.createElement('div');
+  toast.textContent = '💾 Sauvegarde automatique téléchargée : ' + filename;
+  toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:rgba(104,211,145,.12);border:1px solid rgba(104,211,145,.4);color:#68d391;padding:12px 18px;border-radius:10px;font-size:12px;font-weight:600;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:320px;font-family:var(--font-mono)';
+  document.body.appendChild(toast);
+  setTimeout(()=>{ toast.style.transition='opacity .5s'; toast.style.opacity='0'; setTimeout(()=>toast.remove(),500); }, 7000);
+}
+window.exporterSauvegardeManuelle = function(){
+  if(currentUser) exporterSauvegardeComplete(currentUser.uid, false);
+};
 
 const TYPE_LABELS = {
   LMNP:'LMNP', SCI_IR:'SCI-IR', SCI_IS:'SCI-IS',
