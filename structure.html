@@ -981,6 +981,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>Description</label><input type="text" id="f-desc" placeholder="Détail de la prestation"></div>
     </div>
 
+    <div class="form-group" style="grid-column:1/-1;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="f-lignes-toggle" style="width:16px;height:16px;cursor:pointer">
+        <span>🧾 Cette facture contient plusieurs lignes pour plusieurs logements — coche AVANT d'importer le PDF pour attribuer chaque ligne toi-même</span>
+      </label>
+      <div id="f-lignes-panel" style="display:none;margin-top:10px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Choisis le logement de chaque ligne détectée sur la facture. Les lignes attribuées au même logement seront additionnées automatiquement.</div>
+        <div id="f-lignes-rows" style="display:flex;flex-direction:column;gap:10px"></div>
+        <div id="f-lignes-total-info" style="margin-top:10px;font-size:12px;font-weight:600"></div>
+        <button type="button" class="btn btn-sm" onclick="validerLignesFacture()" style="margin-top:10px;background:var(--accent3);border-color:var(--accent2)">✓ Valider la répartition</button>
+      </div>
+    </div>
+
     <!-- UPLOAD PDF -->
     <div style="margin-bottom:20px">
       <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Pièce jointe (PDF facture)</div>
@@ -1707,6 +1720,10 @@ function resetSaisieFields(){
   // Désactiver une éventuelle répartition auto-détectée par l'IA
   const fsplit=document.getElementById('f-split-toggle');
   if(fsplit&&fsplit.checked){fsplit.checked=false;toggleFactureSplit();}
+  // Réinitialiser le panneau de lecture ligne par ligne
+  const flignes=document.getElementById('f-lignes-panel');
+  if(flignes)flignes.style.display='none';
+  _lignesFactureData=[];
   // Champs vue split
   ['sv-num','sv-date','sv-datepay','sv-four','sv-ttc','sv-cmd','sv-desc'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
@@ -1740,18 +1757,18 @@ async function extractFactureInfo(b64){
   try{
     const base64Data=b64.split(',')[1];
     const mimeType=b64.startsWith('data:image')?'image/jpeg':'application/pdf';
-    const cfgLogsNames=getCTXConfig().logements.map(l=>l.label).join(', ');
+    const lireLignes=document.getElementById('f-lignes-toggle')?.checked;
     const data=await callGeminiAPI('gemini-2.5-flash-lite',{
         contents:[{
           parts:[
             {inline_data:{mime_type:mimeType,data:base64Data}},
             {text:`Analyse cette facture et extrais les informations. Réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour :
-{"numero":"numéro de facture","date":"YYYY-MM-DD","fournisseur":"nom de l'entreprise émettrice de la facture (celle qui vend/facture, PAS le client SCI LEMYANE)","montant_ttc":0,"tva_pct":20,"description":"description courte de la prestation","repartition":[{"logement":"nom du logement concerné par cette ligne ou ce groupe de lignes","montant":0}]}
-Règles : date au format YYYY-MM-DD, montant_ttc en nombre décimal (montant TTC total à payer), tva_pct = 20 ou 10 ou 5.5 ou 0. Pour le fournisseur, prends le nom commercial principal de l'entreprise (sans le slogan/groupe affiché dans le logo, juste le nom usuel court, ex: "Clisson Metal" pas "Clisson Metal Groupe Clisson"). Si info absente mets chaine vide ou 0.
-Pour "repartition" : les logements existants sont : ${cfgLogsNames}. Si la facture contient plusieurs lignes ou plusieurs montants clairement rattachés à des logements différents (numéro de lot, adresse, appartement, désignation explicite), regroupe-les par logement et indique le sous-total TTC de chaque logement dans ce tableau (la somme doit correspondre à montant_ttc). Si la facture concerne un seul logement ou ne permet pas de distinguer clairement plusieurs logements, laisse "repartition" en tableau vide [].`}
+{"numero":"numéro de facture","date":"YYYY-MM-DD","fournisseur":"nom de l'entreprise émettrice de la facture (celle qui vend/facture, PAS le client SCI LEMYANE)","montant_ttc":0,"tva_pct":20,"description":"description courte de la prestation"${lireLignes?',"lignes":[{"desc":"description de cette ligne ou de ce bloc de lignes","reference":"toute référence trouvée sur cette ligne (n° de lot, logement, bon de commande, chantier, V/REF...), telle quelle, chaîne vide si aucune","montant_ht":0}]':''}}
+Règles : date au format YYYY-MM-DD, montant_ttc en nombre décimal (montant TTC total à payer), tva_pct = 20 ou 10 ou 5.5 ou 0. Pour le fournisseur, prends le nom commercial principal de l'entreprise (sans le slogan/groupe affiché dans le logo, juste le nom usuel court, ex: "Clisson Metal" pas "Clisson Metal Groupe Clisson"). Si info absente mets chaine vide ou 0.${lireLignes?`
+Pour "lignes" : liste CHAQUE ligne ou bloc de lignes distinct de la facture (regroupe les lignes consécutives qui partagent la même référence/bon de commande en une seule entrée), avec son montant HT. Reprends le champ "reference" TEL QUEL trouvé sur la facture (ex: "LOGT 1", "Lot A", "V/REF: ...") sans essayer de deviner à quel logement de la structure ça correspond — laisse cette référence brute, l'utilisateur fera l'attribution lui-même. La somme des montant_ht de toutes les lignes doit être proche du montant HT total de la facture.`:''}`}
           ]
         }],
-        generationConfig:{temperature:0,maxOutputTokens:700}
+        generationConfig:{temperature:0,maxOutputTokens:lireLignes?1400:500}
     });
     const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
     if(!text)throw new Error('Réponse vide');
@@ -1792,40 +1809,13 @@ Pour "repartition" : les logements existants sont : ${cfgLogsNames}. Si la factu
     const svNumField=document.getElementById('sv-num');
     if(svNumField&&!svNumField.value)svNumField.value=next;
 
-    // ── RÉPARTITION AUTOMATIQUE DÉTECTÉE PAR L'IA ──
-    // Si la facture contient plusieurs lignes clairement rattachées à des logements différents,
-    // on active et pré-remplit directement le panneau de répartition (pas besoin de calculer à la main).
+    // ── LECTURE LIGNE PAR LIGNE (si la case a été cochée avant l'import) ──
     let repartitionMsg='';
-    if(Array.isArray(info.repartition)&&info.repartition.length>=2){
-      const cfg=getCTXConfig();
-      const grouped={};
-      info.repartition.forEach(r=>{
-        const label=matchLogementLabel(r.logement,cfg.logements);
-        const montant=+r.montant||0;
-        if(label&&montant>0)grouped[label]=(grouped[label]||0)+montant;
-      });
-      const detectedRepartition=Object.entries(grouped).map(([log,montant])=>({log,montant:+montant.toFixed(2)}));
-      const sommeDetectee=detectedRepartition.reduce((s,r)=>s+r.montant,0);
-      const tolerance=Math.max(0.5,(info.montant_ttc||0)*0.02);
-      if(detectedRepartition.length>=2&&Math.abs(sommeDetectee-(info.montant_ttc||0))<tolerance){
-        const toggle=document.getElementById('f-split-toggle');
-        if(toggle){
-          toggle.checked=true;
-          const manuelRadio=document.querySelector('input[name="f-split-mode"][value="manuel"]');
-          if(manuelRadio)manuelRadio.checked=true;
-          document.getElementById('f-split-checkboxes').innerHTML=''; // repart d'une base propre
-          toggleFactureSplit();
-          detectedRepartition.forEach(r=>{
-            const safeLog=r.log.replace(/"/g,'&quot;');
-            const cb=document.querySelector(`.f-split-log[value="${safeLog}"]`);
-            if(cb)cb.checked=true;
-            const amountInput=document.querySelector(`.f-split-amount[data-log="${safeLog}"]`);
-            if(amountInput)amountInput.value=r.montant;
-          });
-          updateSplitTotal();
-          repartitionMsg=` 🔀 Répartition sur ${detectedRepartition.length} logements détectée automatiquement — vérifie les montants ci-dessous.`;
-        }
-      }
+    if(lireLignes && Array.isArray(info.lignes) && info.lignes.length){
+      renderLignesPanel(info.lignes, info.tva_pct||20);
+      repartitionMsg=' 🧾 Lignes détectées — attribue un logement à chacune dans le panneau ci-dessus, puis clique sur "Valider la répartition".';
+    } else if(lireLignes){
+      repartitionMsg=' ⚠ Aucune ligne distincte détectée sur cette facture — remplis le logement normalement.';
     }
 
     // ── DÉTECTION DE DOUBLONS ──
@@ -9574,6 +9564,123 @@ window.toggleModule=async function(moduleId){
   }catch(e){
     alert('Erreur : '+e.message);
   }
+};
+
+// ── LECTURE LIGNE PAR LIGNE D'UNE FACTURE (attribution manuelle par logement) ───
+// Affiche chaque ligne détectée par l'IA avec un sélecteur de logement, pour que
+// l'utilisateur attribue lui-même chaque ligne (plus fiable que de faire deviner l'IA
+// quand la facture ne mentionne pas explicitement "Logement A/B/C").
+let _lignesFactureData=[];
+function renderLignesPanel(lignes, tvaPct){
+  const cfg=getCTXConfig();
+  _lignesFactureData=lignes.map(l=>({
+    desc:l.desc||'',
+    reference:l.reference||'',
+    montant: +((+l.montant_ht||0)*(1+(+tvaPct||20)/100)).toFixed(2)
+  }));
+  const panel=document.getElementById('f-lignes-panel');
+  const rows=document.getElementById('f-lignes-rows');
+  const logOptions=cfg.logements.map(l=>`<option value="${l.label.replace(/"/g,'&quot;')}">${l.label}</option>`).join('');
+  rows.innerHTML=_lignesFactureData.map((l,i)=>{
+    const guess=matchLogementLabel(l.reference,cfg.logements);
+    return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px;background:var(--bg2);border-radius:8px">
+      <div style="flex:2;min-width:160px">
+        <div style="font-size:12px;font-weight:600">${(l.desc||'Ligne '+(i+1)).replace(/</g,'&lt;')}</div>
+        ${l.reference?`<div style="font-size:10px;color:var(--text3)">Réf. sur la facture : ${l.reference.replace(/</g,'&lt;')}</div>`:''}
+      </div>
+      <input type="number" step="0.01" class="f-ligne-montant" data-idx="${i}" value="${l.montant}" oninput="updateLignesTotal()" style="width:95px;padding:5px 8px;font-size:12px">
+      <select class="f-ligne-logement" data-idx="${i}" onchange="updateLignesTotal()" style="flex:1;min-width:150px;padding:5px 8px;font-size:12px">
+        <option value="">— Choisir un logement —</option>
+        ${logOptions}
+        <option value="__commun__">Commun (réparti à parts égales)</option>
+      </select>
+    </div>`;
+  }).join('');
+  // Pré-sélectionner le logement deviné si la référence correspond clairement à un logement existant
+  _lignesFactureData.forEach((l,i)=>{
+    const guess=matchLogementLabel(l.reference,cfg.logements);
+    if(guess){
+      const sel=document.querySelector(`.f-ligne-logement[data-idx="${i}"]`);
+      if(sel)sel.value=guess;
+    }
+  });
+  panel.style.display='block';
+  updateLignesTotal();
+}
+window.updateLignesTotal=function(){
+  const infoEl=document.getElementById('f-lignes-total-info');
+  if(!infoEl)return;
+  const ttcTotal=parseFloat(document.getElementById('f-ttc').value)||0;
+  let saisi=0;
+  document.querySelectorAll('.f-ligne-montant').forEach(el=>{saisi+=parseFloat(el.value)||0;});
+  const diff=+(ttcTotal-saisi).toFixed(2);
+  if(Math.abs(diff)<0.02){
+    infoEl.style.color='var(--green,#68d391)';
+    infoEl.textContent=`✓ Total des lignes : ${saisi.toFixed(2)} € — correspond au montant TTC de la facture`;
+  } else {
+    infoEl.style.color='#f6ad55';
+    infoEl.textContent=`Total des lignes : ${saisi.toFixed(2)} € (facture : ${ttcTotal.toFixed(2)} €, écart ${diff.toFixed(2)} €)`;
+  }
+};
+window.validerLignesFacture=function(){
+  const cfg=getCTXConfig();
+  const rows=[];
+  let manque=false;
+  document.querySelectorAll('.f-ligne-logement').forEach(sel=>{
+    const idx=+sel.dataset.idx;
+    const montantEl=document.querySelector(`.f-ligne-montant[data-idx="${idx}"]`);
+    const montant=parseFloat(montantEl?.value)||0;
+    if(!sel.value){manque=true;return;}
+    rows.push({logement:sel.value,montant});
+  });
+  if(manque){alert('Choisis un logement pour chaque ligne avant de valider (ou "Commun" si la ligne concerne tous les logements).');return;}
+  if(!rows.length){alert('Aucune ligne à répartir.');return;}
+  // Regrouper par logement, en éclatant les lignes "Commun" à parts égales sur tous les logements
+  const buckets={};
+  cfg.logements.forEach(l=>{buckets[l.label]=0;});
+  rows.forEach(r=>{
+    if(r.logement==='__commun__'){
+      const n=cfg.logements.length||1;
+      cfg.logements.forEach(l=>{buckets[l.label]+=r.montant/n;});
+    } else {
+      buckets[r.logement]=(buckets[r.logement]||0)+r.montant;
+    }
+  });
+  let repartition=Object.entries(buckets).filter(([,m])=>m>0.01).map(([log,montant])=>({log,montant}));
+  const ttcTotal=parseFloat(document.getElementById('f-ttc').value)||repartition.reduce((s,r)=>s+r.montant,0);
+  // Recaler proportionnellement pour que la somme corresponde exactement au TTC de la facture
+  const sommeBrute=repartition.reduce((s,r)=>s+r.montant,0);
+  if(sommeBrute>0 && ttcTotal>0){
+    const scale=ttcTotal/sommeBrute;
+    repartition=repartition.map(r=>({log:r.log,montant:+(r.montant*scale).toFixed(2)}));
+    const ecart=+(ttcTotal-repartition.reduce((s,r)=>s+r.montant,0)).toFixed(2);
+    if(Math.abs(ecart)>=0.01)repartition[repartition.length-1].montant=+(repartition[repartition.length-1].montant+ecart).toFixed(2);
+  }
+  if(repartition.length<2){
+    // Toutes les lignes pointent vers le même logement : pas besoin de répartition, facture normale
+    const toggle=document.getElementById('f-split-toggle');
+    if(toggle&&toggle.checked){toggle.checked=false;toggleFactureSplit();}
+    if(repartition.length===1)document.getElementById('f-log').value=repartition[0].log;
+    document.getElementById('f-lignes-panel').style.display='none';
+    alert('Toutes les lignes ont été attribuées au même logement : la facture sera enregistrée normalement, sans répartition.');
+    return;
+  }
+  // Appliquer au panneau de répartition standard (checkboxes + montants manuels)
+  const toggle=document.getElementById('f-split-toggle');
+  toggle.checked=true;
+  const manuelRadio=document.querySelector('input[name="f-split-mode"][value="manuel"]');
+  if(manuelRadio)manuelRadio.checked=true;
+  document.getElementById('f-split-checkboxes').innerHTML='';
+  toggleFactureSplit();
+  repartition.forEach(r=>{
+    const safeLog=r.log.replace(/"/g,'&quot;');
+    const cb=document.querySelector(`.f-split-log[value="${safeLog}"]`);
+    if(cb)cb.checked=true;
+    const amountInput=document.querySelector(`.f-split-amount[data-log="${safeLog}"]`);
+    if(amountInput)amountInput.value=r.montant;
+  });
+  updateSplitTotal();
+  document.getElementById('f-lignes-panel').style.display='none';
 };
 
 // ── RÉPARTITION D'UNE FACTURE SUR PLUSIEURS LOGEMENTS ───────────────────
