@@ -1759,8 +1759,9 @@ async function extractFactureInfo(b64){
             {inline_data:{mime_type:mimeType,data:base64Data}},
             {text:`Analyse cette facture et extrais les informations. Réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour :
 {"numero":"numéro de facture","date":"YYYY-MM-DD","fournisseur":"nom de l'entreprise émettrice de la facture (celle qui vend/facture, PAS le client SCI LEMYANE)","montant_ttc":0,"tva_pct":20,"description":"description courte de la prestation"${lireLignes?',"lignes":[{"desc":"description de cette ligne ou de ce bloc de lignes","reference":"toute référence trouvée sur cette ligne (n° de lot, logement, bon de commande, chantier, V/REF...), telle quelle, chaîne vide si aucune","montant_ht":0}]':''}}
-Règles : date au format YYYY-MM-DD, montant_ttc en nombre décimal (montant TTC total à payer), tva_pct = 20 ou 10 ou 5.5 ou 0. Pour le fournisseur, prends le nom commercial principal de l'entreprise (sans le slogan/groupe affiché dans le logo, juste le nom usuel court, ex: "Clisson Metal" pas "Clisson Metal Groupe Clisson"). Si info absente mets chaine vide ou 0.${lireLignes?`
-Pour "lignes" : liste CHAQUE ligne ou bloc de lignes distinct de la facture (regroupe les lignes consécutives qui partagent la même référence/bon de commande en une seule entrée), avec son montant HT. Reprends le champ "reference" TEL QUEL trouvé sur la facture (ex: "LOGT 1", "Lot A", "V/REF: ...") sans essayer de deviner à quel logement de la structure ça correspond — laisse cette référence brute, l'utilisateur fera l'attribution lui-même. La somme des montant_ht de toutes les lignes doit être proche du montant HT total de la facture.`:''}`}
+Règles : la date sur la facture est TOUJOURS écrite au format français JJ/MM/AA ou JJ/MM/AAAA (jour, puis mois, puis année) — ne l'inverse jamais. Prends la date principale de la facture, celle indiquée à côté de "FACTURE n°" ou "Date" en haut du document (PAS la date d'un bon de commande ou d'un bon de livraison mentionné plus bas dans le corps du document, qui peut être différente). Si l'année est écrite sur 2 chiffres (ex: "26"), complète-la en "20XX" (ex: "26" devient 2026) — n'utilise jamais un 2 chiffres qui ressemble à un jour comme s'il s'agissait de l'année. Réponds avec la date convertie au format YYYY-MM-DD.
+ATTENTION AUX NOMBRES : les montants sont écrits en format français — le POINT est un séparateur de milliers et la VIRGULE est le séparateur décimal. Exemple : "1.811,55" signifie MILLE HUIT CENT ONZE euros et cinquante-cinq centimes (1811.55), PAS 1.811 ni 1,81155. Lis chaque chiffre un par un avant de convertir, ne devine pas. montant_ttc doit être EXACTEMENT le nombre indiqué dans la case/colonne "Total TTC" ou "Net à payer" du tableau récapitulatif en bas de la facture (pas le total HT, pas un sous-total intermédiaire) — recopie-le au centime près. tva_pct = 20 ou 10 ou 5.5 ou 0. Pour le fournisseur, prends le nom commercial principal de l'entreprise (sans le slogan/groupe affiché dans le logo, juste le nom usuel court, ex: "Clisson Metal" pas "Clisson Metal Groupe Clisson"). Si info absente mets chaine vide ou 0.${lireLignes?`
+Pour "lignes" : liste CHAQUE ligne ou bloc de lignes distinct de la facture (regroupe les lignes consécutives qui partagent la même référence/bon de commande en une seule entrée). Reprends le champ "reference" TEL QUEL trouvé sur la facture (ex: "LOGT 1", "Lot A", "V/REF: ...") sans essayer de deviner à quel logement de la structure ça correspond — laisse cette référence brute, l'utilisateur fera l'attribution lui-même. Pour chaque ligne, montant_ht doit être le montant HORS TAXES exact de cette ligne tel qu'imprimé dans la colonne "Montant" ou "Prix H-T" du tableau (presque toujours HT sur les lignes de détail — la TVA et le TTC n'apparaissent en général que dans le total final en bas de la facture, pas ligne par ligne). Applique la même règle de format français pour ces montants (point = milliers, virgule = décimales). Ne fais AUCUN calcul ni arrondi de ta part : recopie le chiffre imprimé sur chaque ligne. Avant de répondre, vérifie que la somme de tous les montant_ht correspond bien (à moins d'un euro près) au total HT global indiqué sur la facture ("Total H-T") ; si ce n'est pas le cas, relis les montants plus attentivement et corrige-les.`:''}`}
           ]
         }],
         generationConfig:{temperature:0,maxOutputTokens:lireLignes?1400:500}
@@ -1786,7 +1787,18 @@ Pour "lignes" : liste CHAQUE ligne ou bloc de lignes distinct de la facture (reg
 
     // Remplir les champs automatiquement (formulaire normal + vue split)
     const setVal=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
-    if(info.date){setVal('f-date',info.date);setVal('sv-date',info.date);}
+    // Contrôle de plausibilité : rejette une date trop ancienne/future (signe d'une inversion
+    // jour/année par l'IA) plutôt que de l'accepter silencieusement — l'utilisateur la saisit alors lui-même.
+    let dateSuspecte=false;
+    if(info.date){
+      const anneeExtraite=+info.date.slice(0,4);
+      const anneeActuelle=new Date().getFullYear();
+      if(anneeExtraite>=anneeActuelle-2 && anneeExtraite<=anneeActuelle+1){
+        setVal('f-date',info.date);setVal('sv-date',info.date);
+      } else {
+        dateSuspecte=true;
+      }
+    }
     if(info.fournisseur){setVal('f-four',info.fournisseur);setVal('sv-four',info.fournisseur);}
     if(info.montant_ttc>0){setVal('f-ttc',info.montant_ttc);setVal('sv-ttc',info.montant_ttc);}
     if(info.tva_pct){
@@ -1812,6 +1824,7 @@ Pour "lignes" : liste CHAQUE ligne ou bloc de lignes distinct de la facture (reg
     } else if(lireLignes){
       repartitionMsg=' ⚠ Aucune ligne distincte détectée sur cette facture — remplis le logement normalement.';
     }
+    if(dateSuspecte)repartitionMsg+=' ⚠ Date non fiable détectée (rejetée) — merci de la saisir toi-même.';
 
     // ── DÉTECTION DE DOUBLONS ──
     let dupMsg='';
@@ -9261,6 +9274,14 @@ function closeSplitView(){
 }
 
 function saveSplitFacture(){
+  // Garde-fou : des lignes ont été détectées (case "lire ligne par ligne" cochée) mais
+  // l'utilisateur n'a pas cliqué sur "Valider la répartition" — on bloque plutôt que
+  // d'enregistrer silencieusement sur un seul logement par défaut.
+  const svLignesPanelCheck=document.getElementById('sv-lignes-panel');
+  if(svLignesPanelCheck && svLignesPanelCheck.style.display!=='none' && !_pendingRepartition){
+    alert('Tu as des lignes détectées à attribuer par logement, mais tu n\'as pas encore cliqué sur "✓ Valider la répartition". Valide-la d\'abord (ou décoche "lire ligne par ligne" pour enregistrer sur un seul logement).');
+    return;
+  }
   // Mode édition depuis openEdit
   if(window._splitEditMode!==undefined&&window._splitEditMode!==null){
     const idx=window._splitEditMode;
