@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "658875106145",
+    "project_id": "gestimmo-app",
+    "storage_bucket": "gestimmo-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:658875106145:android:4e6234ccae1432e0e6bb20",
+        "android_client_info": {
+          "package_name": "com.gestimmo.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "658875106145-p4kdljiditi857u6em82puo6qee23cht.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFQ6wZJPlIaHMDYv8Txceddxqv0Bahbss"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "658875106145-j8simu5rb93ko75hndipga72v29ohck9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
