@@ -2856,6 +2856,10 @@ function exportPDF(){
   <table><thead><tr><th>Catégorie</th><th style="text-align:right">Prévu TTC</th><th style="text-align:right">Réel TTC</th><th style="text-align:right">Écart</th></tr></thead><tbody>${catRows}</tbody></table>
   <h2>Liste des factures</h2>
   <table><thead><tr><th>N°</th><th>Date</th><th>Fournisseur</th><th>Catégorie</th><th>Logement</th><th style="text-align:right">TTC</th><th>Statut</th><th>N° Commande</th><th style="background:#dbeafe">Réglé par</th><th>PDF</th></tr></thead><tbody>${rows}</tbody></table>
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec GestImmo — gestion locative simplifiée</span>
+    </div>
   </body></html>`;
   openPrintOverlay(html, 'Synthèse des dépenses');
 }
@@ -3248,6 +3252,10 @@ function exportComptablePDF(){
     <span>Généré le ${new Date().toLocaleDateString('fr-FR')} · Exercice ${year}</span>
   </div>
   <script>window.onload=function(){window.print()}<\/script>
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec GestImmo — gestion locative simplifiée</span>
+    </div>
   </body></html>`;
   openPrintOverlay(html, 'Export comptable '+year);
 }
@@ -6011,6 +6019,10 @@ function exporterPatrimoinePDF(){
       La valeur de marché n'est disponible que pour les biens personnels où elle a été saisie manuellement.
       Document à titre indicatif, généré le ${fmtDate(todayStr())}.
     </div>
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec GestImmo — gestion locative simplifiée</span>
+    </div>
   </body></html>`;
 
   openPrintOverlay(html,'Patrimoine — Vue consolidée');
@@ -6308,6 +6320,10 @@ function genererRapportRentabiliteNette(years, logKeys){
       Document à titre indicatif. La rentabilité nette fiscale exclut le capital remboursé (non déductible) et les travaux d'investissement.
       Le cash-flow réel et la trésorerie générée incluent le capital remboursé, pour refléter ce qui reste vraiment disponible.
       Généré le ${fmtDate(todayStr())} par ${cfg.nom}.
+    </div>
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec GestImmo — gestion locative simplifiée</span>
     </div>
   </body></html>`;
 
@@ -7056,6 +7072,10 @@ function exportLoyersPDF(years, logKeys){
         Impayés : <b>${fmt(totalImpaG)}</b>${nbVacantG?` · Mois vacants : <b>${nbVacantG}</b>`:''}
       </div>`;
     })()}
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec GestImmo — gestion locative simplifiée</span>
+    </div>
   </body></html>`;
 
   const w=window.open('','_blank');
@@ -7472,6 +7492,10 @@ function genererBail(locId){
       Ce document est établi en deux exemplaires originaux, un pour chaque partie.
     </div>
 
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec GestImmo — gestion locative simplifiée</span>
+    </div>
   </body></html>`;
 
   openPrintOverlay(html,`Bail ${typeLogement} — ${loc.nom||''}`);
@@ -7799,6 +7823,10 @@ function genererPdfEdl(locId){
       Établi en deux exemplaires originaux, un pour chaque partie.
     </div>
 
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec GestImmo — gestion locative simplifiée</span>
+    </div>
   </body></html>`;
 
   document.getElementById('modal-edl')?.remove();
@@ -7955,6 +7983,10 @@ function ouvrirDashboardGlobal(){
     <div style="font-size:9px;color:#4a5568;text-align:center">
       Généré le ${new Date().toLocaleDateString('fr-FR')} — Tableau de bord patrimonial GestImmo
     </div>
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec GestImmo — gestion locative simplifiée</span>
+    </div>
   </body></html>`;
 
   openPrintOverlay(html,'Tableau de bord global SCI+LMNP');
@@ -8081,6 +8113,10 @@ function genererCourrierDepot(locId){
         <div style="border-top:1px solid #2d3748;padding-top:6px;font-size:10px;color:#718096;min-width:200px">${cfg.nom}</div>
       </div>
     </div>
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec GestImmo — gestion locative simplifiée</span>
+    </div>
   </body></html>`;
 
   document.getElementById('modal-depot')?.remove();
@@ -8178,6 +8214,10 @@ function genererCourrier(locId, type){
     <div style="margin-top:8px;font-weight:600">${nomBailleur}</div>
     ${sigB64?`<img src="${sigB64}" alt="Signature" style="height:55px;width:auto;margin:8px 0;display:block">`:'<div style="height:55px"></div>'}
     <div style="border-top:1px solid #2d3748;padding-top:6px;font-size:10px;color:#718096;display:inline-block;min-width:200px">${fmtDate(todayStr())}</div>
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec GestImmo — gestion locative simplifiée</span>
+    </div>
   </div></body></html>`;
 
   let corps='',titre='';
@@ -9091,6 +9131,10 @@ function exportComptableAnnuel(){
       Revenus à déclarer selon le régime applicable (IR/revenus fonciers, LMNP/BIC réel ou micro-BIC).
     </div>
 
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec GestImmo — gestion locative simplifiée</span>
+    </div>
   </body></html>`;
 
   openPrintOverlay(html,`Récapitulatif fiscal ${annee} — ${cfg.nom}`);
