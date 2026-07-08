@@ -178,16 +178,15 @@ footer{background:var(--bg2);border-top:1px solid var(--border);padding:48px 5vw
 
 <script>
 // ── DÉTECTION APP ANDROID (CAPACITOR) ────────────────────────────────
-// Google bloque les connexions OAuth depuis les WebView embarquées (depuis
-// juillet 2023). Dans l'app Android, on masque donc "Continuer avec Google"
-// et les utilisateurs s'inscrivent/se connectent par email + mot de passe,
-// qui fonctionne parfaitement en WebView.
+// Sur Android, "Continuer avec Google" utilise le plugin natif
+// @capacitor-firebase/authentication (Google Sign-In natif via Play
+// Services) au lieu du popup Firebase Auth classique, qui est bloqué par
+// Google dans les WebView embarquées depuis juillet 2023.
 window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 if(window.isAppAndroid){
   document.documentElement.classList.add('app-android');
 }
 </script>
-<style>.app-android .google-auth-block{display:none !important}</style>
 
 <!-- LOADER -->
 <div class="loader" id="loader">
@@ -422,7 +421,7 @@ if(window.isAppAndroid){
 <!-- FIREBASE SDK -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, sendEmailVerification, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signInWithCredential, GoogleAuthProvider, sendPasswordResetEmail, sendEmailVerification, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -559,11 +558,23 @@ window.seConnecter = async function(){
 window.connexionGoogle = async function(){
   hideMsg();
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    const estNouvel = result._tokenResponse?.isNewUser || false;
-    await apresConnexion(result.user, estNouvel);
+    if(window.isAppAndroid){
+      // App Android : Google Sign-In natif (Play Services), pas de WebView OAuth.
+      const { FirebaseAuthentication } = window.Capacitor.Plugins;
+      const nativeResult = await FirebaseAuthentication.signInWithGoogle();
+      const idToken = nativeResult?.credential?.idToken;
+      if(!idToken){ throw new Error('Aucun jeton reçu de Google.'); }
+      const credential = GoogleAuthProvider.credential(idToken);
+      const result = await signInWithCredential(auth, credential);
+      const estNouvel = result._tokenResponse?.isNewUser || false;
+      await apresConnexion(result.user, estNouvel);
+    } else {
+      const result = await signInWithPopup(auth, googleProvider);
+      const estNouvel = result._tokenResponse?.isNewUser || false;
+      await apresConnexion(result.user, estNouvel);
+    }
   } catch(e){
-    if(e.code !== 'auth/popup-closed-by-user'){
+    if(e.code !== 'auth/popup-closed-by-user' && e.message !== 'popup_closed_by_user'){
       showMsg('Erreur Google: ' + e.message);
     }
   }
