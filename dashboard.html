@@ -173,6 +173,15 @@ body::after{
 </head>
 <body>
 
+<script>
+// ── DÉTECTION APP ANDROID (CAPACITOR) ────────────────────────────────
+// Voir index.html pour l'explication complète. Sur Android, on masque
+// aussi le bouton de connexion Drive (OAuth bloqué en WebView) ; la
+// sauvegarde manuelle reste disponible mais tombe automatiquement en
+// téléchargement local, sans tenter Drive.
+window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+</script>
+
 <div id="loader">
   <div class="spinner"></div>
   <div class="label">Initialisation du système</div>
@@ -187,7 +196,7 @@ body::after{
     <div class="user-menu">
       <span class="hud-clock" id="hud-clock"></span>
       <button id="btn-connect-drive-backup" onclick="connectDriveDashboard()" title="Envoyer les sauvegardes automatiquement sur Google Drive au lieu d'un fichier local" style="display:none;background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:8px;color:#68d391;cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">🔗 Activer sauvegarde Drive</button>
-      <button onclick="exporterSauvegardeManuelle()" title="Télécharger/envoyer une sauvegarde complète de toutes tes données" style="background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.35);border-radius:8px;color:var(--cyan,#63b3ed);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">💾 Sauvegarder</button>
+      <button id="btn-manual-backup" onclick="exporterSauvegardeManuelle()" title="Télécharger/envoyer une sauvegarde complète de toutes tes données" style="display:none;background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.35);border-radius:8px;color:var(--cyan,#63b3ed);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">💾 Sauvegarder</button>
       <div class="user-avatar" id="user-avatar">?</div>
       <span id="user-name" style="font-size:12px;color:var(--text2);font-family:var(--font-mono)"></span>
       <button class="btn-deconnexion" onclick="seDeconnecter()">Déconnexion</button>
@@ -373,7 +382,16 @@ async function accepterInvitationsEnAttente(user){
   }catch(e){ console.error('Erreur vérification invitations:', e); }
 }
 
+// Comptes autorisés à voir/utiliser les boutons de sauvegarde manuelle (fonction admin,
+// pas destinée aux clients finaux). Ajoute ici les emails qui doivent avoir accès.
+const ADMIN_BACKUP_EMAILS = ['valentin.giliane@gmail.com', 'gestimmo.solutions@gmail.com'];
+
 async function chargerDashboard(user){
+  const estAdminBackup = !!(user.email && ADMIN_BACKUP_EMAILS.includes(user.email.toLowerCase()));
+  if(estAdminBackup){
+    document.getElementById('btn-manual-backup').style.display = 'inline-flex';
+  }
+
   const profileRef = doc(db, 'users', user.uid);
   let profile = {};
   try {
@@ -404,7 +422,7 @@ async function chargerDashboard(user){
   // Sauvegarde automatique (silencieuse) — on tente d'abord de reconnecter Drive
   // silencieusement (si déjà connecté auparavant), puis on vérifie si une nouvelle
   // sauvegarde est due (au-delà de BACKUP_INTERVAL_DAYS).
-  await initDashboardDrive();
+  if(estAdminBackup && !window.isAppAndroid) await initDashboardDrive();
   verifierEtLancerSauvegardeAuto(user.uid);
 }
 
