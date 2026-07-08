@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
 <script src="https://js-de.sentry-cdn.com/e4ff7124e2adfa0a46a6ecd190cbc9ed.min.js" crossorigin="anonymous"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Centre de contrôle — GestImmo</title>
@@ -185,7 +186,8 @@ body::after{
     </div>
     <div class="user-menu">
       <span class="hud-clock" id="hud-clock"></span>
-      <button onclick="exporterSauvegardeManuelle()" title="Télécharger une sauvegarde complète de toutes tes données" style="background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.35);border-radius:8px;color:var(--cyan,#63b3ed);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">💾 Sauvegarder</button>
+      <button id="btn-connect-drive-backup" onclick="connectDriveDashboard()" title="Envoyer les sauvegardes automatiquement sur Google Drive au lieu d'un fichier local" style="display:none;background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:8px;color:#68d391;cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">🔗 Activer sauvegarde Drive</button>
+      <button onclick="exporterSauvegardeManuelle()" title="Télécharger/envoyer une sauvegarde complète de toutes tes données" style="background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.35);border-radius:8px;color:var(--cyan,#63b3ed);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">💾 Sauvegarder</button>
       <div class="user-avatar" id="user-avatar">?</div>
       <span id="user-name" style="font-size:12px;color:var(--text2);font-family:var(--font-mono)"></span>
       <button class="btn-deconnexion" onclick="seDeconnecter()">Déconnexion</button>
@@ -399,9 +401,10 @@ async function chargerDashboard(user){
   document.getElementById('loader').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
-  // Sauvegarde automatique (silencieuse) — ne redéclenche que si la dernière
-  // sauvegarde date de plus de BACKUP_INTERVAL_DAYS, pour ne pas re-télécharger
-  // un fichier à chaque ouverture de l'app.
+  // Sauvegarde automatique (silencieuse) — on tente d'abord de reconnecter Drive
+  // silencieusement (si déjà connecté auparavant), puis on vérifie si une nouvelle
+  // sauvegarde est due (au-delà de BACKUP_INTERVAL_DAYS).
+  await initDashboardDrive();
   verifierEtLancerSauvegardeAuto(user.uid);
 }
 
@@ -447,30 +450,40 @@ async function exporterSauvegardeComplete(uid, silencieux){
 
     const json = JSON.stringify(backup, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
     const dateStr = new Date().toISOString().slice(0,10);
     const filename = `gestimmo-sauvegarde-${dateStr}.json`;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+
+    // Priorité à Google Drive si connecté ; sinon repli automatique sur un téléchargement local
+    let driveLink = null;
+    if(driveBackupToken) driveLink = await uploadBackupToDrive(blob, filename);
+
+    if(!driveLink){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url), 5000);
+    }
 
     await setDoc(doc(db, 'users', uid), { lastBackupDate: new Date().toISOString() }, { merge: true });
 
-    if(silencieux) afficherToastSauvegarde(filename);
-    else alert('✓ Sauvegarde téléchargée : ' + filename);
+    const messageOk = driveLink
+      ? '☁ Sauvegarde envoyée sur Google Drive : ' + filename
+      : '💾 Sauvegarde téléchargée localement : ' + filename;
+    if(silencieux) afficherToastSauvegarde(messageOk);
+    else alert('✓ ' + messageOk + (driveLink ? '' : '\n\n(Astuce : clique sur "🔗 Activer sauvegarde Drive" pour que les prochaines sauvegardes soient stockées en ligne automatiquement.)'));
   }catch(e){
     console.error('Erreur export sauvegarde:', e);
     if(!silencieux) alert('Erreur lors de la sauvegarde : ' + e.message);
   }
 }
 
-function afficherToastSauvegarde(filename){
+function afficherToastSauvegarde(message){
   const toast = document.createElement('div');
-  toast.textContent = '💾 Sauvegarde automatique téléchargée : ' + filename;
+  toast.textContent = message;
   toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:rgba(104,211,145,.12);border:1px solid rgba(104,211,145,.4);color:#68d391;padding:12px 18px;border-radius:10px;font-size:12px;font-weight:600;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:320px;font-family:var(--font-mono)';
   document.body.appendChild(toast);
   setTimeout(()=>{ toast.style.transition='opacity .5s'; toast.style.opacity='0'; setTimeout(()=>toast.remove(),500); }, 7000);
@@ -478,6 +491,119 @@ function afficherToastSauvegarde(filename){
 window.exporterSauvegardeManuelle = function(){
   if(currentUser) exporterSauvegardeComplete(currentUser.uid, false);
 };
+
+// ── GOOGLE DRIVE POUR LES SAUVEGARDES (même compte/mécanisme que structure.html) ──
+const GOOGLE_CLIENT_ID = '658875106145-j8simu5rb93ko75hndipga72v29ohck9.apps.googleusercontent.com';
+const DRIVE_BACKUP_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+let driveBackupToken = null;
+
+function initDashboardDrive(){
+  return new Promise((resolve)=>{
+    const savedToken = localStorage.getItem('gestimmo_backup_drive_token');
+    const savedExpiry = localStorage.getItem('gestimmo_backup_drive_token_expiry');
+    const btn = document.getElementById('btn-connect-drive-backup');
+    if(savedToken && savedExpiry && Date.now() < parseInt(savedExpiry)){
+      driveBackupToken = savedToken;
+      if(btn) btn.style.display = 'none';
+      resolve();
+    } else if(savedToken){
+      // Token expiré — tenter une reconnexion silencieuse, sans jamais bloquer l'app plus de 1,5s
+      let done = false;
+      const finir = ()=>{ if(!done){ done = true; resolve(); } };
+      reconnectDriveBackupSilent(finir);
+      setTimeout(finir, 1500);
+    } else {
+      if(btn) btn.style.display = 'inline-block'; // jamais connecté → proposer l'activation
+      resolve();
+    }
+  });
+}
+
+function reconnectDriveBackupSilent(onDone){
+  try{
+    if(typeof google === 'undefined' || !google.accounts){ if(onDone) onDone(); return; }
+    const knownEmail = localStorage.getItem('gestimmo_backup_drive_email') || '';
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: DRIVE_BACKUP_SCOPE,
+      prompt: '',
+      hint: knownEmail || undefined,
+      callback: (response) => {
+        if(response.access_token){
+          driveBackupToken = response.access_token;
+          localStorage.setItem('gestimmo_backup_drive_token', driveBackupToken);
+          localStorage.setItem('gestimmo_backup_drive_token_expiry', Date.now() + (response.expires_in * 1000));
+          const btn = document.getElementById('btn-connect-drive-backup');
+          if(btn) btn.style.display = 'none';
+        }
+        if(onDone) onDone();
+      }
+    });
+    client.requestAccessToken({prompt:'', hint: knownEmail || undefined});
+  }catch(e){ console.log('Reconnexion Drive sauvegarde échouée:', e); if(onDone) onDone(); }
+}
+
+window.connectDriveDashboard = function(){
+  if(typeof google === 'undefined' || !google.accounts){ alert('Google Drive n\'est pas encore chargé, réessaie dans quelques secondes.'); return; }
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_BACKUP_SCOPE,
+    prompt: 'select_account',
+    callback: async (response) => {
+      if(response.access_token){
+        driveBackupToken = response.access_token;
+        localStorage.setItem('gestimmo_backup_drive_token', driveBackupToken);
+        localStorage.setItem('gestimmo_backup_drive_token_expiry', Date.now() + (response.expires_in * 1000));
+        try{
+          const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {headers:{'Authorization':'Bearer '+driveBackupToken}}).then(r=>r.json());
+          if(info && info.email) localStorage.setItem('gestimmo_backup_drive_email', info.email);
+        }catch(e){}
+        const btn = document.getElementById('btn-connect-drive-backup');
+        if(btn) btn.style.display = 'none';
+        alert('✓ Google Drive connecté ! Tes prochaines sauvegardes iront directement dans le dossier "GestImmo Sauvegardes" sur ton Drive.');
+        if(currentUser) exporterSauvegardeComplete(currentUser.uid, false);
+      }
+    }
+  });
+  client.requestAccessToken({prompt: 'select_account'});
+};
+
+// Upload un fichier de sauvegarde JSON dans le dossier Drive "GestImmo Sauvegardes".
+// Retourne le lien du fichier si succès, ou null si Drive n'est pas connecté / erreur
+// (dans ce cas exporterSauvegardeComplete se rabat sur un téléchargement local).
+async function uploadBackupToDrive(blob, fileName){
+  if(!driveBackupToken) return null;
+  try{
+    async function getOrCreateFolder(name, parentId){
+      const q = parentId
+        ? "name='"+name+"' and mimeType='application/vnd.google-apps.folder' and '"+parentId+"' in parents and trashed=false"
+        : "name='"+name+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const resp = await fetch("https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(q), {headers:{'Authorization':'Bearer '+driveBackupToken}});
+      const data = await resp.json();
+      if(data.files && data.files.length > 0) return data.files[0].id;
+      const body = {name, mimeType:'application/vnd.google-apps.folder'};
+      if(parentId) body.parents = [parentId];
+      const createResp = await fetch('https://www.googleapis.com/drive/v3/files',{
+        method:'POST', headers:{'Authorization':'Bearer '+driveBackupToken,'Content-Type':'application/json'}, body:JSON.stringify(body)
+      });
+      const createData = await createResp.json();
+      return createData.id;
+    }
+    const folderId = await getOrCreateFolder('GestImmo Sauvegardes', null);
+    const metadata = {name: fileName, parents: [folderId]};
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+    form.append('file', blob);
+    const uploadResp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+      method:'POST', headers:{'Authorization':'Bearer '+driveBackupToken}, body:form
+    });
+    const uploadData = await uploadResp.json();
+    return uploadData.webViewLink || null;
+  }catch(e){
+    console.error('Erreur upload sauvegarde Drive:', e);
+    return null;
+  }
+}
 
 const TYPE_LABELS = {
   LMNP:'LMNP', SCI_IR:'SCI-IR', SCI_IS:'SCI-IS',
