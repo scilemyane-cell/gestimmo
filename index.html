@@ -11,7 +11,7 @@
   });
 </script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="description" content="GestImmo — La gestion locative simple pour tous : un propriétaire, une SCI familiale, un investisseur multi-biens. Comptabilité complète, quittances, baux, rentabilité réelle.">
 <title>GestImmo — Gestion locative pour tous</title>
 <style>
@@ -25,7 +25,8 @@
   --grad:linear-gradient(135deg,#1e3a5f 0%,#0f172a 50%,#1a1040 100%);
 }
 html{scroll-behavior:smooth}
-body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+html{overscroll-behavior:none}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;overscroll-behavior:none}
 
 /* NAV */
 nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,26,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 5vw}
