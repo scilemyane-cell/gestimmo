@@ -27,6 +27,11 @@ jobs:
           cp ../holding.html www/holding.html 2>/dev/null || true
           cp ../import.html www/import.html 2>/dev/null || true
 
+      - name: Injecter le numéro de build (pour vérifier facilement la version installée)
+        run: |
+          BUILD_TAG="Build #${{ github.run_number }} - $(date -u +%d-%m_%Hh%M)_UTC"
+          sed -i "s|__BUILD_MARKER__|${BUILD_TAG}|" www/index.html
+
       - name: Installer Java 21
         uses: actions/setup-java@v4
         with:
