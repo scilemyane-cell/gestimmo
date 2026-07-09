@@ -9927,8 +9927,34 @@ function initGoogleDrive(){
   }, 4*60*1000);
 }
 
-function reconnectDriveSilent(){
+// Le script https://accounts.google.com/gsi/client est chargé en async/defer :
+// selon la vitesse de connexion (notamment dans l'app Android), il peut ne pas
+// être prêt au moment où initGoogleDrive() tente une reconnexion silencieuse.
+// Cette fonction attend que `google.accounts` existe avant de continuer,
+// avec un timeout de sécurité pour ne jamais bloquer indéfiniment.
+function waitForGoogleGSI(timeoutMs){
+  timeoutMs = timeoutMs || 8000;
+  return new Promise((resolve, reject)=>{
+    if(typeof google !== 'undefined' && google.accounts && google.accounts.oauth2){
+      resolve();
+      return;
+    }
+    const start = Date.now();
+    const interval = setInterval(()=>{
+      if(typeof google !== 'undefined' && google.accounts && google.accounts.oauth2){
+        clearInterval(interval);
+        resolve();
+      } else if(Date.now() - start > timeoutMs){
+        clearInterval(interval);
+        reject(new Error('Script Google Identity Services non chargé (timeout).'));
+      }
+    }, 100);
+  });
+}
+
+async function reconnectDriveSilent(){
   try{
+    await waitForGoogleGSI();
     const knownEmail = localStorage.getItem(CTX+'_drive_email') || '';
     const client = google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
@@ -9959,7 +9985,13 @@ function disconnectDrive(){
   }
 }
 
-function connectDrive(){
+async function connectDrive(){
+  try{
+    await waitForGoogleGSI();
+  }catch(e){
+    alert('Le script de connexion Google n\'a pas pu se charger. Vérifie ta connexion internet et réessaie.');
+    return;
+  }
   const client = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
     scope: DRIVE_SCOPE,
