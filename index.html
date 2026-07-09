@@ -187,6 +187,7 @@ if(window.isAppAndroid){
   document.documentElement.classList.add('app-android');
 }
 </script>
+<style>.app-android .app-android-only{display:block !important}</style>
 
 <!-- LOADER -->
 <div class="loader" id="loader">
@@ -363,6 +364,7 @@ if(window.isAppAndroid){
       <div class="modal-logo-icon"><svg width="30" height="30" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><polygon points="27.5,55 50,25 72.5,55" fill="#FFFFFF"/><rect x="31.5" y="53" width="37" height="32" rx="3" fill="#FFFFFF"/><rect x="46" y="68" width="8" height="17" fill="#0B1C30"/><polyline points="27,78 42,60 53,69 66,45 80,28" fill="none" stroke="#22D3B4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="80" cy="28" r="5" fill="#22D3B4"/></svg></div>
       <span style="font-size:18px;font-weight:800">GestImmo</span>
     </div>
+    <div id="build-marker" class="app-android-only" style="display:none;text-align:center;font-size:10px;color:var(--text3,#888);opacity:.6;margin-top:-16px;margin-bottom:16px;font-family:monospace">__BUILD_MARKER__</div>
     <div id="auth-msg" class="auth-msg"></div>
 
     <!-- INSCRIPTION -->
