@@ -43,4 +43,4 @@ jobs:
       - name: Déployer les fonctions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-service-account.json
-        run: firebase deploy --only functions --project gestimmo-app --non-interactive
+      run: firebase deploy --only functions --project gestimmo-app --non-interactive --force
