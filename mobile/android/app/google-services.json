@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "658875106145-j3eatiaan61rcflci77c83n91j312qdg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gestimmo.app",
+            "certificate_hash": "7f0591b41f380ec7bd719402f39d4af8f49b0686"
+          }
+        },
+        {
           "client_id": "658875106145-p4kdljiditi857u6em82puo6qee23cht.apps.googleusercontent.com",
           "client_type": 3
         }
