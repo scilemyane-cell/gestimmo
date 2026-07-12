@@ -1481,6 +1481,7 @@ function initBudget(){
   return {}; // Aucune ligne par défaut — l'utilisateur ajoute ses postes via "+ Ajouter un poste"
 }
 window.ajouterCategorieBudget=function(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const sel=document.getElementById('budget-add-cat-select');
   if(!sel || sel.disabled || !sel.value) return;
   const catName=sel.value;
@@ -1493,6 +1494,7 @@ window.ajouterCategorieBudget=function(){
   renderBudget();
 };
 window.retirerCategorieBudget=function(catName){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   if(!confirm(`Retirer la catégorie "${catName}" du budget prévisionnel ?\n\nLes montants déjà saisis pour cette catégorie seront supprimés (mais tes factures réelles dans Comptabilité ne sont pas affectées).`))return;
   const d=loadData();
   delete d.budget[catName];
@@ -1500,6 +1502,7 @@ window.retirerCategorieBudget=function(catName){
   renderBudget();
 };
 function addBudgetRow(catName){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const d=loadData();
   if(!d.budget[catName])d.budget[catName]=[];
   const row={desc:""};
@@ -1508,6 +1511,7 @@ function addBudgetRow(catName){
   saveBudget(d.budget);renderBudget();
 }
 function removeBudgetRow(catName,idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const d=loadData();
   if(d.budget[catName]&&d.budget[catName].length>1){d.budget[catName].splice(idx,1);saveBudget(d.budget);renderBudget();}
 }
@@ -2257,6 +2261,7 @@ function renderBudget(){
   });
 }
 function onBudgetChange(e){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const{cat,idx,field}=e.target.dataset;const d=loadData();
   if(!d.budget[cat])return;
   d.budget[cat][idx][field]=field==='desc'?e.target.value:(+e.target.value||0);
@@ -4143,6 +4148,7 @@ function ouvrirModalPaiement(locId, mk, logKeyOverride){
 
 
 function mplChangerLocataire(newLocId, mk){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const modal=document.getElementById('modal-paiement-loyer');
   if(!modal)return;
   // Mettre à jour le locId stocké sur la modale — CRITIQUE
@@ -4880,6 +4886,7 @@ function selectLogColor(c){
   });
 }
 function sauvegarderLogement(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const label=document.getElementById('ml-label').value.trim();
   if(!label){document.getElementById('ml-label').style.borderColor='var(--red)';return;}
   const adresse=document.getElementById('ml-adresse').value.trim();
@@ -4900,6 +4907,7 @@ function sauvegarderLogement(){
   setTimeout(()=>location.reload(),800);
 }
 function supprimerLogement(idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const logs=loadLogements();
   if(!logs[idx])return;
   const lg=logs[idx];
@@ -4911,6 +4919,7 @@ function supprimerLogement(idx){
 }
 
 function toggleLogement(idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const logs=loadLogements();
   if(!logs[idx])return;
   logs[idx].actif=logs[idx].actif===false?true:false;
@@ -4919,6 +4928,7 @@ function toggleLogement(idx){
   setTimeout(()=>location.reload(),600);
 }
 function deplacerLogement(idx,dir){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const logs=loadLogements();
   const newIdx=idx+dir;
   if(newIdx<0||newIdx>=logs.length)return;
@@ -4927,6 +4937,7 @@ function deplacerLogement(idx,dir){
   renderParametres();
 }
 function resetLogementsDefaut(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   if(!confirm('Réinitialiser les logements par défaut ? Les données des locataires ne seront pas effacées.'))return;
   localStorage.removeItem(ctxKey('logements_config'));
   location.reload();
@@ -6508,6 +6519,7 @@ function updateTauxAnnee(logKey,annee,value){
 }
 
 function saveFinancementCredit(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const existing=loadFC();const fc={};
   const cfg=getCTXConfig();
   const keys=window._isMeuble?cfg.logements.map(l=>l.key):[...cfg.logements.map(l=>l.key),'Commun'];
@@ -6552,6 +6564,7 @@ function normaliserDateCredit(dateStr, fieldId){
 
 // Import des paramètres d'un crédit depuis une photo (offre de prêt / tableau d'amortissement)
 function importCreditPhoto(event,logKey){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const file=event.target.files[0];
   if(!file)return;
   const reader=new FileReader();
@@ -6806,6 +6819,7 @@ function getMontantPeriode(loc, mk){
 }
 
 function saveLocataireForm(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const locs=loadLocataires();
   const data={
     logement:document.getElementById('loc-logement').value,
@@ -6855,6 +6869,7 @@ function saveLocataireForm(){
   renderLocataires();
 }
 function deleteLocataire(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   if(!editLocId)return;
   if(!confirm('Supprimer ce locataire et tout son historique de loyers ?'))return;
   const locs=loadLocataires().filter(x=>String(x.id)!==String(editLocId));
@@ -7253,6 +7268,13 @@ function validerModalQuittance(locId){
   const mk=document.getElementById('quit-mois')?.value;
   const isDuplicate=document.getElementById('quit-duplicata')?.checked||false;
   if(!mk)return;
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(locId));
+  const p=loc&&(loc.paiements||{})[mk];
+  if(!p||!p.paye){
+    alert("Impossible de générer une quittance : ce mois n'est pas marqué comme payé.\n\nUne quittance atteste légalement d'un paiement reçu — marque d'abord le loyer comme payé (calendrier ou tableau des paiements) avant de l'éditer.");
+    return;
+  }
   document.getElementById('modal-quittance')?.remove();
   const r=buildQuittanceHTML(locId,mk,true,isDuplicate);
   if(!r)return;
@@ -7668,11 +7690,13 @@ function edlUpdateObs(inp){
   _edlData[pieceId][el].observation=inp.value;
 }
 function edlSauvegardePiece(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   // Lire tous les selects/inputs visibles et sauvegarder
   document.querySelectorAll('.edl-etat-sel').forEach(sel=>edlUpdateEtat(sel));
   document.querySelectorAll('.edl-obs-el').forEach(inp=>edlUpdateObs(inp));
 }
 function edlAjouterElement(pieceId){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const nom=window.prompt('Nom du nouvel élément :');
   if(!nom||!nom.trim())return;
   const piece=_edlPieces.find(p=>p.id===pieceId);
@@ -8750,6 +8774,7 @@ async function validerRelance(locId){
 // HISTORIQUE EDL — Stocker dans GL Docs
 // ═══════════════════════════════════════════════════════════════════════
 function sauvegarderEdlDansGestion(locId, type, html){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const docs=loadGLDocs();
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
