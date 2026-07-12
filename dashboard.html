@@ -62,6 +62,9 @@ body::after{
   .user-menu{gap:6px}
   #user-name{display:none}
   #btn-connect-drive-backup,#btn-manual-backup{padding:6px 8px !important;font-size:10px !important}
+  .btn-label-full{display:none}
+  .btn-label-short{display:inline !important}
+  .user-menu{flex-wrap:wrap;justify-content:flex-end;row-gap:4px}
   .btn-deconnexion{padding:6px 8px;font-size:10px}
   .user-avatar{width:28px;height:28px;font-size:11px}
 }
@@ -207,8 +210,8 @@ window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform &
     </div>
     <div class="user-menu">
       <span class="hud-clock" id="hud-clock"></span>
-      <button id="btn-connect-drive-backup" onclick="connectDriveDashboard()" title="Envoyer les sauvegardes automatiquement sur Google Drive au lieu d'un fichier local" style="display:none;background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:8px;color:#68d391;cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">🔗 Activer sauvegarde Drive</button>
-      <button id="btn-manual-backup" onclick="exporterSauvegardeManuelle()" title="Télécharger/envoyer une sauvegarde complète de toutes tes données" style="display:none;background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.35);border-radius:8px;color:var(--cyan,#63b3ed);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">💾 Sauvegarder</button>
+      <button id="btn-connect-drive-backup" onclick="connectDriveDashboard()" title="Envoyer les sauvegardes automatiquement sur Google Drive au lieu d'un fichier local" style="display:none;background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:8px;color:#68d391;cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">🔗 <span class="btn-label-full">Activer sauvegarde Drive</span><span class="btn-label-short" style="display:none">Drive</span></button>
+      <button id="btn-manual-backup" onclick="exporterSauvegardeManuelle()" title="Télécharger/envoyer une sauvegarde complète de toutes tes données" style="display:none;background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.35);border-radius:8px;color:var(--cyan,#63b3ed);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">💾 <span class="btn-label-full">Sauvegarder</span></button>
       <div class="user-avatar" id="user-avatar">?</div>
       <span id="user-name" style="font-size:12px;color:var(--text2);font-family:var(--font-mono)"></span>
       <button class="btn-deconnexion" onclick="seDeconnecter()">Déconnexion</button>
