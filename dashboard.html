@@ -53,7 +53,18 @@ body::after{
 #loader div.label{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--text3);text-transform:uppercase}
 
 #app{display:none;position:relative;z-index:1}
-.topbar{background:rgba(10,13,24,.7);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:0 28px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20}
+.topbar{background:rgba(10,13,24,.7);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:env(safe-area-inset-top) 28px 0;height:calc(64px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;box-sizing:border-box}
+@media(max-width:640px){
+  .topbar{padding:env(safe-area-inset-top) 14px 0;height:calc(56px + env(safe-area-inset-top))}
+  .logo{font-size:14px;gap:6px}
+  .logo-icon{width:28px;height:28px}
+  .logo-status{display:none}
+  .user-menu{gap:6px}
+  #user-name{display:none}
+  #btn-connect-drive-backup,#btn-manual-backup{padding:6px 8px !important;font-size:10px !important}
+  .btn-deconnexion{padding:6px 8px;font-size:10px}
+  .user-avatar{width:28px;height:28px;font-size:11px}
+}
 .logo{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:.01em}
 .logo-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;background:linear-gradient(135deg,rgba(79,216,255,.18),rgba(167,139,255,.18));border:1px solid var(--line-strong)}
 .logo-status{display:flex;align-items:center;gap:6px;margin-left:14px;padding:4px 10px 4px 8px;border:1px solid var(--line);border-radius:100px;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--text2);text-transform:uppercase}
@@ -423,7 +434,7 @@ async function chargerDashboard(user){
   // Sauvegarde automatique (silencieuse) — on tente d'abord de reconnecter Drive
   // silencieusement (si déjà connecté auparavant), puis on vérifie si une nouvelle
   // sauvegarde est due (au-delà de BACKUP_INTERVAL_DAYS).
-  if(estAdminBackup && !window.isAppAndroid) await initDashboardDrive();
+  if(estAdminBackup) await initDashboardDrive();
   verifierEtLancerSauvegardeAuto(user.uid);
 }
 
@@ -540,6 +551,13 @@ function initDashboardDrive(){
 
 function reconnectDriveBackupSilent(onDone){
   try{
+    if(window.isAppAndroid){
+      // Pas de reconnexion silencieuse possible en natif : on propose juste le bouton.
+      const btn = document.getElementById('btn-connect-drive-backup');
+      if(btn) btn.style.display = 'inline-block';
+      if(onDone) onDone();
+      return;
+    }
     if(typeof google === 'undefined' || !google.accounts){ if(onDone) onDone(); return; }
     const knownEmail = localStorage.getItem('gestimmo_backup_drive_email') || '';
     const client = google.accounts.oauth2.initTokenClient({
@@ -562,7 +580,28 @@ function reconnectDriveBackupSilent(onDone){
   }catch(e){ console.log('Reconnexion Drive sauvegarde échouée:', e); if(onDone) onDone(); }
 }
 
-window.connectDriveDashboard = function(){
+window.connectDriveDashboard = async function(){
+  if(window.isAppAndroid){
+    try{
+      const { FirebaseAuthentication } = window.Capacitor.Plugins;
+      const nativeResult = await FirebaseAuthentication.signInWithGoogle({ scopes: [DRIVE_BACKUP_SCOPE] });
+      const accessToken = nativeResult?.credential?.accessToken;
+      if(!accessToken){ alert('Google Drive: aucune autorisation reçue, réessaie.'); return; }
+      driveBackupToken = accessToken;
+      localStorage.setItem('gestimmo_backup_drive_token', driveBackupToken);
+      // Le plugin natif ne renvoie pas de durée de vie explicite : on prend 55 min par défaut (durée standard d'un token Google).
+      localStorage.setItem('gestimmo_backup_drive_token_expiry', Date.now() + (55 * 60 * 1000));
+      const email = nativeResult?.user?.email;
+      if(email) localStorage.setItem('gestimmo_backup_drive_email', email);
+      const btn = document.getElementById('btn-connect-drive-backup');
+      if(btn) btn.style.display = 'none';
+      alert('✓ Google Drive connecté ! Tes prochaines sauvegardes iront directement dans le dossier "GestImmo Sauvegardes" sur ton Drive.');
+      if(currentUser) exporterSauvegardeComplete(currentUser.uid, false);
+    }catch(e){
+      alert('Erreur de connexion à Google Drive: ' + (e.message || e));
+    }
+    return;
+  }
   if(typeof google === 'undefined' || !google.accounts){ alert('Google Drive n\'est pas encore chargé, réessaie dans quelques secondes.'); return; }
   const client = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
