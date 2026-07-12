@@ -1,0 +1,46 @@
+name: Déployer les Cloud Functions Firebase
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'functions/**'
+      - 'firebase.json'
+      - '.firebaserc'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installer les dépendances des fonctions
+        working-directory: functions
+        run: npm install
+
+      - name: Créer le fichier .env avec les clés secrètes
+        working-directory: functions
+        run: |
+          echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}" >> .env
+          echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> .env
+          echo "PRICE_ESSENTIEL=${{ secrets.PRICE_ESSENTIEL }}" >> .env
+          echo "PRICE_PRO=${{ secrets.PRICE_PRO }}" >> .env
+          echo "PRICE_EXPERT=${{ secrets.PRICE_EXPERT }}" >> .env
+
+      - name: Écrire la clé de service Firebase
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/firebase-service-account.json
+
+      - name: Installer Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Déployer les fonctions
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-service-account.json
+        run: firebase deploy --only functions --project gestimmo-app --non-interactive
