@@ -177,7 +177,7 @@ body::after{
   .logo-status{display:none}
   .user-menu{gap:6px;flex-wrap:wrap;justify-content:flex-end;row-gap:6px;width:100%}
   #user-name{display:none}
-  #btn-connect-drive-backup,#btn-manual-backup{padding:6px 8px !important;font-size:10px !important}
+  #btn-connect-drive-backup,#btn-manual-backup,#btn-test-abonnement{padding:6px 8px !important;font-size:10px !important}
   .btn-label-full{display:none}
   .btn-label-short{display:inline !important}
   .btn-deconnexion{padding:6px 8px;font-size:10px}
@@ -209,6 +209,7 @@ window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform &
     </div>
     <div class="user-menu">
       <span class="hud-clock" id="hud-clock"></span>
+      <button id="btn-test-abonnement" onclick="testerAbonnementEssentiel()" title="TEST — lance le paiement Stripe pour l'offre Essentiel (mode test)" style="background:rgba(214,158,46,.12);border:1px solid rgba(214,158,46,.4);border-radius:8px;color:#d69e2e;cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">🧪 <span class="btn-label-full">Tester abonnement</span><span class="btn-label-short" style="display:none">Test</span></button>
       <button id="btn-connect-drive-backup" onclick="connectDriveDashboard()" title="Envoyer les sauvegardes automatiquement sur Google Drive au lieu d'un fichier local" style="display:none;background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:8px;color:#68d391;cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">🔗 <span class="btn-label-full">Activer sauvegarde Drive</span><span class="btn-label-short" style="display:none">Drive</span></button>
       <button id="btn-manual-backup" onclick="exporterSauvegardeManuelle()" title="Télécharger/envoyer une sauvegarde complète de toutes tes données" style="display:none;background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.35);border-radius:8px;color:var(--cyan,#63b3ed);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">💾 <span class="btn-label-full">Sauvegarder</span></button>
       <div class="user-avatar" id="user-avatar">?</div>
@@ -336,6 +337,7 @@ window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform &
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, getDocs, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
@@ -348,6 +350,30 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const functions = getFunctions(app, 'europe-west3');
+
+// ── TEST — bouton temporaire de validation du circuit de paiement Stripe ──
+// Le Price ID est celui de l'offre Essentiel (49€/an), créé sur le Dashboard Stripe.
+window.testerAbonnementEssentiel = async function () {
+  const btn = document.getElementById('btn-test-abonnement');
+  const texteInitial = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ ...';
+  try {
+    const creerSession = httpsCallable(functions, 'createCheckoutSession');
+    const resultat = await creerSession({ priceId: 'price_1TsKS6AkHBEzWUzZ8JOAjd2G' });
+    if (resultat.data && resultat.data.url) {
+      window.location.href = resultat.data.url;
+    } else {
+      alert('Erreur : aucune URL de paiement reçue.');
+    }
+  } catch (e) {
+    alert('Erreur lors de la création de la session de paiement : ' + (e.message || e));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = texteInitial;
+  }
+};
 
 let currentUser = null;
 let userProfile = null;
