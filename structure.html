@@ -10223,7 +10223,7 @@ function updateDriveUI(connected){
   }
 }
 
-async function uploadToDrive(b64, fileName){
+async function uploadToDrive(b64, fileName, anneeFacture){
   if(!driveAccessToken) return null;
   try{
     // Convertir base64 en blob
@@ -10256,8 +10256,12 @@ async function uploadToDrive(b64, fileName){
       return createData.id;
     }
 
-    // Structure : SCI Lemyane Factures / 2025 / fichier.pdf
-    const year = new Date().getFullYear().toString();
+    // Structure : SCI Lemyane Factures / <année de la facture> / fichier.pdf
+    // On se base sur l'année de LA FACTURE (son champ date), pas sur l'année système du jour du sync —
+    // sinon une facture de 2025 synchronisée en 2026 finirait dans le dossier "2026", ce qui rend
+    // ensuite impossible de la retrouver automatiquement lors des synchros suivantes (qui ne scannent
+    // que le dossier de l'année réelle de la facture).
+    const year = (anneeFacture && /^\d{4}$/.test(String(anneeFacture))) ? String(anneeFacture) : new Date().getFullYear().toString();
     const cacheKey = ctxKey('drive_folder_'+year);
     let yearFolderId = localStorage.getItem(cacheKey);
     if(!yearFolderId){
@@ -10265,6 +10269,19 @@ async function uploadToDrive(b64, fileName){
       yearFolderId = await getOrCreateFolder(year, rootId);
       localStorage.setItem(cacheKey, yearFolderId);
     }
+
+    // Vérifie qu'un fichier de ce nom n'existe pas déjà dans ce dossier avant d'uploader,
+    // pour éviter de créer un doublon si le lien local avait été perdu (ex: appareil changé,
+    // données locales effacées) alors que le fichier était déjà sur Drive.
+    try{
+      const qExist="name='"+fileName.replace(/'/g,"\\'")+"' and '"+yearFolderId+"' in parents and trashed=false";
+      const existResp=await fetch("https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qExist)+"&fields=files(id,webViewLink)",{headers:{'Authorization':'Bearer '+driveAccessToken}});
+      const existData=await existResp.json();
+      if(existData.files&&existData.files.length>0){
+        console.warn('Fichier déjà présent sur Drive, réutilisation au lieu d\'un nouvel upload :',fileName);
+        return existData.files[0].webViewLink||null;
+      }
+    }catch(e){console.warn('Vérification anti-doublon Drive échouée, upload normal:',e);}
 
     // Upload le fichier dans le dossier de l'année
     const metadata = {name: fileName, parents: [yearFolderId]};
@@ -10350,7 +10367,9 @@ async function savePdfWithDrive(idx, b64, fileName){
   savePdf(idx, b64);
   // Upload sur Drive si connecté
   if(driveAccessToken && b64){
-    const link = await uploadToDrive(b64, fileName);
+    const d0 = loadData();
+    const anneeFacture = (d0.factures[idx]?.date||'').slice(0,4);
+    const link = await uploadToDrive(b64, fileName, anneeFacture);
     if(link){
       // Sauvegarder le lien Drive dans la facture
       const d = loadData();
@@ -10988,8 +11007,10 @@ async function syncAllPdfsToDrive(){
   const btn=document.getElementById('btn-sync-drive');
   btn.innerHTML='⏳ Sync...';btn.disabled=true;
   let uploaded=0,skipped=0,errors=0,linked=0;
+  const ambigues=[]; // factures avec plusieurs fichiers Drive correspondants, non liées automatiquement par prudence
   try{
     // ── PASSE 1 : upload des PDFs locaux qui ne sont pas encore sur Drive ────────
+    // Chaque facture est uploadée dans LE DOSSIER DE SON ANNÉE (son champ date), pas l'année système du jour.
     const total=loadData().factures.length;
     for(let i=0;i<total;i++){
       const d=loadData();
@@ -11002,8 +11023,9 @@ async function syncAllPdfsToDrive(){
       const ffour=(f.four||'facture').replace(/[^a-zA-Z0-9]/g,'_');
       const fcmd=f.cmd||'';
       const fname=fnum+(fcmd?'_BC'+fcmd.replace(/[^a-zA-Z0-9]/g,'_'):'')+'_'+ffour+'.pdf';
+      const anneeFacture=(f.date||'').slice(0,4);
       try{
-        const link=await uploadToDrive(b64,fname);
+        const link=await uploadToDrive(b64,fname,anneeFacture);
         if(link){
           const dNow=loadData();
           dNow.factures[i].driveLink=link;
@@ -11014,47 +11036,60 @@ async function syncAllPdfsToDrive(){
     }
 
     // ── PASSE 2 : rattachement automatique des factures sans lien ni PDF local ──
-    // Pour chaque facture sans driveLink, on cherche dans Drive un fichier dont le nom
-    // commence par le numéro de facture (ex. "FAC-2026-004"). Si trouvé, on enregistre
-    // le lien sans rien uploader. C'est ce qui règle le cas de la FAC-004 : le PDF
-    // existe déjà sur Drive mais l'app n'avait jamais enregistré le lien.
-    const annee=new Date().getFullYear().toString();
-    // Récupérer l'ID du dossier de l'année en cours (cache localStorage)
-    let yearFolderId=null;
-    try{
-      const rootQ=encodeURIComponent("name='"+getCTXConfig().driveFolderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
-      const rootResp=await fetch(`https://www.googleapis.com/drive/v3/files?q=${rootQ}&fields=files(id)`,{headers:{'Authorization':'Bearer '+driveAccessToken}});
-      const rootData=await rootResp.json();
-      if(rootData.files&&rootData.files.length>0){
-        const rootId=rootData.files[0].id;
-        const yearQ=encodeURIComponent(`name='${annee}' and mimeType='application/vnd.google-apps.folder' and '${rootId}' in parents and trashed=false`);
-        const yearResp=await fetch(`https://www.googleapis.com/drive/v3/files?q=${yearQ}&fields=files(id)`,{headers:{'Authorization':'Bearer '+driveAccessToken}});
-        const yearData=await yearResp.json();
-        if(yearData.files&&yearData.files.length>0)yearFolderId=yearData.files[0].id;
-      }
-    }catch(e){console.error('Sync Drive: erreur recherche dossier',e);}
+    // Pour chaque facture sans driveLink, on cherche dans le dossier Drive DE SON ANNÉE (pas l'année
+    // système en cours) un fichier dont le nom commence par le numéro de facture (ex. "FAC-2026-004").
+    // On scanne TOUTES les années présentes dans les factures à lier, pas seulement l'année en cours.
+    const d1=loadData();
+    const anneesAScanner=[...new Set(
+      d1.factures.filter(f=>f&&!f.driveLink&&f.num).map(f=>(f.date||'').slice(0,4)).filter(a=>/^\d{4}$/.test(a))
+    )];
 
-    if(yearFolderId){
-      // Récupérer tous les fichiers PDF du dossier de l'année (max 200)
-      const filesResp=await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${yearFolderId}' in parents and trashed=false`)}&fields=files(id,name,webViewLink)&pageSize=200`,{headers:{'Authorization':'Bearer '+driveAccessToken}});
-      const filesData=await filesResp.json();
-      const driveFiles=filesData.files||[];
+    if(anneesAScanner.length){
+      // Dossier racine (une seule fois)
+      let rootId=null;
+      try{
+        const rootQ=encodeURIComponent("name='"+getCTXConfig().driveFolderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+        const rootResp=await fetch(`https://www.googleapis.com/drive/v3/files?q=${rootQ}&fields=files(id)`,{headers:{'Authorization':'Bearer '+driveAccessToken}});
+        const rootData=await rootResp.json();
+        if(rootData.files&&rootData.files.length>0)rootId=rootData.files[0].id;
+      }catch(e){console.error('Sync Drive: erreur recherche dossier racine',e);}
 
-      const d2=loadData();
-      let changed=false;
-      for(let i=0;i<d2.factures.length;i++){
-        const f=d2.factures[i];
-        if(!f||f.driveLink)continue; // déjà lié → skip
-        if(!f.num)continue;
-        // Chercher un fichier Drive dont le nom commence par le numéro de facture
-        const match=driveFiles.find(df=>df.name&&df.name.toUpperCase().startsWith(f.num.toUpperCase()));
-        if(match&&match.webViewLink){
-          d2.factures[i].driveLink=match.webViewLink;
-          linked++;
-          changed=true;
+      if(rootId){
+        const d2=loadData();
+        let changed=false;
+        for(const annee of anneesAScanner){
+          let yearFolderId=null;
+          try{
+            const yearQ=encodeURIComponent(`name='${annee}' and mimeType='application/vnd.google-apps.folder' and '${rootId}' in parents and trashed=false`);
+            const yearResp=await fetch(`https://www.googleapis.com/drive/v3/files?q=${yearQ}&fields=files(id)`,{headers:{'Authorization':'Bearer '+driveAccessToken}});
+            const yearData=await yearResp.json();
+            if(yearData.files&&yearData.files.length>0)yearFolderId=yearData.files[0].id;
+          }catch(e){console.error('Sync Drive: erreur recherche dossier année',annee,e);}
+          if(!yearFolderId)continue;
+
+          const filesResp=await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${yearFolderId}' in parents and trashed=false`)}&fields=files(id,name,webViewLink)&pageSize=200`,{headers:{'Authorization':'Bearer '+driveAccessToken}});
+          const filesData=await filesResp.json();
+          const driveFiles=filesData.files||[];
+
+          for(let i=0;i<d2.factures.length;i++){
+            const f=d2.factures[i];
+            if(!f||f.driveLink)continue; // déjà lié → skip
+            if(!f.num||(f.date||'').slice(0,4)!==annee)continue;
+            // Fichiers Drive dont le nom commence par le numéro de facture
+            const matches=driveFiles.filter(df=>df.name&&df.name.toUpperCase().startsWith(f.num.toUpperCase()));
+            if(matches.length===1){
+              d2.factures[i].driveLink=matches[0].webViewLink;
+              linked++;
+              changed=true;
+            } else if(matches.length>1){
+              // Plusieurs fichiers Drive correspondent au même numéro (doublon probable) :
+              // on ne choisit pas au hasard, on le signale pour que ce soit vérifié à la main.
+              ambigues.push(f.num+' ('+matches.length+' fichiers correspondants sur Drive)');
+            }
+          }
         }
+        if(changed)saveFactures(d2.factures);
       }
-      if(changed)saveFactures(d2.factures);
     }
 
   }finally{
@@ -11064,7 +11099,9 @@ async function syncAllPdfsToDrive(){
     const parts=[uploaded>0?`${uploaded} PDF uploadé(s) sur Drive`:'',
       linked>0?`${linked} facture(s) retrouvée(s) et liées automatiquement`:'',
       skipped>0?`${skipped} déjà synchronisée(s)`:'',
-      errors>0?`${errors} erreur(s)`:''].filter(Boolean).join('\n');
+      errors>0?`${errors} erreur(s)`:'',
+      ambigues.length>0?`⚠ ${ambigues.length} facture(s) NON liée(s) car plusieurs fichiers Drive correspondent (doublons probables) : ${ambigues.join(', ')}\nUtilise "🧹 Nettoyer doublons Drive" puis relance la synchro.`:''
+    ].filter(Boolean).join('\n');
     alert(`✓ Synchronisation terminée !\n${parts||'Aucun changement.'}`);
   }
 }
@@ -11112,11 +11149,17 @@ async function renumeroterFactures(){
     const doRename=confirm(count+' factures renumérotées !\n\n'+driveRenames.length+' fichier(s) à renommer sur Google Drive.\nVoulez-vous les renommer maintenant ?');
     if(doRename){
       let renamed=0;
+      const echecs=[];
       for(const r of driveRenames){
         const ok=await renameDriveFile(r.driveLink,r.newName);
         if(ok)renamed++;
+        else echecs.push(r.newName);
       }
-      alert('✓ '+renamed+'/'+driveRenames.length+' fichiers renommés sur Drive !');
+      let msg='✓ '+renamed+'/'+driveRenames.length+' fichiers renommés sur Drive !';
+      if(echecs.length){
+        msg+='\n\n⚠ Échec pour '+echecs.length+' fichier(s) (lien Drive cassé, fichier supprimé/déplacé ou déjà en double) :\n'+echecs.join('\n')+'\n\nVérifie ces factures manuellement sur Drive, ou lance "🧹 Nettoyer doublons Drive" puis "☁ Sync Drive" pour retenter.';
+      }
+      alert(msg);
     }
   } else {
     alert('✓ '+count+' factures renumérotées !');
