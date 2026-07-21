@@ -1539,16 +1539,17 @@ function getBudgetTotals(budget){
   return{byCat,byLog};
 }
 // Retourne la répartition réelle d'une facture sur les logements : répartition manuelle en priorité, sinon Commun (égal sur tous), sinon logement unique
+// Chaque part porte sa propre catégorie (r.cat) si la facture a été répartie ligne par ligne avec des catégories différentes ; sinon la catégorie globale de la facture (f.cat).
 function getFactureShares(f, cfgLogements){
   const ttc=+f.ttc||0;
   if(f.repartition && Array.isArray(f.repartition) && f.repartition.length){
-    return f.repartition.map(r=>({log:r.log, montant:+r.montant||0}));
+    return f.repartition.map(r=>({log:r.log, cat:r.cat||f.cat, montant:+r.montant||0}));
   }
   if(f.log==='Commun'){
     const n=(cfgLogements&&cfgLogements.length)||1;
-    return cfgLogements.map(lg=>({log:lg.label, montant:ttc/n}));
+    return cfgLogements.map(lg=>({log:lg.label, cat:f.cat, montant:ttc/n}));
   }
-  return [{log:f.log, montant:ttc}];
+  return [{log:f.log, cat:f.cat, montant:ttc}];
 }
 // Rattache un texte libre (ex: détecté par l'IA sur une facture, "Lot A", "Appt B"...) au logement
 // réel correspondant dans la config de la structure. Retourne le label exact du logement, ou null.
@@ -1565,15 +1566,24 @@ function matchLogementLabel(text, cfgLogements){
 // Texte lisible du/des logement(s) d'une facture, pour les exports (CSV, PDF)
 function getLogDisplayText(f){
   if(f.repartition && f.repartition.length){
-    return f.repartition.map(r=>r.log+' ('+fmt(r.montant)+')').join(' + ');
+    return f.repartition.map(r=>r.log+(r.cat?' / '+r.cat:'')+' ('+fmt(r.montant)+')').join(' + ');
   }
   return f.log||'';
+}
+// Catégorie affichée pour une facture : catégorie unique si toutes les lignes de répartition partagent la même, sinon "Plusieurs catégories"
+function getCatDisplayText(f){
+  if(f.repartition && f.repartition.length){
+    const cats=[...new Set(f.repartition.map(r=>r.cat).filter(Boolean))];
+    if(cats.length===1)return cats[0];
+    if(cats.length>1)return 'Plusieurs catégories';
+  }
+  return f.cat||'';
 }
 // Badge HTML du/des logement(s) d'une facture, pour les tableaux à l'écran
 function renderLogBadgeHTML(f){
   if(f.repartition && f.repartition.length){
-    const detail=f.repartition.map(r=>r.log+' : '+fmt(r.montant)).join('  ·  ');
-    return `<span class="log-badge" style="background:#b794f426;color:#b794f4" title="${detail.replace(/"/g,'&quot;')}">🔀 ${f.repartition.length} logements</span>`;
+    const detail=f.repartition.map(r=>r.log+(r.cat?' / '+r.cat:'')+' : '+fmt(r.montant)).join('  ·  ');
+    return `<span class="log-badge" style="background:#b794f426;color:#b794f4" title="${detail.replace(/"/g,'&quot;')}">🔀 ${f.repartition.length} lignes</span>`;
   }
   const lcObj=LOGS.find(l=>l.key===f.log);
   const lc=lcObj?lcObj.color:'#b794f4';
@@ -1588,13 +1598,18 @@ function getReelTotals(factures){
   factures.forEach(f=>{
     if(f.inclus===false)return;
     const ttc=+f.ttc||0;
-    if(byCat[f.cat]!==undefined)byCat[f.cat]+=ttc;
     if(f.repartition && f.repartition.length){
-      getFactureShares(f,cfg.logements).forEach(s=>{ if(byLog[s.log]!==undefined)byLog[s.log]+=s.montant; });
-    } else if(f.log==='Commun'){
-      cfg.logements.forEach(lg=>{byLog[lg.label]+=ttc/nLogs;});
-      byLog['Commun']+=ttc;
-    } else if(byLog[f.log]!==undefined){byLog[f.log]+=ttc;}
+      getFactureShares(f,cfg.logements).forEach(s=>{
+        if(byCat[s.cat]!==undefined)byCat[s.cat]+=s.montant;
+        if(byLog[s.log]!==undefined)byLog[s.log]+=s.montant;
+      });
+    } else {
+      if(byCat[f.cat]!==undefined)byCat[f.cat]+=ttc;
+      if(f.log==='Commun'){
+        cfg.logements.forEach(lg=>{byLog[lg.label]+=ttc/nLogs;});
+        byLog['Commun']+=ttc;
+      } else if(byLog[f.log]!==undefined){byLog[f.log]+=ttc;}
+    }
   });
   return{byCat,byLog};
 }
@@ -1611,20 +1626,24 @@ function getReelMatrix(factures){
   factures.forEach(f=>{
     if(f.inclus===false)return;
     const ttc=+f.ttc||0;
-    if(!matrix[f.cat])return;
     if(f.repartition && f.repartition.length){
       getFactureShares(f,[]).forEach(s=>{
+        if(!matrix[s.cat])return;
         const l=LOGS.find(x=>x.key===s.log||x.label===s.log);
-        if(l&&l.prevKey!=='com') matrix[f.cat][l.prevKey]+=s.montant;
+        if(l&&l.prevKey!=='com') matrix[s.cat][l.prevKey]+=s.montant;
+        matrix[s.cat].total+=s.montant;
       });
-    } else if(f.log==='Commun'){
-      if(nLogs>0) LOGS.forEach(l=>{ if(l.prevKey!=='com') matrix[f.cat][l.prevKey]+=ttc/nLogs; });
-      matrix[f.cat].com+=ttc;
     } else {
-      const l=LOGS.find(x=>x.key===f.log);
-      if(l&&l.prevKey!=='com') matrix[f.cat][l.prevKey]+=ttc;
+      if(!matrix[f.cat])return;
+      if(f.log==='Commun'){
+        if(nLogs>0) LOGS.forEach(l=>{ if(l.prevKey!=='com') matrix[f.cat][l.prevKey]+=ttc/nLogs; });
+        matrix[f.cat].com+=ttc;
+      } else {
+        const l=LOGS.find(x=>x.key===f.log);
+        if(l&&l.prevKey!=='com') matrix[f.cat][l.prevKey]+=ttc;
+      }
+      matrix[f.cat].total+=ttc;
     }
-    matrix[f.cat].total+=ttc;
   });
   return matrix;
 }
@@ -2100,7 +2119,7 @@ function renderSynthese(){
       <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}</td>
-      <td style="font-size:11px;color:var(--text2)">${f.cat}</td>
+      <td style="font-size:11px;color:var(--text2)">${getCatDisplayText(f)}</td>
       <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-weight:600">${fmt(f.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:500">${f.statut}</td>
@@ -2386,7 +2405,7 @@ function renderFactures(){
     const matchSearch=!searchF||(f.four||'').toLowerCase().includes(searchF)||(f.num||'').toLowerCase().includes(searchF)||(f.desc||'').toLowerCase().includes(searchF)||(f.cat||'').toLowerCase().includes(searchF);
     const matchACompleter=!aCompleterF||(aCompleterF==='oui'&&f.gmailId&&(!f.ttc||f.ttc==0));
     const matchAnnee=!anneeF||(f.date&&f.date.slice(0,4)===anneeF);
-    return(!catF||f.cat===catF)&&(!logF||(f.repartition&&f.repartition.length?f.repartition.some(r=>r.log===logF):f.log===logF))&&(!stF||f.statut===stF)&&(!pdfF||(pdfF==='oui'?hasPdf:!hasPdf))&&(!regleF||f.regleby===regleF)&&matchSearch&&matchACompleter&&matchAnnee;
+    return(!catF||f.cat===catF||(f.repartition&&f.repartition.length&&f.repartition.some(r=>r.cat===catF)))&&(!logF||(f.repartition&&f.repartition.length?f.repartition.some(r=>r.log===logF):f.log===logF))&&(!stF||f.statut===stF)&&(!pdfF||(pdfF==='oui'?hasPdf:!hasPdf))&&(!regleF||f.regleby===regleF)&&matchSearch&&matchACompleter&&matchAnnee;
   }).sort((a,b)=>{
     const na=a.num||'';const nb=b.num||'';
     const ma=na.match(/FAC-(\d{4})-(\d+)/i);
@@ -2422,7 +2441,7 @@ function renderFactures(){
       <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${isDup?' <span style="font-size:9px;background:rgba(252,129,129,.25);color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON</span>':''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #f6ad55;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}</td>
-      <td style="color:var(--text2);font-size:11px">${f.cat}</td>
+      <td style="color:var(--text2);font-size:11px">${getCatDisplayText(f)}</td>
       <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(f.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:500">${f.statut}${alertBadge}</td>
@@ -2837,7 +2856,7 @@ function exportCSV(){
   const{factures}=loadData();
   if(!factures.length){alert('Aucune facture à exporter.');return;}
   const cols=['N° Facture','N° Commande','Date','Fournisseur','Catégorie','Logement','TTC €','Statut','Réglé par','Description','PDF joint'];
-  const rows=factures.map((f,i)=>[f.num,f.cmd||'',f.date,f.four,f.cat,getLogDisplayText(f),f.ttc,f.statut,f.regleby||'',f.desc,loadPdf(i)?'Oui':'Non'].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';'));
+  const rows=factures.map((f,i)=>[f.num,f.cmd||'',f.date,f.four,getCatDisplayText(f),getLogDisplayText(f),f.ttc,f.statut,f.regleby||'',f.desc,loadPdf(i)?'Oui':'Non'].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';'));
   const csv='\uFEFF'+cols.join(';')+'\n'+rows.join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='SCI_Lemyane_Factures_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
@@ -2846,7 +2865,7 @@ function exportPDF(){
   const{byCat:prev}=getBudgetTotals(budget);const{byCat:reel}=getReelTotals(factures);
   let tPrev=0,tReel=0;CATEGORIES.forEach(c=>{tPrev+=prev[c.name]||0;tReel+=reel[c.name]||0;});
   const catRows=CATEGORIES.map(c=>`<tr><td>${c.name}</td><td style="text-align:right">${fmt(prev[c.name]||0)}</td><td style="text-align:right">${fmt(reel[c.name]||0)}</td><td style="text-align:right;color:${(prev[c.name]||0)-(reel[c.name]||0)>=0?'#276749':'#c53030'}">${fmtE((prev[c.name]||0)-(reel[c.name]||0))}</td></tr>`).join('');
-  const rows=factures.map((f,i)=>`<tr><td>${f.num||'—'}</td><td>${f.date||'—'}</td><td>${f.four||'—'}</td><td>${f.cat}</td><td>${getLogDisplayText(f)}</td><td style="text-align:right">${fmt(f.ttc)}</td><td>${f.statut}</td><td>${f.cmd||'—'}</td><td><strong>${f.regleby||'—'}</strong></td><td style="text-align:center">${loadPdf(i)?'✓':''}</td></tr>`).join('');
+  const rows=factures.map((f,i)=>`<tr><td>${f.num||'—'}</td><td>${f.date||'—'}</td><td>${f.four||'—'}</td><td>${getCatDisplayText(f)}</td><td>${getLogDisplayText(f)}</td><td style="text-align:right">${fmt(f.ttc)}</td><td>${f.statut}</td><td>${f.cmd||'—'}</td><td><strong>${f.regleby||'—'}</strong></td><td style="text-align:center">${loadPdf(i)?'✓':''}</td></tr>`).join('');
   const cfg=getCTXConfig();
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${cfg.nom}</title>
   <style>body{font-family:Arial,sans-serif;font-size:12px;color:#1a202c;padding:32px}h1{font-size:18px;color:#2b6cb0;margin-bottom:4px}p.sub{color:#718096;font-size:11px;margin-bottom:24px}h2{font-size:13px;color:#2b6cb0;margin:20px 0 10px;border-bottom:2px solid #bee3f8;padding-bottom:4px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{text-align:left;padding:8px;background:#ebf8ff;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#2c5282}td{padding:7px 8px;font-size:11px;border-bottom:1px solid #e2e8f0}.kpi-grid{display:flex;gap:16px;margin-bottom:24px}.kpi{flex:1;background:#f0f9ff;border:1px solid #bee3f8;border-radius:8px;padding:12px}.kpi label{display:block;font-size:10px;color:#718096;text-transform:uppercase;margin-bottom:4px}.kpi span{font-size:18px;font-weight:700;color:#2b6cb0}</style></head><body>
@@ -3126,7 +3145,19 @@ function renderAnnuel(){
 
   // Par catégorie
   const byCat={};
-  filteredInclus.forEach(f=>{if(!byCat[f.cat])byCat[f.cat]={nb:0,ttc:0};byCat[f.cat].nb++;byCat[f.cat].ttc+=(+f.ttc||0);});
+  filteredInclus.forEach(f=>{
+    if(f.repartition && f.repartition.length){
+      const catsVues=new Set();
+      getFactureShares(f,[]).forEach(s=>{
+        if(!byCat[s.cat])byCat[s.cat]={nb:0,ttc:0};
+        byCat[s.cat].ttc+=s.montant;
+        if(!catsVues.has(s.cat)){byCat[s.cat].nb++;catsVues.add(s.cat);}
+      });
+    } else {
+      if(!byCat[f.cat])byCat[f.cat]={nb:0,ttc:0};
+      byCat[f.cat].nb++;byCat[f.cat].ttc+=(+f.ttc||0);
+    }
+  });
   const catRows=Object.entries(byCat).sort((a,b)=>b[1].ttc-a[1].ttc);
   document.getElementById('annuel-cat-tbody').innerHTML=catRows.map(([cat,v])=>{
     const col=CATEGORIES.find(c=>c.name===cat)?.color||'#94a3b8';
@@ -3168,7 +3199,7 @@ function renderAnnuel(){
       <td style="color:var(--text2)">${f.date||'—'}</td>
       <td style="color:var(--text2)">${f.datepay||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}</td>
-      <td style="font-size:11px;color:var(--text2)">${f.cat}</td>
+      <td style="font-size:11px;color:var(--text2)">${getCatDisplayText(f)}</td>
       <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-weight:600">${fmt(f.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:500">${f.statut}${alertBadge}</td>
@@ -3190,7 +3221,19 @@ function exportComptablePDF(){
   const total=filtered.reduce((s,f)=>s+(+f.ttc||0),0);
   const payees=filtered.filter(f=>f.statut==='Payée').reduce((s,f)=>s+(+f.ttc||0),0);
   const byCat={};
-  filtered.forEach(f=>{if(!byCat[f.cat])byCat[f.cat]={nb:0,ttc:0};byCat[f.cat].nb++;byCat[f.cat].ttc+=(+f.ttc||0);});
+  filtered.forEach(f=>{
+    if(f.repartition && f.repartition.length){
+      const catsVues=new Set();
+      getFactureShares(f,[]).forEach(s=>{
+        if(!byCat[s.cat])byCat[s.cat]={nb:0,ttc:0};
+        byCat[s.cat].ttc+=s.montant;
+        if(!catsVues.has(s.cat)){byCat[s.cat].nb++;catsVues.add(s.cat);}
+      });
+    } else {
+      if(!byCat[f.cat])byCat[f.cat]={nb:0,ttc:0};
+      byCat[f.cat].nb++;byCat[f.cat].ttc+=(+f.ttc||0);
+    }
+  });
 
   const catRows=Object.entries(byCat).sort((a,b)=>b[1].ttc-a[1].ttc)
     .map(([cat,v])=>`<tr><td>${cat}</td><td style="text-align:center">${v.nb}</td><td style="text-align:right">${fmt(v.ttc)}</td><td style="text-align:right">${total>0?Math.round(v.ttc/total*100):0}%</td></tr>`).join('');
@@ -3198,7 +3241,7 @@ function exportComptablePDF(){
   const detailSorted=filtered.slice().sort((a,b)=>(a.num||'').localeCompare(b.num||''));
   const detailRows=detailSorted.map(f=>`<tr>
     <td>${f.num||'—'}</td><td>${f.date||'—'}</td><td>${f.datepay||'—'}</td>
-    <td>${f.four||'—'}</td><td>${f.cat}</td><td>${getLogDisplayText(f)}</td>
+    <td>${f.four||'—'}</td><td>${getCatDisplayText(f)}</td><td>${getLogDisplayText(f)}</td>
     <td style="text-align:right">${fmt(f.ttc)}</td><td>${f.statut}</td>
   </tr>`).join('');
 
@@ -9030,8 +9073,15 @@ function exportComptableAnnuel(){
   // Par catégorie
   const parCat={};
   factAnnee.forEach(f=>{
-    if(!parCat[f.cat])parCat[f.cat]=0;
-    parCat[f.cat]+=+f.ttc||0;
+    if(f.repartition && f.repartition.length){
+      getFactureShares(f,[]).forEach(s=>{
+        if(!parCat[s.cat])parCat[s.cat]=0;
+        parCat[s.cat]+=s.montant;
+      });
+    } else {
+      if(!parCat[f.cat])parCat[f.cat]=0;
+      parCat[f.cat]+=+f.ttc||0;
+    }
   });
 
   // Amortissements (crédits)
@@ -9510,13 +9560,15 @@ window.toggleGeminiKeyVisibility=function(){
 
 // Appelle l'API Gemini en essayant chaque clé enregistrée l'une après l'autre :
 // si une clé est limitée (quota atteint), bascule automatiquement sur la suivante.
-async function callGeminiAPI(model, requestBody){
+// Si TOUTES les clés sont limitées, attend le délai suggéré par Google puis retente une fois.
+async function callGeminiAPI(model, requestBody, _dejaRetente){
   const keys=getGeminiKeys();
   if(!keys.length){
     const err=new Error('AUCUNE_CLE');
     throw err;
   }
   let lastError=null;
+  let delaiSuggere=null;
   for(let i=0;i<keys.length;i++){
     try{
       const resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+encodeURIComponent(keys[i]),{
@@ -9529,17 +9581,34 @@ async function callGeminiAPI(model, requestBody){
         const msg=(data.error.message||'').toLowerCase();
         const isQuota=data.error.status==='RESOURCE_EXHAUSTED'||resp.status===429||msg.includes('quota')||msg.includes('rate limit');
         lastError=new Error(data.error.message||'Erreur API Gemini');
-        if(isQuota && i<keys.length-1){
-          console.warn(`Clé Gemini #${i+1} limitée, passage à la suivante...`);
-          continue;
+        if(isQuota){
+          // Récupère le délai d'attente suggéré par Google (ex: "retryDelay":"20s" ou "Please retry in 20.04s")
+          let delaiSec=null;
+          const retryInfo=(data.error.details||[]).find(d=>(d['@type']||'').includes('RetryInfo'));
+          if(retryInfo && retryInfo.retryDelay) delaiSec=parseFloat(retryInfo.retryDelay);
+          if(delaiSec==null){ const m=msg.match(/retry in ([\d.]+)\s*s/); if(m) delaiSec=parseFloat(m[1]); }
+          if(delaiSec!=null) delaiSuggere=Math.max(delaiSuggere||0, Math.min(delaiSec,30));
+          if(i<keys.length-1){
+            console.warn(`Clé Gemini #${i+1} limitée (quota), passage à la suivante...`);
+            continue;
+          }
+        } else {
+          throw lastError;
         }
-        throw lastError;
+      } else {
+        return data;
       }
-      return data;
     }catch(e){
       lastError=e;
-      if(i===keys.length-1) throw lastError;
+      if(i<keys.length-1) continue;
     }
+  }
+  // Toutes les clés ont échoué. Si l'échec est bien un quota temporaire (pas encore retenté),
+  // on patiente le délai suggéré par Google puis on retente une fois l'ensemble des clés.
+  if(!_dejaRetente && delaiSuggere!=null){
+    console.warn(`Toutes les clés Gemini sont limitées, nouvelle tentative dans ${Math.ceil(delaiSuggere+1)}s...`);
+    await new Promise(r=>setTimeout(r,(delaiSuggere+1)*1000));
+    return callGeminiAPI(model, requestBody, true);
   }
   throw lastError||new Error('Échec de toutes les clés Gemini');
 }
@@ -9701,6 +9770,8 @@ function renderLignesPanel(lignes, tvaPct){
   const recap=document.getElementById('sv-repartition-recap');
   if(recap)recap.style.display='none';
   const logOptions=cfg.logements.map(l=>`<option value="${l.label.replace(/"/g,'&quot;')}">${l.label}</option>`).join('');
+  const catOptions=CATEGORIES.map(c=>`<option value="${c.name.replace(/"/g,'&quot;')}">${c.name}</option>`).join('');
+  const catFactureGlobale=document.getElementById('sv-cat')?.value||'';
   rows.innerHTML=_lignesFactureData.map((l,i)=>{
     return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px;background:var(--bg2);border-radius:8px">
       <div style="flex:2;min-width:140px">
@@ -9709,9 +9780,13 @@ function renderLignesPanel(lignes, tvaPct){
       </div>
       <input type="number" step="0.01" class="sv-ligne-montant" data-idx="${i}" value="${l.montant}" oninput="updateLignesTotal()" style="width:90px;padding:5px 8px;font-size:12px">
       <select class="sv-ligne-logement" data-idx="${i}" onchange="updateLignesTotal()" style="flex:1;min-width:130px;padding:5px 8px;font-size:12px">
-        <option value="">— Choisir —</option>
+        <option value="">— Logement —</option>
         ${logOptions}
         <option value="__commun__">Commun (parts égales)</option>
+      </select>
+      <select class="sv-ligne-categorie" data-idx="${i}" style="flex:1;min-width:150px;padding:5px 8px;font-size:12px">
+        <option value="">— Catégorie —</option>
+        ${catOptions}
       </select>
     </div>`;
   }).join('');
@@ -9722,6 +9797,9 @@ function renderLignesPanel(lignes, tvaPct){
       const sel=document.querySelector(`.sv-ligne-logement[data-idx="${i}"]`);
       if(sel)sel.value=guess;
     }
+    // Catégorie : pré-remplie avec la catégorie globale choisie pour la facture, modifiable ligne par ligne
+    const catSel=document.querySelector(`.sv-ligne-categorie[data-idx="${i}"]`);
+    if(catSel && catFactureGlobale)catSel.value=catFactureGlobale;
   });
   if(panel)panel.style.display='block';
   updateLignesTotal();
@@ -9748,41 +9826,55 @@ window.validerLignesFacture=function(){
   document.querySelectorAll('.sv-ligne-logement').forEach(sel=>{
     const idx=+sel.dataset.idx;
     const montantEl=document.querySelector(`.sv-ligne-montant[data-idx="${idx}"]`);
+    const catEl=document.querySelector(`.sv-ligne-categorie[data-idx="${idx}"]`);
     const montant=parseFloat(montantEl?.value)||0;
-    if(!sel.value){manque=true;return;}
-    rows.push({logement:sel.value,montant});
+    if(!sel.value || !catEl?.value){manque=true;return;}
+    rows.push({logement:sel.value,categorie:catEl.value,montant});
   });
-  if(manque){alert('Choisis un logement pour chaque ligne avant de valider (ou "Commun" si la ligne concerne tous les logements).');return;}
+  if(manque){alert('Choisis un logement ET une catégorie pour chaque ligne avant de valider (ou "Commun" si la ligne concerne tous les logements).');return;}
   if(!rows.length){alert('Aucune ligne à répartir.');return;}
-  // Regrouper par logement, en éclatant les lignes "Commun" à parts égales sur tous les logements
-  const buckets={};
-  cfg.logements.forEach(l=>{buckets[l.label]=0;});
+  // Regrouper par (logement + catégorie), en éclatant les lignes "Commun" à parts égales sur tous les logements
+  const buckets={}; // clé = "Logement||Catégorie"
+  const bucketKey=(log,cat)=>log+'||'+cat;
   rows.forEach(r=>{
     if(r.logement==='__commun__'){
       const n=cfg.logements.length||1;
-      cfg.logements.forEach(l=>{buckets[l.label]+=r.montant/n;});
+      cfg.logements.forEach(lg=>{
+        const k=bucketKey(lg.label,r.categorie);
+        buckets[k]=(buckets[k]||0)+r.montant/n;
+      });
     } else {
-      buckets[r.logement]=(buckets[r.logement]||0)+r.montant;
+      const k=bucketKey(r.logement,r.categorie);
+      buckets[k]=(buckets[k]||0)+r.montant;
     }
   });
-  let repartition=Object.entries(buckets).filter(([,m])=>m>0.01).map(([log,montant])=>({log,montant}));
+  let repartition=Object.entries(buckets).filter(([,m])=>m>0.01).map(([key,montant])=>{
+    const [log,cat]=key.split('||');
+    return{log,cat,montant};
+  });
   const ttcTotal=parseFloat(document.getElementById('sv-ttc').value)||repartition.reduce((s,r)=>s+r.montant,0);
   // Recaler proportionnellement pour que la somme corresponde exactement au TTC de la facture
   const sommeBrute=repartition.reduce((s,r)=>s+r.montant,0);
   if(sommeBrute>0 && ttcTotal>0){
     const scale=ttcTotal/sommeBrute;
-    repartition=repartition.map(r=>({log:r.log,montant:+(r.montant*scale).toFixed(2)}));
+    repartition=repartition.map(r=>({log:r.log,cat:r.cat,montant:+(r.montant*scale).toFixed(2)}));
     const ecart=+(ttcTotal-repartition.reduce((s,r)=>s+r.montant,0)).toFixed(2);
     if(Math.abs(ecart)>=0.01)repartition[repartition.length-1].montant=+(repartition[repartition.length-1].montant+ecart).toFixed(2);
   }
   const panel=document.getElementById('sv-lignes-panel');
   const recap=document.getElementById('sv-repartition-recap');
-  if(repartition.length<2){
-    // Toutes les lignes pointent vers le même logement : pas besoin de répartition, facture normale
+  // Fusion des lignes qui partagent le même logement (affichage simplifié) tout en gardant le détail par catégorie dans repartition
+  const logsDistincts=[...new Set(repartition.map(r=>r.log))];
+  if(logsDistincts.length<2 && new Set(repartition.map(r=>r.cat)).size<2){
+    // Un seul logement ET une seule catégorie : pas besoin de répartition, facture normale
     _pendingRepartition=null;
-    if(repartition.length===1)document.getElementById('sv-log').value=repartition[0].log;
+    if(repartition.length){
+      document.getElementById('sv-log').value=repartition[0].log;
+      const catSel=document.getElementById('sv-cat');
+      if(catSel)catSel.value=repartition[0].cat;
+    }
     if(panel)panel.style.display='none';
-    alert('Toutes les lignes ont été attribuées au même logement : la facture sera enregistrée normalement, sans répartition.');
+    alert('Toutes les lignes pointent vers le même logement et la même catégorie : la facture sera enregistrée normalement, sans répartition.');
     return;
   }
   _pendingRepartition=repartition;
@@ -9791,7 +9883,7 @@ window.validerLignesFacture=function(){
   if(logGroup)logGroup.style.display='none';
   if(recap){
     recap.style.display='block';
-    recap.innerHTML='✓ Répartition validée : '+repartition.map(r=>r.log+' ('+fmt(r.montant)+')').join(' + ')+' <a href="#" onclick="annulerRepartitionLignes();return false" style="color:var(--text2);margin-left:8px">Modifier</a>';
+    recap.innerHTML='✓ Répartition validée : '+repartition.map(r=>r.log+' — '+r.cat+' ('+fmt(r.montant)+')').join(' + ')+' <a href="#" onclick="annulerRepartitionLignes();return false" style="color:var(--text2);margin-left:8px">Modifier</a>';
   }
 };
 window.annulerRepartitionLignes=function(){
@@ -11260,7 +11352,7 @@ function buildDataContext(){
   const facAttente=facIncluses.filter(f=>f.statut==='En attente');
   ctx+=`\n--- FACTURES (${factures.length} total: ${facPayees.length} payées, ${facAttente.length} en attente, ${facExclues.length} exclues) ---\n`;
   factures.slice().sort((a,b)=>(a.num||'').localeCompare(b.num||'')).forEach(f=>{
-    ctx+=`${f.num||'?'} | ${f.date||'?'} | ${f.four||'?'} | ${f.cat} | ${getLogDisplayText(f)} | ${fmt(f.ttc)} | ${f.statut} | réglé: ${f.regleby||'—'}${f.inclus===false?' | EXCLU DU BUDGET':''}${f.desc?' | '+f.desc:''}\n`;
+    ctx+=`${f.num||'?'} | ${f.date||'?'} | ${f.four||'?'} | ${getCatDisplayText(f)} | ${getLogDisplayText(f)} | ${fmt(f.ttc)} | ${f.statut} | réglé: ${f.regleby||'—'}${f.inclus===false?' | EXCLU DU BUDGET':''}${f.desc?' | '+f.desc:''}\n`;
   });
 
   // Locataires et loyers
