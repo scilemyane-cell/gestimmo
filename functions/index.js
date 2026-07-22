@@ -120,9 +120,9 @@ exports.stripeWebhook = onRequest(
                   plan: plan || null,
                   priceId: subscription.items.data[0]?.price?.id || null,
                   stripeSubscriptionId: subscription.id,
-                  currentPeriodEnd: subscription.current_period_end,
-                  trialEnd: subscription.trial_end,
-                  cancelAtPeriodEnd: subscription.cancel_at_period_end,
+                 currentPeriodEnd: subscription.current_period_end || null,
+trialEnd: subscription.trial_end || null,
+cancelAtPeriodEnd: subscription.cancel_at_period_end || null,
                 },
               },
               { merge: true }
