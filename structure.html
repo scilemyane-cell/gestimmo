@@ -2694,27 +2694,35 @@ function renderBanque(){
       const color=lg?lg.color:'#b794f4';
       const label=lg?lg.label:(k==='Commun'?'Terrain (Commun)':'Logement '+k);
       const capital=+((fc[k]&&fc[k].capital)||0);
+      const fraisDossier=+((fc[k]&&fc[k].fraisdossier)||0);
+      const horsFacture=+((fc[k]&&fc[k].horsfacture)||0);
+      const sansFacture=fraisDossier+horsFacture;
       const deb=deblocage[k]||{transmis:0,paye:0};
-      const pctTransmis=capital>0?(deb.transmis/capital*100):0;
-      const pctPaye=capital>0?(deb.paye/capital*100):0;
+      const pctTransmis=capital>0?((deb.transmis+sansFacture)/capital*100):0;
+      const pctPaye=capital>0?((deb.paye+sansFacture)/capital*100):0;
       if(capital<=0){
         return`<div class="log-card" style="--lc:${color};padding:12px 14px"><h3 style="font-size:12px;margin-bottom:4px">${label}</h3><div style="font-size:10px;color:var(--text3)">Capital emprunté non renseigné (onglet 💳 Financement)</div></div>`;
       }
+      const detailLignes=[
+        fraisDossier>0?`📋 frais de dossier : ${fmt(fraisDossier)}`:'',
+        horsFacture>0?`📄 hors facture (terrain, notaire...) : ${fmt(horsFacture)}`:''
+      ].filter(Boolean);
       return`<div class="log-card" style="--lc:${color};padding:12px 14px">
         <h3 style="font-size:12px;margin-bottom:8px">${label}</h3>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
-          <span>🏦 Transmis</span><span>${fmt(deb.transmis)} / ${fmt(capital)} (${pctTransmis.toFixed(0)}%)</span>
+          <span>🏦 Transmis${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.transmis+sansFacture)} / ${fmt(capital)} (${pctTransmis.toFixed(0)}%)</span>
         </div>
         <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden;margin-bottom:8px">
           <div style="background:var(--accent);height:100%;width:${Math.min(pctTransmis,100)}%"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
-          <span>✓ Payé</span><span>${fmt(deb.paye)} / ${fmt(capital)} (${pctPaye.toFixed(0)}%)</span>
+          <span>✓ Payé${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.paye+sansFacture)} / ${fmt(capital)} (${pctPaye.toFixed(0)}%)</span>
         </div>
         <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden">
           <div style="background:var(--green);height:100%;width:${Math.min(pctPaye,100)}%"></div>
         </div>
-        <div style="font-size:9px;color:var(--text3);margin-top:6px">Reste à débloquer : <strong style="color:var(--text2)">${fmt(Math.max(capital-deb.transmis,0))}</strong></div>
+        <div style="font-size:9px;color:var(--text3);margin-top:6px">Reste à débloquer : <strong style="color:var(--text2)">${fmt(Math.max(capital-deb.transmis-sansFacture,0))}</strong></div>
+        ${detailLignes.length?`<div style="font-size:9px;color:var(--text3);margin-top:3px">${detailLignes.join(' · ')}</div>`:''}
       </div>`;
     }).join('');
   }
@@ -6971,6 +6979,8 @@ function saveFinancementCredit(){
       taux:+el('fc-taux-'+k).value||0,duree:+el('fc-duree-'+k).value||0,
       debut:debutNorm,pno:+el('fc-pno-'+k).value||0,
       assuremp:+el('fc-assuremp-'+k).value||0,apport:+el('fc-apport-'+k).value||0,
+      fraisdossier:+(el('fc-fraisdossier-'+k)?el('fc-fraisdossier-'+k).value:0)||0,
+      horsfacture:+(el('fc-horsfacture-'+k)?el('fc-horsfacture-'+k).value:0)||0,
       tauxOverrides:(existing[k]&&existing[k].tauxOverrides)||{},
     };
   });
@@ -7093,23 +7103,32 @@ function renderFinancement(){
     const color=lg?lg.color:'#b794f4';
     const label=lg?lg.label:(k==='Commun'?'Terrain (Commun)':'Logement '+k);
     const capital=+((fc[k]&&fc[k].capital)||0);
+    const fraisDossier=+((fc[k]&&fc[k].fraisdossier)||0);
+    const horsFacture=+((fc[k]&&fc[k].horsfacture)||0);
+    const sansFacture=fraisDossier+horsFacture;
     const deb=deblocage[k]||{transmis:0,paye:0};
-    const pctTransmis=capital>0?(deb.transmis/capital*100):0;
-    const pctPaye=capital>0?(deb.paye/capital*100):0;
+    const pctTransmis=capital>0?((deb.transmis+sansFacture)/capital*100):0;
+    const pctPaye=capital>0?((deb.paye+sansFacture)/capital*100):0;
+    const detailLignes=[
+      fraisDossier>0?`📋 Frais de dossier : ${fmt(fraisDossier)}`:'',
+      horsFacture>0?`📄 Autres montants sans facture (terrain, notaire...) : ${fmt(horsFacture)}`:''
+    ].filter(Boolean);
+    const fraisLigne=detailLignes.length?`<div style="font-size:9px;color:var(--text3);margin-top:6px">${detailLignes.join('<br>')}</div>`:'';
     const suiviHtml=capital>0?`<div style="margin-top:2px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
-          <span>🏦 Transmis banque</span><span>${fmt(deb.transmis)} / ${fmt(capital)} (${pctTransmis.toFixed(0)}%)</span>
+          <span>🏦 Transmis banque${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.transmis+sansFacture)} / ${fmt(capital)} (${pctTransmis.toFixed(0)}%)</span>
         </div>
         <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden;margin-bottom:8px">
           <div style="background:var(--accent);height:100%;width:${Math.min(pctTransmis,100)}%"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
-          <span>✓ Payé</span><span>${fmt(deb.paye)} / ${fmt(capital)} (${pctPaye.toFixed(0)}%)</span>
+          <span>✓ Payé${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.paye+sansFacture)} / ${fmt(capital)} (${pctPaye.toFixed(0)}%)</span>
         </div>
         <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden">
           <div style="background:var(--green);height:100%;width:${Math.min(pctPaye,100)}%"></div>
         </div>
-        <div style="font-size:9px;color:var(--text3);margin-top:6px">Reste à débloquer (banque) : <strong style="color:var(--text2)">${fmt(Math.max(capital-deb.transmis,0))}</strong></div>
+        <div style="font-size:9px;color:var(--text3);margin-top:6px">Reste à débloquer (banque) : <strong style="color:var(--text2)">${fmt(Math.max(capital-deb.transmis-sansFacture,0))}</strong></div>
+        ${fraisLigne}
       </div>`:'';
     return`<div class="log-card" style="--lc:${color}"><h3>${label}</h3>
       <div class="form-grid" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px">
@@ -7121,6 +7140,8 @@ function renderFinancement(){
         <div class="form-group"><label>Apport personnel (€)</label><input type="number" id="fc-apport-${k}" step="100" onchange="saveFinancementCredit();renderFinancement()"></div>
         <div class="form-group"><label>Assurance PNO (€/an)</label><input type="number" id="fc-pno-${k}" step="10" onchange="saveFinancementCredit();renderFinancement()"></div>
         <div class="form-group"><label>Assurance emprunteur (€/an)</label><input type="number" id="fc-assuremp-${k}" step="10" onchange="saveFinancementCredit();renderFinancement()"></div>
+        <div class="form-group"><label>Frais de dossier (€)</label><input type="number" id="fc-fraisdossier-${k}" step="10" onchange="saveFinancementCredit();renderFinancement()" title="Prélevés directement sur le capital emprunté, sans facture — déduits automatiquement du reste à débloquer"></div>
+        <div class="form-group"><label>Autres montants sans facture (€)</label><input type="number" id="fc-horsfacture-${k}" step="100" onchange="saveFinancementCredit();renderFinancement()" title="Ex: achat du terrain payé par acte notarié, ou tout montant débloqué sur ce crédit sans facture à enregistrer dans l'app — déduit du reste à débloquer"></div>
       </div>
       ${suiviHtml}
       <div style="display:flex;justify-content:center;gap:8px;margin-top:12px">
@@ -7168,7 +7189,7 @@ function renderFinancement(){
     set('fc-capital-'+k,d.capital||'');set('fc-tauxtype-'+k,d.tauxType||'variable');
     set('fc-taux-'+k,d.taux||'');set('fc-duree-'+k,d.duree||'');
     set('fc-debut-'+k,d.debut||'');set('fc-pno-'+k,d.pno||'');
-    set('fc-assuremp-'+k,d.assuremp||'');set('fc-apport-'+k,d.apport||'');
+    set('fc-assuremp-'+k,d.assuremp||'');set('fc-apport-'+k,d.apport||'');set('fc-fraisdossier-'+k,d.fraisdossier||'');set('fc-horsfacture-'+k,d.horsfacture||'');
   });
   set('fc-regime',fc.regime||(isSCI?'IR':'LMNP'));
   set('fc-tauximpot',fc.tauximpot||'');
