@@ -6969,6 +6969,37 @@ function updateTauxAnnee(logKey,annee,value){
   renderFinancement();
 }
 
+// Tableau d'amortissement du crédit sélectionné dans le filtre #fc-amort-select.
+// Fonction manquante du fichier d'origine (appelée mais jamais définie) — cause de
+// l'erreur "renderFinancementAmort is not defined" à l'ouverture de l'onglet Financement.
+function renderFinancementAmort(){
+  const table=document.getElementById('fc-amort-table');
+  const sel=document.getElementById('fc-amort-select');
+  if(!table||!sel)return;
+  const k=sel.value;
+  const fc=loadFC();
+  const d=fc[k]||{};
+  const isVariable=d.tauxType==='variable';
+  const ov=isVariable?(d.tauxOverrides||{}):null;
+  const a=computeAmortization(+d.capital||0,+d.taux||0,+d.duree||0,ov);
+  if(!a.years.length){
+    table.innerHTML='<tr><td style="padding:16px;color:var(--text3);font-size:12px">Renseigne le capital, le taux et la durée de ce crédit (ci-dessus) pour voir apparaître le tableau d\'amortissement.</td></tr>';
+    return;
+  }
+  const rows=a.years.map(y=>`<tr>
+    <td>Année ${y.annee}</td>
+    <td style="text-align:right">${isVariable?`<input type="number" value="${y.taux}" step="0.05" style="width:70px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px;text-align:right;font-family:var(--font)" onchange="updateTauxAnnee('${k}',${y.annee},this.value)" title="Taux applicable pour cette année (modifiable pour un prêt à taux variable)">`:(y.taux.toFixed(2)+' %')}</td>
+    <td style="text-align:right">${fmt(y.mensualite)}</td>
+    <td style="text-align:right">${fmt(y.interets)}</td>
+    <td style="text-align:right">${fmt(y.capital)}</td>
+    <td style="text-align:right;font-weight:600">${fmt(y.solde)}</td>
+  </tr>`).join('');
+  table.innerHTML=`<thead><tr>
+    <th>Année</th><th style="text-align:right">Taux</th><th style="text-align:right">Mensualité</th>
+    <th style="text-align:right">Intérêts</th><th style="text-align:right">Capital remboursé</th><th style="text-align:right">Capital restant dû</th>
+  </tr></thead><tbody>${rows}</tbody>`;
+}
+
 function saveFinancementCredit(){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const existing=loadFC();const fc={};
