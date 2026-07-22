@@ -836,6 +836,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         <option value="Payée">Payée</option>
         <option value="En attente">En attente</option>
         <option value="Partiel">Partiel</option>
+        <option value="Transmise à la banque">Transmise à la banque</option>
       </select>
       <select class="filter-select" id="filter-regleby" onchange="renderFactures()">
         <option value="">Tous — Réglé par</option>
@@ -971,6 +972,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
           <option value="En attente">En attente</option>
           <option value="Payée">Payée</option>
           <option value="Partiel">Partiel</option>
+          <option value="Transmise à la banque">Transmise à la banque</option>
         </select>
       </div>
       <div class="form-group"><label>Réglé par</label>
@@ -1160,7 +1162,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       </div>
       <div class="form-group"><label>Statut</label>
         <select id="e-statut">
-          <option value="En attente">En attente</option><option value="Payée">Payée</option><option value="Partiel">Partiel</option>
+          <option value="En attente">En attente</option><option value="Payée">Payée</option><option value="Partiel">Partiel</option><option value="Transmise à la banque">Transmise à la banque</option>
         </select>
       </div>
       <div class="form-group"><label>Réglé par</label>
@@ -2114,7 +2116,7 @@ function renderSynthese(){
   // 5 dernières factures
   const last5=[...factures].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
   document.getElementById('synth-last-factures').innerHTML=last5.map(f=>{
-    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':'#b794f4';
+    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':f.statut==='Transmise à la banque'?'#63b3ed':'#b794f4';
     return`<tr>
       <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
@@ -2434,7 +2436,7 @@ function renderFactures(){
       if(daysDiff>60){alertClass='row-alert-danger';alertBadge='<span style="font-size:9px;background:rgba(252,129,129,.2);color:var(--red);border:1px solid rgba(252,129,129,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⚠ +'+daysDiff+'j</span>';}
       else if(daysDiff>30){alertClass='row-alert-warn';alertBadge='<span style="font-size:9px;background:rgba(246,173,85,.2);color:var(--orange);border:1px solid rgba(246,173,85,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⏰ '+daysDiff+'j</span>';}
     }
-    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':'#b794f4';
+    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':f.statut==='Transmise à la banque'?'#63b3ed':'#b794f4';
     const isDup=dupIndices.has(ri);
     if(isDup){alertClass='row-alert-duplicate';}
     return`<tr class="${alertClass}" style="${excluStyle}">
@@ -3193,7 +3195,7 @@ function renderAnnuel(){
       if(daysDiff>60){alertClass='row-alert-danger';alertBadge='<span style="font-size:9px;background:rgba(252,129,129,.2);color:var(--red);border:1px solid rgba(252,129,129,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⚠ +'+daysDiff+'j</span>';}
       else if(daysDiff>30){alertClass='row-alert-warn';alertBadge='<span style="font-size:9px;background:rgba(246,173,85,.2);color:var(--orange);border:1px solid rgba(246,173,85,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⏰ '+daysDiff+'j</span>';}
     }
-    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':'#b794f4';
+    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':f.statut==='Transmise à la banque'?'#63b3ed':'#b794f4';
     return`<tr class="${alertClass}" style="${excluStyle}">
       <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #f6ad55;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
@@ -3441,7 +3443,7 @@ async function exportZipFactures(){
     const f=filtered[i];
     let b64=loadPdf(f._idx);
     const nom=(f.num||('FAC '+(i+1)))+' — '+(f.four||'')+(f.date?' · '+f.date:'');
-    const sc=f.statut==='Payée'?'#276749':f.statut==='En attente'?'#c05621':'#2c5282';
+    const sc=f.statut==='Payée'?'#276749':f.statut==='En attente'?'#c05621':f.statut==='Transmise à la banque'?'#2b6cb0':'#2c5282';
     const montant=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(f.ttc);
     if(statusText)statusText.textContent=`Conversion des PDF… ${i+1}/${filtered.length}`;
 
@@ -11277,6 +11279,7 @@ window._authReady.then(async () => {
           <option value="En attente">En attente</option>
           <option value="Payée">Payée</option>
           <option value="Partiel">Partiel</option>
+          <option value="Transmise à la banque">Transmise à la banque</option>
         </select>
       </div>
       <div class="split-field"><label>Réglé par</label>
