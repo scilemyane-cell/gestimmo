@@ -836,7 +836,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         <option value="Payée">Payée</option>
         <option value="En attente">En attente</option>
         <option value="Partiel">Partiel</option>
-        <option value="Transmise à la banque">Transmise à la banque</option>
       </select>
       <select class="filter-select" id="filter-regleby" onchange="renderFactures()">
         <option value="">Tous — Réglé par</option>
@@ -972,7 +971,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
           <option value="En attente">En attente</option>
           <option value="Payée">Payée</option>
           <option value="Partiel">Partiel</option>
-          <option value="Transmise à la banque">Transmise à la banque</option>
         </select>
       </div>
       <div class="form-group"><label>Réglé par</label>
@@ -1072,6 +1070,43 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   <div id="cr-impact-annuel" class="table-wrap" style="padding:18px 22px"></div>
 </div>
 
+<!-- BANQUE — Factures à transmettre pour appel de fonds / justificatifs bancaires -->
+<div class="content" id="tab-banque">
+  <div class="section-title">🏦 Factures à transmettre à la banque</div>
+  <div style="background:rgba(99,179,237,.08);border:1px solid rgba(99,179,237,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
+    ℹ️ Coche les factures pour les marquer transmises en une fois, ou ouvre/télécharge chaque facture individuellement pour l'envoyer avec son bon à la banque.
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <input type="text" id="banque-filter-search" placeholder="🔍 Rechercher fournisseur, N°..." oninput="renderBanque()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;min-width:220px;flex:1">
+    <select class="filter-select" id="banque-filter-annee" onchange="renderBanque()"><option value="">Toutes années</option></select>
+    <select class="filter-select" id="banque-filter-log" onchange="renderBanque()"><option value="">Tous logements</option></select>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">
+      <input type="checkbox" id="banque-show-all" onchange="renderBanque()" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)">
+      Afficher aussi les factures déjà transmises
+    </label>
+    <div id="banque-count" style="font-size:11px;color:var(--text3);margin-left:auto"></div>
+  </div>
+
+  <div id="banque-bulk-bar" style="display:none;align-items:center;gap:12px;background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.3);border-radius:10px;padding:10px 16px;margin-bottom:14px;flex-wrap:wrap">
+    <span id="banque-sel-count" style="font-size:12px;color:var(--accent);font-weight:600"></span>
+    <button class="btn btn-sm" onclick="marquerSelectionBanqueTransmise()" style="background:rgba(104,211,145,.15);border-color:rgba(104,211,145,.4);color:var(--green)">✅ Marquer la sélection comme transmise</button>
+    <button class="btn btn-sm" id="banque-export-btn" onclick="exporterSelectionBanque()" style="background:rgba(183,148,244,.15);border-color:rgba(183,148,244,.4);color:var(--purple)">🖨 Exporter la sélection (PDF groupé)</button>
+    <span id="banque-export-status" style="display:none;font-size:10px;color:var(--purple)"></span>
+  </div>
+
+  <div class="table-wrap">
+    <table class="factures-table">
+      <thead><tr>
+        <th style="text-align:center"><input type="checkbox" onchange="toggleBanqueSelectAll(this.checked)" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)" title="Sélectionner tout"></th>
+        <th>N° Facture</th><th>Date</th><th>Fournisseur</th><th>Logement</th>
+        <th style="text-align:right">TTC</th><th>Statut paiement</th><th style="text-align:center">PDF</th><th style="text-align:center">Transmission</th>
+      </tr></thead>
+      <tbody id="banque-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="banque-empty" style="display:none">Aucune facture à transmettre.</div>
+  </div>
+</div>
+
 <!-- PATRIMOINE — Vue consolidée, overlay plein écran indépendant du switch SCI/LMNP -->
 <div id="overlay-patrimoine" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:5000;overflow-y:auto;isolation:isolate">
   <div style="position:sticky;top:0;z-index:10;background:var(--bg2);border-bottom:1px solid var(--border2);padding:16px 24px;display:flex;justify-content:space-between;align-items:center">
@@ -1162,7 +1197,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       </div>
       <div class="form-group"><label>Statut</label>
         <select id="e-statut">
-          <option value="En attente">En attente</option><option value="Payée">Payée</option><option value="Partiel">Partiel</option><option value="Transmise à la banque">Transmise à la banque</option>
+          <option value="En attente">En attente</option><option value="Payée">Payée</option><option value="Partiel">Partiel</option>
         </select>
       </div>
       <div class="form-group"><label>Réglé par</label>
@@ -1417,6 +1452,7 @@ let editIdx=null;
 let editLocId=null;
 let chartBar=null,chartDonut=null,chartLogBar=null,chartLogPrev=null,chartDashCat=null,chartDashLog=null,chartDashTop=null,chartDashStack=null,chartRentCashflow=null,chartProjection=null;
 let pendingPdfB64=null,pendingPdfName=null; // saisie
+let banqueSelection=new Set(); // indices des factures sélectionnées dans l'onglet Banque
 let editPdfB64=null,editPdfName=null;       // edition
 
 // ── Storage (factures séparées des PDF pour éviter quota) ─────────────────
@@ -1945,7 +1981,7 @@ function getTabGroups(){
   const mods = getModulesConfig();
   const groups = [];
   if(mods.construction) groups.push({id:'construction',label:'🏗️ Construction prévisionnelle',tabs:['synthese','logements','budget','dashboard']});
-  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['factures','annuel','saisie','charges-recurrentes']});
+  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['factures','annuel','saisie','charges-recurrentes','banque']});
   if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']});
   if(mods.financement) groups.push({id:'financement',label:'💰 Financement',tabs:['projection','financement']});
   groups.push(paramGroup);
@@ -1953,7 +1989,7 @@ function getTabGroups(){
 }
 function getTabLabels(){return{
   synthese:'Synthèse',logements:'Par logement',budget:'Budget prévisionnel',dashboard:'📊 Dashboard Prév.',
-  factures:'Factures réelles',annuel:'📅 Par année',saisie:'+ Saisir une facture','charges-recurrentes':'🔁 Charges récurrentes',
+  factures:'Factures réelles',annuel:'📅 Par année',saisie:'+ Saisir une facture','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque',
   locataires:'Fiches & loyers','gestion-locative':'📁 Gestion locative',rentabilite:'📈 Rentabilité',
   projection:'🔭 Projection 20 ans',financement:'💳 Crédit & charges',
   parametres:'⚙️ Paramètres'
@@ -1997,6 +2033,7 @@ function showTab(id){
   if(id==='factures')renderFactures();
   if(id==='annuel')renderAnnuel();
   if(id==='charges-recurrentes')renderChargesRecurrentes();
+  if(id==='banque')renderBanque();
   if(id==='saisie'){
     const numField=document.getElementById('f-num');
     if(numField&&!numField.value) numField.value=getNextFactureNum();
@@ -2116,7 +2153,7 @@ function renderSynthese(){
   // 5 dernières factures
   const last5=[...factures].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
   document.getElementById('synth-last-factures').innerHTML=last5.map(f=>{
-    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':f.statut==='Transmise à la banque'?'#63b3ed':'#b794f4';
+    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':'#b794f4';
     return`<tr>
       <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
@@ -2436,7 +2473,7 @@ function renderFactures(){
       if(daysDiff>60){alertClass='row-alert-danger';alertBadge='<span style="font-size:9px;background:rgba(252,129,129,.2);color:var(--red);border:1px solid rgba(252,129,129,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⚠ +'+daysDiff+'j</span>';}
       else if(daysDiff>30){alertClass='row-alert-warn';alertBadge='<span style="font-size:9px;background:rgba(246,173,85,.2);color:var(--orange);border:1px solid rgba(246,173,85,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⏰ '+daysDiff+'j</span>';}
     }
-    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':f.statut==='Transmise à la banque'?'#63b3ed':'#b794f4';
+    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':'#b794f4';
     const isDup=dupIndices.has(ri);
     if(isDup){alertClass='row-alert-duplicate';}
     return`<tr class="${alertClass}" style="${excluStyle}">
@@ -2560,6 +2597,187 @@ function toggleInclus(idx,val){
   saveFactures(d.factures);
   renderFactures();
   renderSynthese();
+}
+
+// ── BANQUE — Transmission des factures (indépendant du statut de paiement) ─
+function toggleBanque(idx,val){
+  const d=loadData();
+  if(!d.factures[idx])return;
+  d.factures[idx].banque=val;
+  saveFactures(d.factures);
+  renderBanque();
+  renderFactures();
+}
+function toggleBanqueSelection(idx,checked){
+  if(checked)banqueSelection.add(idx);else banqueSelection.delete(idx);
+  renderBanque();
+}
+function getBanqueFiltered(factures){
+  const anneeF=document.getElementById('banque-filter-annee')?.value||'';
+  const logF=document.getElementById('banque-filter-log')?.value||'';
+  const searchF=(document.getElementById('banque-filter-search')?.value||'').toLowerCase().trim();
+  const showAll=document.getElementById('banque-show-all')?.checked||false;
+  return factures.map((f,i)=>({...f,_ri:i})).filter(f=>{
+    const matchAnnee=!anneeF||(f.date&&f.date.slice(0,4)===anneeF);
+    const matchLog=!logF||(f.repartition&&f.repartition.length?f.repartition.some(r=>r.log===logF):f.log===logF);
+    const matchSearch=!searchF||(f.four||'').toLowerCase().includes(searchF)||(f.num||'').toLowerCase().includes(searchF);
+    const matchTransmis=showAll||!f.banque;
+    return matchAnnee&&matchLog&&matchSearch&&matchTransmis&&f.inclus!==false;
+  }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+}
+function toggleBanqueSelectAll(checked){
+  const{factures}=loadData();
+  getBanqueFiltered(factures).forEach(f=>{
+    if(checked)banqueSelection.add(f._ri);else banqueSelection.delete(f._ri);
+  });
+  renderBanque();
+}
+function marquerSelectionBanqueTransmise(){
+  if(banqueSelection.size===0)return;
+  const d=loadData();
+  banqueSelection.forEach(idx=>{if(d.factures[idx])d.factures[idx].banque=true;});
+  saveFactures(d.factures);
+  banqueSelection.clear();
+  renderBanque();
+  renderFactures();
+}
+function renderBanque(){
+  const{factures}=loadData();
+  const yearSel=document.getElementById('banque-filter-annee');
+  if(yearSel){
+    const years=getYears(factures);
+    const cur=yearSel.value;
+    yearSel.innerHTML='<option value="">Toutes années</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');
+    if(cur&&years.includes(cur))yearSel.value=cur;
+  }
+  const filtered=getBanqueFiltered(factures);
+  const emptyEl=document.getElementById('banque-empty');
+  if(emptyEl)emptyEl.style.display=filtered.length?'none':'block';
+  const total=filtered.reduce((s,f)=>s+(+f.ttc||0),0);
+  const countEl=document.getElementById('banque-count');
+  if(countEl)countEl.textContent=filtered.length+' facture'+(filtered.length>1?'s':'')+' · '+fmt(total);
+
+  const tbody=document.getElementById('banque-tbody');
+  if(tbody)tbody.innerHTML=filtered.map(f=>{
+    const ri=f._ri;
+    const hasPdf=!!loadPdf(ri);
+    const checked=banqueSelection.has(ri)?'checked':'';
+    return`<tr>
+      <td style="text-align:center"><input type="checkbox" ${checked} onchange="toggleBanqueSelection(${ri},this.checked)" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"></td>
+      <td style="color:var(--accent);font-weight:500">${f.num||'—'}</td>
+      <td style="color:var(--text2)">${f.date||'—'}</td>
+      <td style="font-weight:500">${f.four||'—'}</td>
+      <td>${renderLogBadgeHTML(f)}</td>
+      <td style="text-align:right;font-weight:600">${fmt(f.ttc)}</td>
+      <td style="font-size:11px;color:var(--text2)">${f.statut||'—'}</td>
+      <td style="text-align:center">
+        ${hasPdf?`<button class="btn-pdf-view" onclick="viewPdf(${ri},'${(f.four||'Facture').replace(/'/g,"\\'")}')">📄 Voir</button>`:''}
+        ${f.driveLink?`<a href="${f.driveLink}" target="_blank" style="background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}
+        ${!hasPdf&&!f.driveLink?'<span style="font-size:10px;color:var(--text3)">—</span>':''}
+      </td>
+      <td style="text-align:center">
+        <button class="btn btn-sm" style="${f.banque?'background:rgba(99,179,237,.15);border-color:rgba(99,179,237,.45);color:var(--accent)':'background:rgba(100,116,139,.1);border-color:rgba(100,116,139,.3);color:var(--text2)'}" onclick="toggleBanque(${ri},${!f.banque})">${f.banque?'✓ Transmise':'🏦 Marquer transmise'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const selCountEl=document.getElementById('banque-sel-count');
+  if(selCountEl)selCountEl.textContent=banqueSelection.size+' sélectionnée'+(banqueSelection.size>1?'s':'');
+  const bulkBar=document.getElementById('banque-bulk-bar');
+  if(bulkBar)bulkBar.style.display=banqueSelection.size>0?'flex':'none';
+}
+
+// Export groupé (impression PDF) de la sélection courante de l'onglet Banque.
+// Réutilise les mêmes helpers que l'export ZIP annuel (downloadDriveFileAsBase64,
+// pdfToImages, imageToPortrait), promus en fonctions globales ci-dessous.
+async function exporterSelectionBanque(){
+  const{factures}=loadData();
+  const ids=Array.from(banqueSelection).filter(idx=>factures[idx]);
+  if(ids.length===0){alert('Sélectionne au moins une facture.');return;}
+  const filtered=ids.map(idx=>({...factures[idx],_idx:idx}));
+
+  const aBesoinDrive=filtered.some(f=>!loadPdf(f._idx)&&f.driveLink);
+  if(aBesoinDrive&&!driveAccessToken){
+    if(!confirm('Certaines factures sélectionnées n\'ont pas de PDF sur cet appareil, mais existent sur Drive.\nConnecte d\'abord Google Drive (bouton de connexion) pour les récupérer, sinon elles apparaîtront en "PDF manquant".\n\nContinuer sans Drive ?'))return;
+  }
+
+  const btn=document.getElementById('banque-export-btn');
+  const statusEl=document.getElementById('banque-export-status');
+  if(btn){btn.innerHTML='⏳ Préparation…';btn.disabled=true;}
+  if(statusEl){statusEl.style.display='inline';statusEl.textContent='Préparation…';}
+
+  const itemsHtml=[];
+  let depuisDrive=0;
+  for(let i=0;i<filtered.length;i++){
+    const f=filtered[i];
+    let b64=loadPdf(f._idx);
+    const nom=(f.num||('FAC '+(i+1)))+' — '+(f.four||'')+(f.date?' · '+f.date:'');
+    const sc=f.statut==='Payée'?'#276749':f.statut==='En attente'?'#c05621':'#2c5282';
+    const montant=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(f.ttc);
+    if(statusEl)statusEl.textContent=`Conversion des PDF… ${i+1}/${filtered.length}`;
+
+    if(!b64&&f.driveLink){
+      if(statusEl)statusEl.textContent=`Téléchargement depuis Drive… ${i+1}/${filtered.length}`;
+      b64=await downloadDriveFileAsBase64(f.driveLink);
+      if(b64)depuisDrive++;
+    }
+
+    if(b64){
+      const isImage=b64.startsWith('data:image');
+      const images=isImage?[await imageToPortrait(b64)]:await pdfToImages(b64);
+      if(images.length>0){
+        const reglePar=f.regleby?` — Réglé par : <span style="color:#2c5282;font-weight:700">${f.regleby}</span>`:'';
+        const cmdInfo=f.cmd?` — N° commande : <span style="color:#2c5282;font-weight:700">${f.cmd}</span>`:'';
+        const datepayInfo=f.datepay?` — Payée le : <span style="color:#2c5282;font-weight:700">${f.datepay}</span>`:'';
+        const labelHtml='<div style="font-family:Arial;font-size:12px;font-weight:700;color:#2b6cb0;padding:6px 0 5px;border-bottom:2px solid #2b6cb0;margin-bottom:8px">'+nom+' — <span style="color:'+sc+'">'+f.statut+'</span> — '+montant+reglePar+cmdInfo+datepayInfo+'</div>';
+        const firstPage='<img src="'+images[0]+'" style="width:100%;max-height:calc(100vh - 80px);object-fit:contain;display:block">';
+        const restPages=images.slice(1).map(img=>
+          '<div style="page-break-before:always"><img src="'+img+'" style="width:100%;display:block"></div>'
+        ).join('');
+        itemsHtml.push('<div style="page-break-before:'+(i>0?'always':'auto')+'">'
+          +'<div style="break-inside:avoid;page-break-inside:avoid">'
+          +labelHtml
+          +firstPage
+          +'</div>'
+          +restPages
+          +'</div>');
+        continue;
+      }
+    }
+    const messageManquant=f.driveLink
+      ?'<span style="color:#e53e3e;font-size:10px;margin-left:8px">⚠ Téléchargement Drive échoué (connecte Drive et réessaie)</span>'
+      :'<span style="color:#e53e3e;font-size:10px;margin-left:8px">⚠ Aucun PDF (ni local, ni sur Drive)</span>';
+    itemsHtml.push('<div style="page-break-before:'+(i>0?'always':'auto')+';margin-bottom:12px;padding:12px;border:1px solid #bee3f8;border-radius:6px;font-family:Arial;font-size:12px">'
+      +'<strong style="color:#2b6cb0">'+nom+'</strong> &nbsp;|&nbsp; '
+      +'<span style="color:'+sc+'">'+f.statut+'</span> &nbsp;|&nbsp; '
+      +'<strong>'+montant+'</strong> &nbsp;|&nbsp; '
+      +f.cat+' &nbsp;|&nbsp; '+f.log
+      +(f.regleby?' &nbsp;|&nbsp; Réglé par : <strong>'+f.regleby+'</strong>':'')
+      +(f.cmd?' &nbsp;|&nbsp; N° commande : <strong>'+f.cmd+'</strong>':'')
+      +(f.datepay?' &nbsp;|&nbsp; Payée le : <strong>'+f.datepay+'</strong>':'')
+      +messageManquant
+      +'</div>');
+  }
+  const items=itemsHtml.join('');
+
+  const title='SCI LEMYANE — Factures à transmettre à la banque ('+filtered.length+' factures)';
+  const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+title+'</title>'
+    +'<style>body{margin:0;padding:20px;font-family:Arial,sans-serif;background:#fff}'
+    +'.hdr{border-bottom:3px solid #2b6cb0;padding-bottom:12px;margin-bottom:24px}'
+    +'.hdr h1{font-size:15px;color:#2b6cb0;margin:0 0 3px}'
+    +'.hdr p{font-size:10px;color:#718096;margin:0}'
+    +'@media print{body{padding:10px}.no-print{display:none}img{max-width:100%}}'
+    +'</style></head><body>'
+    +'<div class="hdr"><h1>'+title+'</h1>'
+    +'<p>'+(getCTXConfig().sousTitre||'')+' · Edité le '+new Date().toLocaleDateString('fr-FR')+'</p>'
+    +'<button class="no-print" onclick="window.print()" style="margin-top:8px;background:#2b6cb0;border:none;border-radius:6px;color:#fff;padding:8px 18px;font-size:12px;cursor:pointer;font-weight:600">🖨 Imprimer / Sauvegarder PDF</button>'
+    +'</div>'
+    +items
+    +'</body></html>';
+
+  openPrintOverlay(html, title+(depuisDrive>0?' — '+depuisDrive+' PDF récupéré(s) depuis Drive':''));
+  if(statusEl)statusEl.style.display='none';
+  if(btn){btn.innerHTML='🖨 Exporter la sélection (PDF groupé)';btn.disabled=false;}
 }
 
 // Rattache manuellement un lien Google Drive existant à une facture qui n'en a pas.
@@ -3195,7 +3413,7 @@ function renderAnnuel(){
       if(daysDiff>60){alertClass='row-alert-danger';alertBadge='<span style="font-size:9px;background:rgba(252,129,129,.2);color:var(--red);border:1px solid rgba(252,129,129,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⚠ +'+daysDiff+'j</span>';}
       else if(daysDiff>30){alertClass='row-alert-warn';alertBadge='<span style="font-size:9px;background:rgba(246,173,85,.2);color:var(--orange);border:1px solid rgba(246,173,85,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⏰ '+daysDiff+'j</span>';}
     }
-    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':f.statut==='Transmise à la banque'?'#63b3ed':'#b794f4';
+    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':'#b794f4';
     return`<tr class="${alertClass}" style="${excluStyle}">
       <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #f6ad55;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
@@ -3309,6 +3527,84 @@ function exportComptablePDF(){
     </div>
   </body></html>`;
   openPrintOverlay(html, 'Export comptable '+year);
+}
+
+// Télécharge le contenu binaire d'un fichier Drive (via son lien webViewLink) et le convertit
+// en base64, pour pouvoir le traiter exactement comme un PDF local. Fonction globale utilisée
+// par exportZipFactures (export annuel) et exporterSelectionBanque (onglet Banque).
+async function downloadDriveFileAsBase64(driveLink){
+  if(!driveAccessToken||!driveLink)return null;
+  try{
+    const match=driveLink.match(/\/d\/([a-zA-Z0-9_-]+)/)||driveLink.match(/id=([a-zA-Z0-9_-]+)/);
+    if(!match)return null;
+    const fileId=match[1];
+    const resp=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',{
+      headers:{'Authorization':'Bearer '+driveAccessToken}
+    });
+    if(!resp.ok)return null;
+    const blob=await resp.blob();
+    return await new Promise(resolve=>{
+      const reader=new FileReader();
+      reader.onloadend=()=>resolve(reader.result);
+      reader.onerror=()=>resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  }catch(e){
+    console.error('Erreur téléchargement Drive:',e);
+    return null;
+  }
+}
+// Convertit un PDF en base64 en une liste d'images PNG (une par page) via pdf.js, avec
+// correction d'orientation (paysage/rotation embarquée). Fonction globale — voir commentaire
+// détaillé historique dans exportZipFactures.
+async function pdfToImages(b64){
+  if(!window['pdfjsLib'])return[];
+  try{
+    const base64Data=b64.split(',')[1];
+    const bytes=atob(base64Data);
+    const arr=new Uint8Array(bytes.length);
+    for(let i=0;i<bytes.length;i++)arr[i]=bytes.charCodeAt(i);
+    const pdf=await pdfjsLib.getDocument({data:arr}).promise;
+    const images=[];
+    for(let p=1;p<=pdf.numPages;p++){
+      const page=await pdf.getPage(p);
+      const embeddedRotation=page.rotate||0;
+      const flatRotation=(360-embeddedRotation)%360;
+      const flatViewport=page.getViewport({scale:1.8,rotation:flatRotation});
+      const isLandscape=flatViewport.width>flatViewport.height;
+      const finalRotation=isLandscape?((flatRotation+270)%360):flatRotation;
+      const viewport=page.getViewport({scale:1.8,rotation:finalRotation});
+      const canvas=document.createElement('canvas');
+      canvas.width=viewport.width;canvas.height=viewport.height;
+      const ctx=canvas.getContext('2d');
+      await page.render({canvasContext:ctx,viewport}).promise;
+      images.push(canvas.toDataURL('image/png'));
+    }
+    return images;
+  }catch(e){
+    console.error('Erreur conversion PDF en image:',e);
+    return[];
+  }
+}
+// Si une image (photo de facture importée) est en paysage, la pivote en portrait (90° horaire).
+function imageToPortrait(dataUrl){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      if(img.width<=img.height){resolve(dataUrl);return;}
+      const canvas=document.createElement('canvas');
+      canvas.width=img.height;canvas.height=img.width;
+      const ctx=canvas.getContext('2d');
+      ctx.save();
+      ctx.translate(canvas.width/2,canvas.height/2);
+      ctx.rotate(Math.PI/2);
+      ctx.drawImage(img,-img.width/2,-img.height/2);
+      ctx.restore();
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror=()=>resolve(dataUrl);
+    img.src=dataUrl;
+  });
 }
 
 async function exportZipFactures(){
@@ -3443,7 +3739,7 @@ async function exportZipFactures(){
     const f=filtered[i];
     let b64=loadPdf(f._idx);
     const nom=(f.num||('FAC '+(i+1)))+' — '+(f.four||'')+(f.date?' · '+f.date:'');
-    const sc=f.statut==='Payée'?'#276749':f.statut==='En attente'?'#c05621':f.statut==='Transmise à la banque'?'#2b6cb0':'#2c5282';
+    const sc=f.statut==='Payée'?'#276749':f.statut==='En attente'?'#c05621':'#2c5282';
     const montant=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(f.ttc);
     if(statusText)statusText.textContent=`Conversion des PDF… ${i+1}/${filtered.length}`;
 
@@ -10744,12 +11040,12 @@ function initContexteUI(){
   }
   // Sélecteurs logements
   const logs=cfg.logements;
-  [['filter-log','label',true],['f-log','label',true],['e-log','label',true],['sv-log','label',true]].forEach(([id,prop,commun])=>{
+  [['filter-log','label',true],['f-log','label',true],['e-log','label',true],['sv-log','label',true],['banque-filter-log','label',true]].forEach(([id,prop,commun])=>{
     const el=document.getElementById(id);
     if(!el)return;
-    el.innerHTML=(id==='filter-log'?'<option value="">Tous logements</option>':'')+
+    el.innerHTML=(id==='filter-log'||id==='banque-filter-log'?'<option value="">Tous logements</option>':'')+
       logs.map(l=>`<option value="${l[prop]}">${l.label}</option>`).join('')+
-      (commun&&id!=='filter-log'?'<option value="Commun">Commun / Global</option>':'');
+      (commun&&id!=='filter-log'&&id!=='banque-filter-log'?'<option value="Commun">Commun / Global</option>':'');
   });
   const locLog=document.getElementById('loc-logement');
   if(locLog)locLog.innerHTML=logs.map(l=>`<option value="${l.key}">${l.label}</option>`).join('');
@@ -11279,7 +11575,6 @@ window._authReady.then(async () => {
           <option value="En attente">En attente</option>
           <option value="Payée">Payée</option>
           <option value="Partiel">Partiel</option>
-          <option value="Transmise à la banque">Transmise à la banque</option>
         </select>
       </div>
       <div class="split-field"><label>Réglé par</label>
