@@ -1593,8 +1593,9 @@ function getFactureShares(f, cfgLogements){
 }
 // Suivi des déblocages de crédit par logement : cumule séparément les montants transmis à la
 // banque (f.banque) et les montants réellement payés (f.statut==='Payée'), en tenant compte des
-// répartitions multi-logements. Inclut TOUTES les factures (y compris hors projet) puisqu'une
-// facture exclue du calcul de rentabilité peut quand même avoir été transmise/payée à la banque.
+// répartitions multi-logements. N'inclut QUE les factures cochées "Projet" (f.inclus!==false) —
+// une facture décochée du prévisionnel ne doit pas venir amputer le crédit correspondant, même
+// si elle reste visible/transmissible dans l'onglet Banque pour information.
 function getCreditDeblocageParLogement(factures){
   const cfg=getCTXConfig();
   const logs=cfg.logements;
@@ -1605,6 +1606,7 @@ function getCreditDeblocageParLogement(factures){
   const result={};
   creditKeys.forEach(k=>{result[k]={transmis:0,paye:0};});
   factures.forEach(f=>{
+    if(f.inclus===false)return;
     const isTransmis=!!f.banque;
     const isPaye=f.statut==='Payée';
     if(!isTransmis&&!isPaye)return;
@@ -2694,34 +2696,37 @@ function renderBanque(){
       const color=lg?lg.color:'#b794f4';
       const label=lg?lg.label:(k==='Commun'?'Terrain (Commun)':'Logement '+k);
       const capital=+((fc[k]&&fc[k].capital)||0);
+      const apport=+((fc[k]&&fc[k].apport)||0);
+      const financementTotal=capital+apport;
       const fraisDossier=+((fc[k]&&fc[k].fraisdossier)||0);
       const horsFacture=+((fc[k]&&fc[k].horsfacture)||0);
       const sansFacture=fraisDossier+horsFacture;
       const deb=deblocage[k]||{transmis:0,paye:0};
-      const pctTransmis=capital>0?((deb.transmis+sansFacture)/capital*100):0;
-      const pctPaye=capital>0?((deb.paye+sansFacture)/capital*100):0;
-      if(capital<=0){
+      const pctTransmis=financementTotal>0?((deb.transmis+sansFacture)/financementTotal*100):0;
+      const pctPaye=financementTotal>0?((deb.paye+sansFacture)/financementTotal*100):0;
+      if(financementTotal<=0){
         return`<div class="log-card" style="--lc:${color};padding:12px 14px"><h3 style="font-size:12px;margin-bottom:4px">${label}</h3><div style="font-size:10px;color:var(--text3)">Capital emprunté non renseigné (onglet 💳 Financement)</div></div>`;
       }
       const detailLignes=[
         fraisDossier>0?`📋 frais de dossier : ${fmt(fraisDossier)}`:'',
-        horsFacture>0?`📄 hors facture (terrain, notaire...) : ${fmt(horsFacture)}`:''
+        horsFacture>0?`📄 hors facture (terrain, notaire...) : ${fmt(horsFacture)}`:'',
+        apport>0?`💶 dont apport : ${fmt(apport)}`:''
       ].filter(Boolean);
       return`<div class="log-card" style="--lc:${color};padding:12px 14px">
         <h3 style="font-size:12px;margin-bottom:8px">${label}</h3>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
-          <span>🏦 Transmis${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.transmis+sansFacture)} / ${fmt(capital)} (${pctTransmis.toFixed(0)}%)</span>
+          <span>🏦 Transmis${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.transmis+sansFacture)} / ${fmt(financementTotal)} (${pctTransmis.toFixed(0)}%)</span>
         </div>
         <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden;margin-bottom:8px">
           <div style="background:var(--accent);height:100%;width:${Math.min(pctTransmis,100)}%"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
-          <span>✓ Payé${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.paye+sansFacture)} / ${fmt(capital)} (${pctPaye.toFixed(0)}%)</span>
+          <span>✓ Payé${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.paye+sansFacture)} / ${fmt(financementTotal)} (${pctPaye.toFixed(0)}%)</span>
         </div>
         <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden">
           <div style="background:var(--green);height:100%;width:${Math.min(pctPaye,100)}%"></div>
         </div>
-        <div style="font-size:9px;color:var(--text3);margin-top:6px">Reste à débloquer : <strong style="color:var(--text2)">${fmt(Math.max(capital-deb.transmis-sansFacture,0))}</strong></div>
+        <div style="font-size:9px;color:var(--text3);margin-top:6px">Reste à débloquer : <strong style="color:var(--text2)">${fmt(Math.max(financementTotal-deb.transmis-sansFacture,0))}</strong></div>
         ${detailLignes.length?`<div style="font-size:9px;color:var(--text3);margin-top:3px">${detailLignes.join(' · ')}</div>`:''}
       </div>`;
     }).join('');
@@ -7103,31 +7108,34 @@ function renderFinancement(){
     const color=lg?lg.color:'#b794f4';
     const label=lg?lg.label:(k==='Commun'?'Terrain (Commun)':'Logement '+k);
     const capital=+((fc[k]&&fc[k].capital)||0);
+    const apport=+((fc[k]&&fc[k].apport)||0);
+    const financementTotal=capital+apport;
     const fraisDossier=+((fc[k]&&fc[k].fraisdossier)||0);
     const horsFacture=+((fc[k]&&fc[k].horsfacture)||0);
     const sansFacture=fraisDossier+horsFacture;
     const deb=deblocage[k]||{transmis:0,paye:0};
-    const pctTransmis=capital>0?((deb.transmis+sansFacture)/capital*100):0;
-    const pctPaye=capital>0?((deb.paye+sansFacture)/capital*100):0;
+    const pctTransmis=financementTotal>0?((deb.transmis+sansFacture)/financementTotal*100):0;
+    const pctPaye=financementTotal>0?((deb.paye+sansFacture)/financementTotal*100):0;
     const detailLignes=[
       fraisDossier>0?`📋 Frais de dossier : ${fmt(fraisDossier)}`:'',
       horsFacture>0?`📄 Autres montants sans facture (terrain, notaire...) : ${fmt(horsFacture)}`:''
     ].filter(Boolean);
     const fraisLigne=detailLignes.length?`<div style="font-size:9px;color:var(--text3);margin-top:6px">${detailLignes.join('<br>')}</div>`:'';
-    const suiviHtml=capital>0?`<div style="margin-top:2px;padding-top:10px;border-top:1px solid var(--border)">
+    const suiviHtml=financementTotal>0?`<div style="margin-top:2px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
-          <span>🏦 Transmis banque${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.transmis+sansFacture)} / ${fmt(capital)} (${pctTransmis.toFixed(0)}%)</span>
+          <span>🏦 Transmis banque${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.transmis+sansFacture)} / ${fmt(financementTotal)} (${pctTransmis.toFixed(0)}%)</span>
         </div>
         <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden;margin-bottom:8px">
           <div style="background:var(--accent);height:100%;width:${Math.min(pctTransmis,100)}%"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
-          <span>✓ Payé${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.paye+sansFacture)} / ${fmt(capital)} (${pctPaye.toFixed(0)}%)</span>
+          <span>✓ Payé${sansFacture>0?' + hors facture':''}</span><span>${fmt(deb.paye+sansFacture)} / ${fmt(financementTotal)} (${pctPaye.toFixed(0)}%)</span>
         </div>
         <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden">
           <div style="background:var(--green);height:100%;width:${Math.min(pctPaye,100)}%"></div>
         </div>
-        <div style="font-size:9px;color:var(--text3);margin-top:6px">Reste à débloquer (banque) : <strong style="color:var(--text2)">${fmt(Math.max(capital-deb.transmis-sansFacture,0))}</strong></div>
+        <div style="font-size:9px;color:var(--text3);margin-top:6px">Reste à débloquer (crédit + apport) : <strong style="color:var(--text2)">${fmt(Math.max(financementTotal-deb.transmis-sansFacture,0))}</strong></div>
+        ${apport>0?`<div style="font-size:9px;color:var(--text3);margin-top:3px">Base du calcul : ${fmt(capital)} de crédit + ${fmt(apport)} d'apport = ${fmt(financementTotal)}</div>`:''}
         ${fraisLigne}
       </div>`:'';
     return`<div class="log-card" style="--lc:${color}"><h3>${label}</h3>
