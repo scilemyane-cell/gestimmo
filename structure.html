@@ -1076,6 +1076,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   <div style="background:rgba(99,179,237,.08);border:1px solid rgba(99,179,237,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
     ℹ️ Coche les factures pour les marquer transmises en une fois, ou ouvre/télécharge chaque facture individuellement pour l'envoyer avec son bon à la banque.
   </div>
+  <div class="section-title" style="font-size:13px">Suivi par crédit</div>
+  <div id="banque-credits-summary" class="logements-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px"></div>
   <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
     <input type="text" id="banque-filter-search" placeholder="🔍 Rechercher fournisseur, N°..." oninput="renderBanque()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;min-width:220px;flex:1">
     <select class="filter-select" id="banque-filter-annee" onchange="renderBanque()"><option value="">Toutes années</option></select>
@@ -1588,6 +1590,37 @@ function getFactureShares(f, cfgLogements){
     return cfgLogements.map(lg=>({log:lg.label, cat:f.cat, montant:ttc/n}));
   }
   return [{log:f.log, cat:f.cat, montant:ttc}];
+}
+// Suivi des déblocages de crédit par logement : cumule séparément les montants transmis à la
+// banque (f.banque) et les montants réellement payés (f.statut==='Payée'), en tenant compte des
+// répartitions multi-logements. Inclut TOUTES les factures (y compris hors projet) puisqu'une
+// facture exclue du calcul de rentabilité peut quand même avoir été transmise/payée à la banque.
+function getCreditDeblocageParLogement(factures){
+  const cfg=getCTXConfig();
+  const logs=cfg.logements;
+  const isSCI=!window._isMeuble;
+  const creditKeys=isSCI?[...logs.map(l=>l.key),'Commun']:logs.map(l=>l.key);
+  const labelToKey={};
+  logs.forEach(l=>{labelToKey[l.label]=l.key;labelToKey[l.key]=l.key;});
+  const result={};
+  creditKeys.forEach(k=>{result[k]={transmis:0,paye:0};});
+  factures.forEach(f=>{
+    const isTransmis=!!f.banque;
+    const isPaye=f.statut==='Payée';
+    if(!isTransmis&&!isPaye)return;
+    getFactureShares(f,logs).forEach(s=>{
+      const k=labelToKey[s.log];
+      if(k&&result[k]){
+        if(isTransmis)result[k].transmis+=s.montant;
+        if(isPaye)result[k].paye+=s.montant;
+      }
+    });
+    if((!f.repartition||!f.repartition.length)&&f.log==='Commun'&&result['Commun']){
+      if(isTransmis)result['Commun'].transmis+=(+f.ttc||0);
+      if(isPaye)result['Commun'].paye+=(+f.ttc||0);
+    }
+  });
+  return {result,creditKeys,logs,isSCI};
 }
 // Rattache un texte libre (ex: détecté par l'IA sur une facture, "Lot A", "Appt B"...) au logement
 // réel correspondant dans la config de la structure. Retourne le label exact du logement, ou null.
@@ -2650,6 +2683,42 @@ function renderBanque(){
     yearSel.innerHTML='<option value="">Toutes années</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');
     if(cur&&years.includes(cur))yearSel.value=cur;
   }
+
+  // Résumé par crédit — même logique que les cartes de l'onglet Financement
+  const summaryEl=document.getElementById('banque-credits-summary');
+  if(summaryEl){
+    const fc=loadFC();
+    const{result:deblocage,creditKeys,logs}=getCreditDeblocageParLogement(factures);
+    summaryEl.innerHTML=creditKeys.map(k=>{
+      const lg=logs.find(l=>l.key===k);
+      const color=lg?lg.color:'#b794f4';
+      const label=lg?lg.label:(k==='Commun'?'Terrain (Commun)':'Logement '+k);
+      const capital=+((fc[k]&&fc[k].capital)||0);
+      const deb=deblocage[k]||{transmis:0,paye:0};
+      const pctTransmis=capital>0?(deb.transmis/capital*100):0;
+      const pctPaye=capital>0?(deb.paye/capital*100):0;
+      if(capital<=0){
+        return`<div class="log-card" style="--lc:${color};padding:12px 14px"><h3 style="font-size:12px;margin-bottom:4px">${label}</h3><div style="font-size:10px;color:var(--text3)">Capital emprunté non renseigné (onglet 💳 Financement)</div></div>`;
+      }
+      return`<div class="log-card" style="--lc:${color};padding:12px 14px">
+        <h3 style="font-size:12px;margin-bottom:8px">${label}</h3>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
+          <span>🏦 Transmis</span><span>${fmt(deb.transmis)} / ${fmt(capital)} (${pctTransmis.toFixed(0)}%)</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden;margin-bottom:8px">
+          <div style="background:var(--accent);height:100%;width:${Math.min(pctTransmis,100)}%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
+          <span>✓ Payé</span><span>${fmt(deb.paye)} / ${fmt(capital)} (${pctPaye.toFixed(0)}%)</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden">
+          <div style="background:var(--green);height:100%;width:${Math.min(pctPaye,100)}%"></div>
+        </div>
+        <div style="font-size:9px;color:var(--text3);margin-top:6px">Reste à débloquer : <strong style="color:var(--text2)">${fmt(Math.max(capital-deb.transmis,0))}</strong></div>
+      </div>`;
+    }).join('');
+  }
+
   const filtered=getBanqueFiltered(factures);
   const emptyEl=document.getElementById('banque-empty');
   if(emptyEl)emptyEl.style.display=filtered.length?'none':'block';
@@ -7016,10 +7085,32 @@ function renderFinancement(){
   });
   if(dateCorrigee){saveFC(fc);fc=loadFC();}
 
+  const{factures}=loadData();
+  const{result:deblocage}=getCreditDeblocageParLogement(factures);
+
   const carteHtml=k=>{
     const lg=logs.find(l=>l.key===k);
     const color=lg?lg.color:'#b794f4';
     const label=lg?lg.label:(k==='Commun'?'Terrain (Commun)':'Logement '+k);
+    const capital=+((fc[k]&&fc[k].capital)||0);
+    const deb=deblocage[k]||{transmis:0,paye:0};
+    const pctTransmis=capital>0?(deb.transmis/capital*100):0;
+    const pctPaye=capital>0?(deb.paye/capital*100):0;
+    const suiviHtml=capital>0?`<div style="margin-top:2px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
+          <span>🏦 Transmis banque</span><span>${fmt(deb.transmis)} / ${fmt(capital)} (${pctTransmis.toFixed(0)}%)</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden;margin-bottom:8px">
+          <div style="background:var(--accent);height:100%;width:${Math.min(pctTransmis,100)}%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px">
+          <span>✓ Payé</span><span>${fmt(deb.paye)} / ${fmt(capital)} (${pctPaye.toFixed(0)}%)</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden">
+          <div style="background:var(--green);height:100%;width:${Math.min(pctPaye,100)}%"></div>
+        </div>
+        <div style="font-size:9px;color:var(--text3);margin-top:6px">Reste à débloquer (banque) : <strong style="color:var(--text2)">${fmt(Math.max(capital-deb.transmis,0))}</strong></div>
+      </div>`:'';
     return`<div class="log-card" style="--lc:${color}"><h3>${label}</h3>
       <div class="form-grid" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px">
         <div class="form-group"><label>Capital emprunté (€)</label><input type="number" id="fc-capital-${k}" step="1000" onchange="saveFinancementCredit();renderFinancement()"></div>
@@ -7031,13 +7122,15 @@ function renderFinancement(){
         <div class="form-group"><label>Assurance PNO (€/an)</label><input type="number" id="fc-pno-${k}" step="10" onchange="saveFinancementCredit();renderFinancement()"></div>
         <div class="form-group"><label>Assurance emprunteur (€/an)</label><input type="number" id="fc-assuremp-${k}" step="10" onchange="saveFinancementCredit();renderFinancement()"></div>
       </div>
-      <div style="display:flex;justify-content:center;gap:8px">
+      ${suiviHtml}
+      <div style="display:flex;justify-content:center;gap:8px;margin-top:12px">
         <input type="file" accept="image/*" capture="environment" id="fc-import-${k}" style="display:none" onchange="importCreditPhoto(event,'${k}')">
         <button class="btn btn-sm" onclick="document.getElementById('fc-import-${k}').click()">📷 Importer photo</button>
         <span id="fc-import-status-${k}" style="display:none;font-size:10px"></span>
       </div>
     </div>`;
   };
+
 
   const regimeOpts=isSCI
     ?'<option value="IR">IR (revenus fonciers)</option><option value="IS">IS (impôt sociétés)</option>'
