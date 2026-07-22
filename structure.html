@@ -2622,7 +2622,7 @@ function getBanqueFiltered(factures){
     const matchLog=!logF||(f.repartition&&f.repartition.length?f.repartition.some(r=>r.log===logF):f.log===logF);
     const matchSearch=!searchF||(f.four||'').toLowerCase().includes(searchF)||(f.num||'').toLowerCase().includes(searchF);
     const matchTransmis=showAll||!f.banque;
-    return matchAnnee&&matchLog&&matchSearch&&matchTransmis&&f.inclus!==false;
+    return matchAnnee&&matchLog&&matchSearch&&matchTransmis;
   }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 }
 function toggleBanqueSelectAll(checked){
@@ -2658,26 +2658,53 @@ function renderBanque(){
   if(countEl)countEl.textContent=filtered.length+' facture'+(filtered.length>1?'s':'')+' · '+fmt(total);
 
   const tbody=document.getElementById('banque-tbody');
+  const cfgLogements=getCTXConfig().logements;
   if(tbody)tbody.innerHTML=filtered.map(f=>{
     const ri=f._ri;
     const hasPdf=!!loadPdf(ri);
     const checked=banqueSelection.has(ri)?'checked':'';
+    const horsProjet=f.inclus===false?' <span style="font-size:9px;color:var(--orange);border:1px solid #f6ad55;border-radius:3px;padding:1px 4px" title="Facture exclue du projet mais toujours disponible ici pour transmission bancaire">Hors projet</span>':'';
+    const pdfCell=`${hasPdf?`<button class="btn-pdf-view" onclick="viewPdf(${ri},'${(f.four||'Facture').replace(/'/g,"\\'")}')">📄 Voir</button>`:''}
+        ${f.driveLink?`<a href="${f.driveLink}" target="_blank" style="background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}
+        ${!hasPdf&&!f.driveLink?'<span style="font-size:10px;color:var(--text3)">—</span>':''}`;
+    const actionCell=`<button class="btn btn-sm" style="${f.banque?'background:rgba(99,179,237,.15);border-color:rgba(99,179,237,.45);color:var(--accent)':'background:rgba(100,116,139,.1);border-color:rgba(100,116,139,.3);color:var(--text2)'}" onclick="toggleBanque(${ri},${!f.banque})">${f.banque?'✓ Transmise':'🏦 Marquer transmise'}</button>`;
+
+    const shares=(f.repartition&&f.repartition.length>1)?getFactureShares(f,cfgLogements):null;
+    if(shares){
+      return shares.map((s,si)=>{
+        const lcObj=LOGS.find(l=>l.key===s.log||l.label===s.log);
+        const lc=lcObj?lcObj.color:'#b794f4';
+        const logBadge=`<span class="log-badge" style="background:${lc}26;color:${lc}">${s.log||'—'}</span>`;
+        if(si===0){
+          const rs=shares.length;
+          return`<tr>
+            <td style="text-align:center" rowspan="${rs}"><input type="checkbox" ${checked} onchange="toggleBanqueSelection(${ri},this.checked)" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"></td>
+            <td style="color:var(--accent);font-weight:500" rowspan="${rs}">${f.num||'—'}${horsProjet}<div style="font-size:9px;color:var(--purple);margin-top:2px">🔀 Répartie sur ${rs} logements</div></td>
+            <td style="color:var(--text2)" rowspan="${rs}">${f.date||'—'}</td>
+            <td style="font-weight:500" rowspan="${rs}">${f.four||'—'}</td>
+            <td>${logBadge}</td>
+            <td style="text-align:right;font-weight:600">${fmt(s.montant)}</td>
+            <td style="font-size:11px;color:var(--text2)" rowspan="${rs}">${f.statut||'—'}</td>
+            <td style="text-align:center" rowspan="${rs}">${pdfCell}</td>
+            <td style="text-align:center" rowspan="${rs}">${actionCell}</td>
+          </tr>`;
+        }
+        return`<tr>
+          <td>${logBadge}</td>
+          <td style="text-align:right;font-weight:600">${fmt(s.montant)}</td>
+        </tr>`;
+      }).join('');
+    }
     return`<tr>
       <td style="text-align:center"><input type="checkbox" ${checked} onchange="toggleBanqueSelection(${ri},this.checked)" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"></td>
-      <td style="color:var(--accent);font-weight:500">${f.num||'—'}</td>
+      <td style="color:var(--accent);font-weight:500">${f.num||'—'}${horsProjet}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}</td>
       <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-weight:600">${fmt(f.ttc)}</td>
       <td style="font-size:11px;color:var(--text2)">${f.statut||'—'}</td>
-      <td style="text-align:center">
-        ${hasPdf?`<button class="btn-pdf-view" onclick="viewPdf(${ri},'${(f.four||'Facture').replace(/'/g,"\\'")}')">📄 Voir</button>`:''}
-        ${f.driveLink?`<a href="${f.driveLink}" target="_blank" style="background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}
-        ${!hasPdf&&!f.driveLink?'<span style="font-size:10px;color:var(--text3)">—</span>':''}
-      </td>
-      <td style="text-align:center">
-        <button class="btn btn-sm" style="${f.banque?'background:rgba(99,179,237,.15);border-color:rgba(99,179,237,.45);color:var(--accent)':'background:rgba(100,116,139,.1);border-color:rgba(100,116,139,.3);color:var(--text2)'}" onclick="toggleBanque(${ri},${!f.banque})">${f.banque?'✓ Transmise':'🏦 Marquer transmise'}</button>
-      </td>
+      <td style="text-align:center">${pdfCell}</td>
+      <td style="text-align:center">${actionCell}</td>
     </tr>`;
   }).join('');
 
@@ -2729,7 +2756,8 @@ async function exporterSelectionBanque(){
         const reglePar=f.regleby?` — Réglé par : <span style="color:#2c5282;font-weight:700">${f.regleby}</span>`:'';
         const cmdInfo=f.cmd?` — N° commande : <span style="color:#2c5282;font-weight:700">${f.cmd}</span>`:'';
         const datepayInfo=f.datepay?` — Payée le : <span style="color:#2c5282;font-weight:700">${f.datepay}</span>`:'';
-        const labelHtml='<div style="font-family:Arial;font-size:12px;font-weight:700;color:#2b6cb0;padding:6px 0 5px;border-bottom:2px solid #2b6cb0;margin-bottom:8px">'+nom+' — <span style="color:'+sc+'">'+f.statut+'</span> — '+montant+reglePar+cmdInfo+datepayInfo+'</div>';
+        const repartInfo=(f.repartition&&f.repartition.length>1)?`<div style="font-size:11px;color:#805ad5;font-weight:700;margin-top:3px">🔀 Répartition à imputer sur ${f.repartition.length} logements/crédits : ${getLogDisplayText(f)}</div>`:'';
+        const labelHtml='<div style="font-family:Arial;font-size:12px;font-weight:700;color:#2b6cb0;padding:6px 0 5px;border-bottom:2px solid #2b6cb0;margin-bottom:8px">'+nom+' — <span style="color:'+sc+'">'+f.statut+'</span> — '+montant+reglePar+cmdInfo+datepayInfo+repartInfo+'</div>';
         const firstPage='<img src="'+images[0]+'" style="width:100%;max-height:calc(100vh - 80px);object-fit:contain;display:block">';
         const restPages=images.slice(1).map(img=>
           '<div style="page-break-before:always"><img src="'+img+'" style="width:100%;display:block"></div>'
@@ -2751,7 +2779,7 @@ async function exporterSelectionBanque(){
       +'<strong style="color:#2b6cb0">'+nom+'</strong> &nbsp;|&nbsp; '
       +'<span style="color:'+sc+'">'+f.statut+'</span> &nbsp;|&nbsp; '
       +'<strong>'+montant+'</strong> &nbsp;|&nbsp; '
-      +f.cat+' &nbsp;|&nbsp; '+f.log
+      +f.cat+' &nbsp;|&nbsp; '+(f.repartition&&f.repartition.length>1?'🔀 '+getLogDisplayText(f):f.log)
       +(f.regleby?' &nbsp;|&nbsp; Réglé par : <strong>'+f.regleby+'</strong>':'')
       +(f.cmd?' &nbsp;|&nbsp; N° commande : <strong>'+f.cmd+'</strong>':'')
       +(f.datepay?' &nbsp;|&nbsp; Payée le : <strong>'+f.datepay+'</strong>':'')
