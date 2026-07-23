@@ -1943,6 +1943,7 @@ function renderDevis(){
       <td style="text-align:center">${(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:''}${d.driveLink?`<a href="${d.driveLink}" target="_blank" style="background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}${!loadDevisPdf(d._ri)&&!d.driveLink?'<span style="font-size:10px;color:var(--text3)">—</span>':''}</td>
       <td style="text-align:center;white-space:nowrap">
         ${d.statut==='En attente'?`<button class="btn btn-sm" style="background:rgba(104,211,145,.15);border-color:rgba(104,211,145,.4);color:var(--green)" onclick="validerDevis(${d._ri})" title="Valider ce devis (passe en Accepté)">✓ Valider</button>`:''}
+        ${(d.statut==='Accepté'||d.statut==='Facturé')&&(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn btn-sm" style="background:rgba(183,148,244,.15);border-color:rgba(183,148,244,.4);color:var(--purple)" onclick="reappliquerTamponDevis(${d._ri})" title="Réappliquer le tampon (ex: après changement du tampon dans Paramètres, ou remplacement du document)">🖋</button>`:''}
         <button class="btn btn-sm btn-edit" onclick="openEditDevis(${d._ri})">✎</button>
         <button class="btn btn-sm btn-danger" onclick="supprimerDevis(${d._ri})">🗑</button>
       </td>
@@ -2115,6 +2116,23 @@ async function validerDevis(idx){
     renderDevis();
     if(resTampon&&!resTampon.ok)alert('⚠ '+resTampon.reason);
   }
+}
+
+// Réapplique manuellement le tampon sur un devis déjà validé — le tamponnage automatique ne se
+// déclenche qu'une fois, au moment de la toute première validation (dateValidation). Ce bouton sert
+// pour les devis validés AVANT un changement de tampon dans Paramètres, ou après remplacement du
+// document joint : sans lui, il n'y a aucun moyen de forcer un nouveau tamponnage.
+async function reappliquerTamponDevis(idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier les devis."); return; }
+  const devis=loadDevis();
+  const d=devis[idx];
+  if(!d)return;
+  if(!confirm('Réappliquer le tampon sur ce devis ?\nLe document actuellement enregistré sera remplacé par une nouvelle version tamponnée.'))return;
+  const dateTxt=fmtDate(d.dateValidation||todayStr());
+  const res=await tamponnerDevisPdf(idx,dateTxt);
+  renderDevis();
+  if(res&&!res.ok)alert('⚠ '+res.reason);
+  else alert('✓ Tampon réappliqué.');
 }
 
 function supprimerDevis(idx){
