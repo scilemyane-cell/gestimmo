@@ -1438,6 +1438,27 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   </div>
 </div>
 
+<div class="modal-overlay" id="tampon-position-overlay">
+  <div class="pdf-modal" style="max-width:700px">
+    <div class="pdf-modal-header">
+      <h3>Positionner le tampon</h3>
+      <button class="pdf-modal-close" onclick="annulerPositionnementTampon()">✕</button>
+    </div>
+    <div style="padding:6px 20px 0;font-size:11px;color:var(--text2)">Glisse le tampon pour le déplacer, ou tire le petit rond en bas à droite du tampon pour le redimensionner. Il sera appliqué à cette même position sur toutes les pages du document.</div>
+    <div id="tampon-position-stage" style="position:relative;margin:16px 20px;overflow:hidden;background:#000;border-radius:8px;touch-action:none;user-select:none">
+      <img id="tampon-position-doc" src="" style="width:100%;display:block;pointer-events:none">
+      <div id="tampon-position-stamp" style="position:absolute;cursor:move">
+        <img id="tampon-position-stamp-img" src="" style="width:100%;height:100%;display:block;pointer-events:none;opacity:.95;border:1px dashed rgba(99,179,237,.7)">
+        <div id="tampon-position-handle" style="position:absolute;right:-7px;bottom:-7px;width:16px;height:16px;background:var(--accent);border-radius:50%;cursor:nwse-resize;border:2px solid #0a0e1a"></div>
+      </div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0">
+      <button class="btn" onclick="annulerPositionnementTampon()" style="background:var(--bg3);border-color:var(--border)">Annuler</button>
+      <button class="btn" onclick="confirmerPositionnementTampon()" style="background:var(--accent);color:#0a0e1a;border-color:var(--accent);font-weight:700">✓ Appliquer le tampon</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── SYSTÈME DE CONTEXTE SCI / LMNP ──────────────────────────────────────────
 let CTX = window._structureId;
@@ -1661,7 +1682,7 @@ async function viewDevisPdf(idx,name){
 // ── Tampon visuel apposé sur le scan/PDF du devis à sa validation ─────────────────────────
 // Utilise le vrai tampon/signature déjà uploadé dans Paramètres (window._structureInfo.tamponBase64),
 // le même que celui utilisé sur les quittances de loyer — pas besoin d'en dessiner un artificiel.
-function dessinerTamponSurImage(dataUrl,dateTxt,tamponB64){
+function dessinerTamponSurImage(dataUrl,dateTxt,tamponB64,pos){
   return new Promise(resolve=>{
     const img=new Image();
     img.onload=()=>{
@@ -1673,13 +1694,21 @@ function dessinerTamponSurImage(dataUrl,dateTxt,tamponB64){
       if(!tamponB64){finish();return;}
       const stamp=new Image();
       stamp.onload=()=>{
-        // Bas-gauche (zone "Date et signature" conventionnelle sur un devis français) plutôt que
-        // bas-droite, où se trouve presque toujours le tableau des totaux (Total TTC, Net à payer) —
-        // le tampon ne doit jamais masquer un montant.
-        const targetH=Math.min(img.width,img.height)*0.15;
-        const targetW=targetH*(stamp.width/stamp.height||1);
-        const x=img.width*0.05;
-        const y=img.height-targetH*1.6;
+        let x,y,targetW,targetH;
+        if(pos&&pos.xPct!=null){
+          // Position choisie manuellement par l'utilisateur (glisser/redimensionner)
+          targetW=img.width*pos.wPct;
+          targetH=targetW*(stamp.height/stamp.width||1);
+          x=img.width*pos.xPct;
+          y=img.height*pos.yPct;
+        } else {
+          // Repli par défaut : bas-gauche (zone "Date et signature" conventionnelle sur un devis
+          // français) plutôt que bas-droite, où se trouve presque toujours le tableau des totaux.
+          targetH=Math.min(img.width,img.height)*0.15;
+          targetW=targetH*(stamp.width/stamp.height||1);
+          x=img.width*0.05;
+          y=img.height-targetH*1.6;
+        }
         ctx.save();
         ctx.globalAlpha=0.95;
         ctx.drawImage(stamp,x,y,targetW,targetH);
@@ -1698,6 +1727,149 @@ function dessinerTamponSurImage(dataUrl,dateTxt,tamponB64){
     img.src=dataUrl;
   });
 }
+
+// ── POSITIONNEMENT INTERACTIF DU TAMPON (glisser/redimensionner) ──────────
+// Remplace l'application automatique du tampon par une étape où l'utilisateur ajuste sa position
+// et sa taille sur un aperçu du document, avant de l'appliquer. La position choisie est mémorisée
+// comme position par défaut pour le prochain devis (évite de tout refaire à chaque fois).
+let _tamponPosCtx=null;
+let _tamponDragMode=null;
+let _tamponDragStart=null;
+
+function chargerPositionTamponParDefaut(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(ctxKey('tampon_pos_devis'))||'null');
+    if(saved&&saved.xPct!=null)return saved;
+  }catch(e){}
+  return{xPct:0.05,yPct:0.68,wPct:0.28};
+}
+function sauvegarderPositionTamponParDefaut(pos){
+  try{localStorage.setItem(ctxKey('tampon_pos_devis'),JSON.stringify(pos));}catch(e){}
+}
+function positionnerStampDOM(){
+  const stage=document.getElementById('tampon-position-stage');
+  const stamp=document.getElementById('tampon-position-stamp');
+  const stampImg=document.getElementById('tampon-position-stamp-img');
+  const rect=stage.getBoundingClientRect();
+  const ratio=(stampImg.naturalHeight&&stampImg.naturalWidth)?stampImg.naturalHeight/stampImg.naturalWidth:0.5;
+  const w=rect.width*_tamponPosCtx.pos.wPct;
+  const h=w*ratio;
+  stamp.style.width=w+'px';
+  stamp.style.height=h+'px';
+  stamp.style.left=(rect.width*_tamponPosCtx.pos.xPct)+'px';
+  stamp.style.top=(rect.height*_tamponPosCtx.pos.yPct)+'px';
+}
+// Ouvre le sélecteur de position pour un devis donné. Retourne une Promise<{ok,reason}> — même
+// contrat que l'ancien tamponnerDevisPdf, pour rester compatible avec validerDevis/reappliquerTamponDevis.
+// Si aucun tampon n'est configuré en Paramètres : résout immédiatement sans afficher de sélecteur.
+async function ouvrirPositionnementTampon(idx,dateTxt){
+  try{
+    const tamponB64=(window._structureInfo&&window._structureInfo.tamponBase64)||'';
+    if(!tamponB64)return{ok:true,reason:null};
+    const b64=await fetchDevisPdfB64(idx);
+    if(!b64)return{ok:false,reason:'Aucun document trouvé pour ce devis (ni en local, ni sur Drive).'};
+    let images;
+    if(b64.startsWith('data:image')){images=[b64];}
+    else{images=await pdfToImages(b64);}
+    if(!images||!images.length)return{ok:false,reason:'Impossible de lire ce document pour y positionner le tampon.'};
+    return new Promise(resolve=>{
+      _tamponPosCtx={idx,dateTxt,images,tamponB64,resolve,pos:chargerPositionTamponParDefaut()};
+      const docImg=document.getElementById('tampon-position-doc');
+      const stampImg=document.getElementById('tampon-position-stamp-img');
+      docImg.onload=()=>positionnerStampDOM();
+      stampImg.onload=()=>positionnerStampDOM();
+      docImg.src=images[0];
+      stampImg.src=tamponB64;
+      document.getElementById('tampon-position-overlay').classList.add('open');
+    });
+  }catch(e){
+    console.error('Ouverture du positionnement du tampon échouée:',e);
+    return{ok:false,reason:'Erreur inattendue : '+e.message};
+  }
+}
+async function confirmerPositionnementTampon(){
+  const ctx=_tamponPosCtx;
+  if(!ctx)return;
+  const stage=document.getElementById('tampon-position-stage');
+  const stamp=document.getElementById('tampon-position-stamp');
+  const stageRect=stage.getBoundingClientRect();
+  const pos={
+    xPct:stamp.offsetLeft/stageRect.width,
+    yPct:stamp.offsetTop/stageRect.height,
+    wPct:stamp.offsetWidth/stageRect.width
+  };
+  sauvegarderPositionTamponParDefaut(pos);
+  document.getElementById('tampon-position-overlay').classList.remove('open');
+  _tamponPosCtx=null;
+  try{
+    const stamped=await Promise.all(ctx.images.map(img=>dessinerTamponSurImage(img,ctx.dateTxt,ctx.tamponB64,pos)));
+    const finalB64=stamped.length===1?stamped[0]:await empilerImagesVerticalement(stamped);
+    if(!finalB64){ctx.resolve({ok:false,reason:'Échec de la composition du document tamponné.'});return;}
+    const devisNow=loadDevis();
+    const d=devisNow[ctx.idx];
+    if(d){
+      const dfour=(d.four||'devis').replace(/[^a-zA-Z0-9]/g,'_');
+      const dnum=d.num||'DEV-'+(ctx.idx+1);
+      const res=await saveDevisPdfWithDrive(ctx.idx,finalB64,dnum+'_'+dfour+'.pdf');
+      if(!res.localOk&&!res.driveLink){ctx.resolve({ok:false,reason:'Le document tamponné est trop volumineux pour être enregistré en local, et Drive n\'est pas connecté (ou l\'envoi a échoué).'});return;}
+      ctx.resolve({ok:true,reason:null});
+    } else {
+      const localOk=saveDevisPdf(ctx.idx,finalB64);
+      ctx.resolve({ok:localOk,reason:localOk?null:'Le document tamponné est trop volumineux pour être enregistré en local.'});
+    }
+  }catch(e){
+    console.error('Application du tampon positionné échouée:',e);
+    ctx.resolve({ok:false,reason:'Erreur inattendue pendant le tamponnage : '+e.message});
+  }
+}
+function annulerPositionnementTampon(){
+  document.getElementById('tampon-position-overlay').classList.remove('open');
+  const ctx=_tamponPosCtx;
+  _tamponPosCtx=null;
+  if(ctx)ctx.resolve({ok:true,reason:null}); // annulation volontaire : pas une erreur, juste "rien fait"
+}
+document.addEventListener('pointerdown',function(e){
+  if(!e.target.closest)return;
+  const handle=e.target.closest('#tampon-position-handle');
+  const stampEl=e.target.closest('#tampon-position-stamp');
+  if(!handle&&!stampEl)return;
+  _tamponDragMode=handle?'resize':'move';
+  const stage=document.getElementById('tampon-position-stage');
+  const stamp=document.getElementById('tampon-position-stamp');
+  const stageRect=stage.getBoundingClientRect();
+  _tamponDragStart={
+    pointerX:e.clientX,pointerY:e.clientY,
+    stampLeft:stamp.offsetLeft,stampTop:stamp.offsetTop,
+    stampW:stamp.offsetWidth,stampH:stamp.offsetHeight,
+    stageW:stageRect.width,stageH:stageRect.height
+  };
+  e.preventDefault();
+});
+document.addEventListener('pointermove',function(e){
+  if(!_tamponDragMode||!_tamponDragStart)return;
+  const stamp=document.getElementById('tampon-position-stamp');
+  const dx=e.clientX-_tamponDragStart.pointerX;
+  const dy=e.clientY-_tamponDragStart.pointerY;
+  if(_tamponDragMode==='move'){
+    let newLeft=_tamponDragStart.stampLeft+dx;
+    let newTop=_tamponDragStart.stampTop+dy;
+    newLeft=Math.max(0,Math.min(newLeft,_tamponDragStart.stageW-stamp.offsetWidth));
+    newTop=Math.max(0,Math.min(newTop,_tamponDragStart.stageH-stamp.offsetHeight));
+    stamp.style.left=newLeft+'px';
+    stamp.style.top=newTop+'px';
+  } else if(_tamponDragMode==='resize'){
+    const stampImg=document.getElementById('tampon-position-stamp-img');
+    const ratio=(stampImg.naturalHeight&&stampImg.naturalWidth)?stampImg.naturalHeight/stampImg.naturalWidth:0.5;
+    let newW=Math.max(40,_tamponDragStart.stampW+dx);
+    newW=Math.min(newW,_tamponDragStart.stageW-stamp.offsetLeft);
+    stamp.style.width=newW+'px';
+    stamp.style.height=(newW*ratio)+'px';
+  }
+  e.preventDefault();
+});
+document.addEventListener('pointerup',function(){_tamponDragMode=null;_tamponDragStart=null;});
+document.addEventListener('pointercancel',function(){_tamponDragMode=null;_tamponDragStart=null;});
+
 // Empile plusieurs images (pages d'un PDF converties) verticalement en une seule image,
 // pour pouvoir stocker un document multi-pages tamponné sans dépendance de génération PDF.
 function empilerImagesVerticalement(images){
@@ -2025,9 +2197,9 @@ function ajouterOuModifierDevis(){
   populateDevisSelects();
   const msg=document.getElementById('devis-msg-ok');
   if(msg){msg.style.display='inline';setTimeout(()=>msg.style.display='none',3000);}
-  // Apposer le tampon "BON POUR ACCORD" sur le document joint, uniquement à la première validation
+  // Positionner et apposer le tampon sur le document joint, uniquement à la première validation
   if((obj.statut==='Accepté'||obj.statut==='Facturé')&&!etaitDejaValide){
-    tamponnerDevisPdf(idxFinal,fmtDate(obj.dateValidation)).then(res=>{
+    ouvrirPositionnementTampon(idxFinal,fmtDate(obj.dateValidation)).then(res=>{
       renderDevis();
       if(res&&!res.ok)alert('⚠ '+res.reason);
     });
@@ -2115,7 +2287,7 @@ async function validerDevis(idx){
   renderDevis();
   populateDevisSelects();
   if(!dejaValide){
-    const resTampon=await tamponnerDevisPdf(idx,fmtDate(d.dateValidation));
+    const resTampon=await ouvrirPositionnementTampon(idx,fmtDate(d.dateValidation));
     renderDevis();
     if(resTampon&&!resTampon.ok)alert('⚠ '+resTampon.reason);
   }
@@ -2132,10 +2304,9 @@ async function reappliquerTamponDevis(idx){
   if(!d)return;
   if(!confirm('Réappliquer le tampon sur ce devis ?\nLe document actuellement enregistré sera remplacé par une nouvelle version tamponnée.'))return;
   const dateTxt=fmtDate(d.dateValidation||todayStr());
-  const res=await tamponnerDevisPdf(idx,dateTxt);
+  const res=await ouvrirPositionnementTampon(idx,dateTxt);
   renderDevis();
   if(res&&!res.ok)alert('⚠ '+res.reason);
-  else alert('✓ Tampon réappliqué.');
 }
 
 function supprimerDevis(idx){
