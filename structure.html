@@ -35,6 +35,18 @@ if(!window._structureId){
 window._authReady = new Promise((resolve) => { window._authReadyResolve = resolve; });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  // Stub précoce : le script Google API (juste en dessous, async) peut se charger et déclencher son
+  // onload AVANT que la vraie implémentation de gapiLoaded (définie beaucoup plus bas dans le fichier)
+  // n'existe encore — d'où l'erreur "gapiLoaded is not defined" par intermittence. Ce stub encaisse
+  // l'appel dans tous les cas : si la vraie implémentation est déjà là, on l'appelle ; sinon on note
+  // juste que le script est chargé, et la vraie implémentation s'auto-déclenchera à sa définition.
+  window._gapiScriptLoaded=false;
+  window.gapiLoaded=function(){
+    window._gapiScriptLoaded=true;
+    if(typeof window._gapiLoadedImpl==='function')window._gapiLoadedImpl();
+  };
+</script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -3813,8 +3825,12 @@ async function exporterSelectionBanque(){
     }
 
     if(b64){
+      // Image déjà stockée : on l'utilise telle quelle, SANS la repasser dans imageToPortrait —
+      // sinon une rotation automatique pourrait défaire une correction manuelle faite via
+      // "✂️ modifier les pages" sur cette facture, et l'export banque ne serait plus dans le même
+      // sens que l'affichage/téléchargement normal de la facture.
       const isImage=b64.startsWith('data:image');
-      const images=isImage?[await imageToPortrait(b64)]:await pdfToImages(b64);
+      const images=isImage?[b64]:await pdfToImages(b64);
       if(images.length>0){
         const reglePar=f.regleby?` — Réglé par : <span style="color:#2c5282;font-weight:700">${f.regleby}</span>`:'';
         const cmdInfo=f.cmd?` — N° commande : <span style="color:#2c5282;font-weight:700">${f.cmd}</span>`:'';
@@ -11938,9 +11954,10 @@ window.disconnectDrive=function(){
 // (Google Cloud Console > API et services > Identifiants > "Clé API").
 const GOOGLE_PICKER_API_KEY = 'REMPLACER_PAR_LA_CLE_API_GESTIMMO';
 let pickerApiLoaded = false;
-function gapiLoaded(){
+window._gapiLoadedImpl=function(){
   gapi.load('picker', () => { pickerApiLoaded = true; });
-}
+};
+if(window._gapiScriptLoaded)window._gapiLoadedImpl();
 
 window.openDrivePicker = function(cible){
   if(!driveAccessToken){
