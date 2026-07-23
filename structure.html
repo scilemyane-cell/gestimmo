@@ -1445,11 +1445,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <button class="pdf-modal-close" onclick="annulerPositionnementTampon()">✕</button>
     </div>
     <div style="padding:6px 20px 0;font-size:11px;color:var(--text2)">Glisse le tampon pour le déplacer, ou tire le petit rond en bas à droite du tampon pour le redimensionner. Il sera appliqué à cette même position sur toutes les pages du document.</div>
-    <div id="tampon-position-stage" style="position:relative;margin:16px 20px;overflow:hidden;background:#000;border-radius:8px;touch-action:none;user-select:none">
+    <div id="tampon-position-stage" style="position:relative;margin:16px 20px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;background:#000;border-radius:8px;touch-action:pan-y;user-select:none">
       <img id="tampon-position-doc" src="" style="width:100%;display:block;pointer-events:none">
-      <div id="tampon-position-stamp" style="position:absolute;cursor:move">
+      <div id="tampon-position-stamp" style="position:absolute;cursor:move;touch-action:none">
         <img id="tampon-position-stamp-img" src="" style="width:100%;height:100%;display:block;pointer-events:none;opacity:.95;border:1px dashed rgba(99,179,237,.7)">
-        <div id="tampon-position-handle" style="position:absolute;right:-7px;bottom:-7px;width:16px;height:16px;background:var(--accent);border-radius:50%;cursor:nwse-resize;border:2px solid #0a0e1a"></div>
+        <div id="tampon-position-handle" style="position:absolute;right:-7px;bottom:-7px;width:16px;height:16px;background:var(--accent);border-radius:50%;cursor:nwse-resize;border:2px solid #0a0e1a;touch-action:none"></div>
       </div>
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0">
@@ -1747,17 +1747,17 @@ function sauvegarderPositionTamponParDefaut(pos){
   try{localStorage.setItem(ctxKey('tampon_pos_devis'),JSON.stringify(pos));}catch(e){}
 }
 function positionnerStampDOM(){
-  const stage=document.getElementById('tampon-position-stage');
+  const docImg=document.getElementById('tampon-position-doc');
   const stamp=document.getElementById('tampon-position-stamp');
   const stampImg=document.getElementById('tampon-position-stamp-img');
-  const rect=stage.getBoundingClientRect();
+  const contentW=docImg.clientWidth,contentH=docImg.clientHeight;
   const ratio=(stampImg.naturalHeight&&stampImg.naturalWidth)?stampImg.naturalHeight/stampImg.naturalWidth:0.5;
-  const w=rect.width*_tamponPosCtx.pos.wPct;
+  const w=contentW*_tamponPosCtx.pos.wPct;
   const h=w*ratio;
   stamp.style.width=w+'px';
   stamp.style.height=h+'px';
-  stamp.style.left=(rect.width*_tamponPosCtx.pos.xPct)+'px';
-  stamp.style.top=(rect.height*_tamponPosCtx.pos.yPct)+'px';
+  stamp.style.left=(contentW*_tamponPosCtx.pos.xPct)+'px';
+  stamp.style.top=(contentH*_tamponPosCtx.pos.yPct)+'px';
 }
 // Ouvre le sélecteur de position pour un devis donné. Retourne une Promise<{ok,reason}> — même
 // contrat que l'ancien tamponnerDevisPdf, pour rester compatible avec validerDevis/reappliquerTamponDevis.
@@ -1790,13 +1790,13 @@ async function ouvrirPositionnementTampon(idx,dateTxt){
 async function confirmerPositionnementTampon(){
   const ctx=_tamponPosCtx;
   if(!ctx)return;
-  const stage=document.getElementById('tampon-position-stage');
+  const docImg=document.getElementById('tampon-position-doc');
   const stamp=document.getElementById('tampon-position-stamp');
-  const stageRect=stage.getBoundingClientRect();
+  const contentW=docImg.clientWidth,contentH=docImg.clientHeight;
   const pos={
-    xPct:stamp.offsetLeft/stageRect.width,
-    yPct:stamp.offsetTop/stageRect.height,
-    wPct:stamp.offsetWidth/stageRect.width
+    xPct:stamp.offsetLeft/contentW,
+    yPct:stamp.offsetTop/contentH,
+    wPct:stamp.offsetWidth/contentW
   };
   sauvegarderPositionTamponParDefaut(pos);
   document.getElementById('tampon-position-overlay').classList.remove('open');
@@ -1834,14 +1834,13 @@ document.addEventListener('pointerdown',function(e){
   const stampEl=e.target.closest('#tampon-position-stamp');
   if(!handle&&!stampEl)return;
   _tamponDragMode=handle?'resize':'move';
-  const stage=document.getElementById('tampon-position-stage');
+  const docImg=document.getElementById('tampon-position-doc');
   const stamp=document.getElementById('tampon-position-stamp');
-  const stageRect=stage.getBoundingClientRect();
   _tamponDragStart={
     pointerX:e.clientX,pointerY:e.clientY,
     stampLeft:stamp.offsetLeft,stampTop:stamp.offsetTop,
     stampW:stamp.offsetWidth,stampH:stamp.offsetHeight,
-    stageW:stageRect.width,stageH:stageRect.height
+    stageW:docImg.clientWidth,stageH:docImg.clientHeight
   };
   e.preventDefault();
 });
