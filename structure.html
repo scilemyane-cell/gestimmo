@@ -1834,7 +1834,7 @@ function renderDevis(){
       <td style="text-align:right;font-weight:600">${fmt(d.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:600">${d.statut||'—'}${d.dateValidation?`<div style="font-size:9px;color:var(--text3);font-weight:400">le ${fmtDate(d.dateValidation)}</div>`:''}</td>
       <td style="font-size:11px;color:var(--text2)">${d.factureNum?('📄 '+d.factureNum):'—'}</td>
-      <td style="text-align:center">${loadDevisPdf(d._ri)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:'<span style="font-size:10px;color:var(--text3)">—</span>'}</td>
+      <td style="text-align:center">${loadDevisPdf(d._ri)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:''}${d.driveLink?`<a href="${d.driveLink}" target="_blank" style="background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}${!loadDevisPdf(d._ri)&&!d.driveLink?'<span style="font-size:10px;color:var(--text3)">—</span>':''}</td>
       <td style="text-align:center;white-space:nowrap">
         ${d.statut==='En attente'?`<button class="btn btn-sm" style="background:rgba(104,211,145,.15);border-color:rgba(104,211,145,.4);color:var(--green)" onclick="validerDevis(${d._ri})" title="Valider ce devis (passe en Accepté)">✓ Valider</button>`:''}
         <button class="btn btn-sm btn-edit" onclick="openEditDevis(${d._ri})">✎</button>
@@ -1884,7 +1884,8 @@ function ajouterOuModifierDevis(){
     statut:document.getElementById('devis-statut').value,
     desc:document.getElementById('devis-desc').value.trim(),
     factureNum:ancien?ancien.factureNum:null,
-    dateValidation:ancien?ancien.dateValidation:null
+    dateValidation:ancien?ancien.dateValidation:null,
+    driveLink:ancien?ancien.driveLink:null
   };
   if(isSplit){
     const nbParts=splitLogs.length;
@@ -1902,7 +1903,12 @@ function ajouterOuModifierDevis(){
   const idxFinal=editDevisIdx!==null?editDevisIdx:devis.length;
   if(editDevisIdx!==null)devis[editDevisIdx]=obj;else devis.push(obj);
   saveDevis(devis);
-  if(pendingDevisPdfB64)saveDevisPdf(idxFinal,pendingDevisPdfB64);
+  if(pendingDevisPdfB64){
+    const dfour=(four||'devis').replace(/[^a-zA-Z0-9]/g,'_');
+    const dnum=obj.num||'DEV-'+(idxFinal+1);
+    const dfname=dnum+'_'+dfour+'.pdf';
+    saveDevisPdfWithDrive(idxFinal,pendingDevisPdfB64,dfname);
+  }
   resetFormDevis();
   renderDevis();
   populateDevisSelects();
@@ -2002,6 +2008,9 @@ function supprimerDevis(idx){
   if(!d)return;
   if(d.factureNum){alert('Ce devis est lié à la facture '+d.factureNum+'. Modifie ou supprime d\'abord cette facture (ou change son devis associé) avant de supprimer ce devis.');return;}
   if(!confirm('Supprimer ce devis ?'))return;
+  if(d.driveLink&&driveAccessToken){
+    deleteDriveFile(d.driveLink).catch(e=>console.error('Suppression Drive échouée pour',d.driveLink,e));
+  }
   devis.splice(idx,1);
   saveDevis(devis);
   removeDevisPdf(idx);
@@ -11404,6 +11413,95 @@ async function uploadToDrive(b64, fileName, anneeFacture){
 // une arborescence séparée du dossier des factures : "SCI Lemyane Gestion locative" / "Logement X" / fichier.
 // Le fichier n'est jamais conservé dans l'app : seul le lien Drive retourné est stocké
 // (cohérent avec la demande explicite de ne pas stocker ces documents localement).
+// Upload d'un devis vers Drive — exactement le même principe que uploadToDrive (factures) :
+// dossier racine (nom dérivé du dossier factures, ex: "SCI Lemyane Devis"), sous-dossier par
+// année, anti-doublon par nom de fichier, retourne le webViewLink.
+async function uploadToDriveDevis(b64, fileName, anneeDevis){
+  if(!driveAccessToken) return null;
+  try{
+    const base64Data = b64.split(',')[1];
+    const mimeType = b64.startsWith('data:image') ? 'image/jpeg' : 'application/pdf';
+    const byteChars = atob(base64Data);
+    const byteArr = new Uint8Array(byteChars.length);
+    for(let i=0;i<byteChars.length;i++) byteArr[i]=byteChars.charCodeAt(i);
+    const blob = new Blob([byteArr], {type: mimeType});
+
+    async function getOrCreateFolder(name, parentId){
+      const q = parentId
+        ? "name='"+name+"' and mimeType='application/vnd.google-apps.folder' and '"+parentId+"' in parents and trashed=false"
+        : "name='"+name+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const resp = await fetch(
+        "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(q),
+        {headers:{'Authorization':'Bearer '+driveAccessToken}}
+      );
+      const data = await resp.json();
+      if(data.files && data.files.length > 0) return data.files[0].id;
+      const body = {name, mimeType:'application/vnd.google-apps.folder'};
+      if(parentId) body.parents = [parentId];
+      const createResp = await fetch('https://www.googleapis.com/drive/v3/files',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':'application/json'},
+        body:JSON.stringify(body)
+      });
+      const createData = await createResp.json();
+      return createData.id;
+    }
+
+    const rootName=(getCTXConfig().driveFolderName||'Devis').replace('Factures','Devis');
+    const year = (anneeDevis && /^\d{4}$/.test(String(anneeDevis))) ? String(anneeDevis) : new Date().getFullYear().toString();
+    const cacheKey = ctxKey('drive_folder_devis_'+year);
+    let yearFolderId = localStorage.getItem(cacheKey);
+    if(!yearFolderId){
+      const rootId = await getOrCreateFolder(rootName, null);
+      yearFolderId = await getOrCreateFolder(year, rootId);
+      localStorage.setItem(cacheKey, yearFolderId);
+    }
+
+    try{
+      const qExist="name='"+fileName.replace(/'/g,"\\'")+"' and '"+yearFolderId+"' in parents and trashed=false";
+      const existResp=await fetch("https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qExist)+"&fields=files(id,webViewLink)",{headers:{'Authorization':'Bearer '+driveAccessToken}});
+      const existData=await existResp.json();
+      if(existData.files&&existData.files.length>0){
+        console.warn('Fichier déjà présent sur Drive, réutilisation au lieu d\'un nouvel upload :',fileName);
+        return existData.files[0].webViewLink||null;
+      }
+    }catch(e){console.warn('Vérification anti-doublon Drive échouée, upload normal:',e);}
+
+    const metadata = {name: fileName, parents: [yearFolderId]};
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+    form.append('file', blob);
+
+    const uploadResp = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+      {method:'POST', headers:{'Authorization':'Bearer '+driveAccessToken}, body:form}
+    );
+    const uploadData = await uploadResp.json();
+    return uploadData.webViewLink || null;
+  } catch(e) {
+    console.error('Drive upload (devis) error:', e);
+    return null;
+  }
+}
+// Sauvegarde locale + upload Drive pour un devis — même principe que savePdfWithDrive (factures).
+async function saveDevisPdfWithDrive(idx, b64, fileName){
+  saveDevisPdf(idx, b64);
+  if(driveAccessToken && b64){
+    const devisNow = loadDevis();
+    const anneeDevis = (devisNow[idx]?.date||'').slice(0,4);
+    const link = await uploadToDriveDevis(b64, fileName, anneeDevis);
+    if(link){
+      const devis2 = loadDevis();
+      if(devis2[idx]){
+        devis2[idx].driveLink = link;
+        saveDevis(devis2);
+        renderDevis();
+      }
+      console.log('PDF devis uploadé sur Drive:', link);
+    }
+  }
+}
+
 async function uploadToDriveGestionLocative(b64, fileName, logKey){
   if(!driveAccessToken) return null;
   try{
