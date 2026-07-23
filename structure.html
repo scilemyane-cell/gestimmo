@@ -2366,6 +2366,35 @@ function sumByPoste(items,filterFn){
   });
   return totals;
 }
+// Même chose que sumByPoste, mais éclaté par logement (clé = cat+'|||'+poste+'|||'+logLabel) —
+// utilise getFactureShares pour répartir correctement les devis/factures répartis sur plusieurs
+// logements, et divise également "Commun" à parts égales. Sert à afficher le réel/engagé
+// directement sous chaque colonne logement de la grille Budget, pas seulement en agrégé.
+function sumByPosteLog(items,filterFn){
+  const cfg=getCTXConfig();
+  const totals={};
+  (items||[]).forEach(it=>{
+    if(!filterFn(it))return;
+    if(!it.poste)return;
+    const ttc=+it.ttc||0;
+    if(it.repartition && it.repartition.length){
+      getFactureShares(it,cfg.logements).forEach(s=>{
+        const key=it.cat+'|||'+it.poste+'|||'+s.log;
+        totals[key]=(totals[key]||0)+s.montant;
+      });
+    } else if(it.log==='Commun'){
+      const n=cfg.logements.length||1;
+      cfg.logements.forEach(lg=>{
+        const key=it.cat+'|||'+it.poste+'|||'+lg.label;
+        totals[key]=(totals[key]||0)+ttc/n;
+      });
+    } else {
+      const key=it.cat+'|||'+it.poste+'|||'+it.log;
+      totals[key]=(totals[key]||0)+ttc;
+    }
+  });
+  return totals;
+}
 
 // Totaux TTC par catégorie ET logement (pour tableau miroir)
 function getReelMatrix(factures){
@@ -2966,6 +2995,8 @@ function renderBudget(){
   const devisAll=loadDevis();
   const reelParPoste=sumByPoste(factures,f=>f.inclus!==false);
   const engageParPoste=sumByPoste(devisAll,d=>d.statut==='Accepté');
+  const reelParPosteLog=sumByPosteLog(factures,f=>f.inclus!==false);
+  const engageParPosteLog=sumByPosteLog(devisAll,d=>d.statut==='Accepté');
   const grid=document.getElementById('budget-grid');
   grid.style.gridTemplateColumns=`210px repeat(${Math.max(LOGS.length,1)},1fr) 130px`;
   grid.innerHTML='<div class="bg-th">Description</div>'+
@@ -3029,7 +3060,7 @@ function renderBudget(){
     grid.appendChild(hdr);
     const rows=budget[cat.name]||[];
     rows.forEach((row,idx)=>{
-      [{field:'desc',cls:'desc'},...LOGS.map(l=>({field:l.prevKey}))].forEach(col=>{
+      [{field:'desc',cls:'desc'},...LOGS.map(l=>({field:l.prevKey,logLabel:l.key}))].forEach(col=>{
         const td=document.createElement('div');td.className='bg-td'+(col.cls?' '+col.cls:'');
         const inp=document.createElement('input');
         inp.type=col.cls==='desc'?'text':'number';
@@ -3037,7 +3068,19 @@ function renderBudget(){
         inp.placeholder=col.cls==='desc'?`Poste ${idx+1}`:'0';
         inp.dataset.cat=cat.name;inp.dataset.idx=idx;inp.dataset.field=col.field;
         inp.addEventListener('change',onBudgetChange);
-        td.appendChild(inp);grid.appendChild(td);
+        td.appendChild(inp);
+        if(col.cls!=='desc'&&row.desc){
+          const posteLogKey=cat.name+'|||'+row.desc.trim()+'|||'+col.logLabel;
+          const rL=reelParPosteLog[posteLogKey]||0;
+          const eL=engageParPosteLog[posteLogKey]||0;
+          if(rL>0||eL>0){
+            const subL=document.createElement('div');subL.style.cssText='font-size:8px;line-height:1.4;margin-top:2px;text-align:right';
+            if(rL>0){const sl1=document.createElement('div');sl1.style.color='#4fd1c5';sl1.textContent='✓ '+fmt(rL);subL.appendChild(sl1);}
+            if(eL>0){const sl2=document.createElement('div');sl2.style.color='#b794f4';sl2.textContent='◐ '+fmt(eL);subL.appendChild(sl2);}
+            td.appendChild(subL);
+          }
+        }
+        grid.appendChild(td);
       });
       const tdTot=document.createElement('div');tdTot.className='bg-td';tdTot.style.textAlign='right';tdTot.style.color='var(--text2)';tdTot.style.fontSize='11px';tdTot.style.display='flex';tdTot.style.flexDirection='column';tdTot.style.alignItems='flex-end';tdTot.style.justifyContent='center';tdTot.style.gap='2px';
       const tot=LOGS.reduce((s,l)=>s+(+row[l.prevKey]||0),0);
