@@ -149,18 +149,26 @@ onAuthStateChanged(auth, async (user) => {
     } catch(e){ /* pas grave, l'utilisateur pourra la ressaisir */ }
   }
 
-  // Synchro temps réel : recharge le localStorage si changement depuis un autre appareil
+  // Synchro temps réel : recharge le localStorage si changement depuis un autre appareil.
+  // Même protection anti-écrasement que loadFromCloud() : si le cloud n'est pas plus récent que
+  // la dernière synchronisation locale réussie, on ignore le snapshot au lieu d'écraser le local —
+  // sinon un cloud resté périmé (sync qui échoue, ex: erreur de permissions) écrase en boucle des
+  // corrections locales jamais synchronisées, à chaque snapshot reçu (y compris à la reconnexion).
   onSnapshot(window._appDataDoc(), (snap) => {
     if(snap.exists() && window._remoteUpdate){
       const d = snap.data();
       const k = (key) => window._structureId + '_' + key;
-      if(d.budget) localStorage.setItem(k('budget3'), JSON.stringify(d.budget));
-      if(d.factures) localStorage.setItem(k('factures3'), JSON.stringify(d.factures));
-      if(d.fin) localStorage.setItem(k('fin4'), JSON.stringify(d.fin));
-      if(d.locataires) localStorage.setItem(k('locataires'), JSON.stringify(d.locataires));
-      if(d.logements) localStorage.setItem(k('logements_config'), JSON.stringify(d.logements));
-      if(d.projection) localStorage.setItem(k('projection'), JSON.stringify(d.projection));
-      if(d.fc) localStorage.setItem(k('fc'), JSON.stringify(d.fc));
+      const lastSyncedAt = localStorage.getItem(k('last_synced_at')) || '';
+      if(!(d.updated && lastSyncedAt && d.updated<=lastSyncedAt)){
+        if(d.budget) localStorage.setItem(k('budget3'), JSON.stringify(d.budget));
+        if(d.factures) localStorage.setItem(k('factures3'), JSON.stringify(d.factures));
+        if(d.fin) localStorage.setItem(k('fin4'), JSON.stringify(d.fin));
+        if(d.locataires) localStorage.setItem(k('locataires'), JSON.stringify(d.locataires));
+        if(d.logements) localStorage.setItem(k('logements_config'), JSON.stringify(d.logements));
+        if(d.projection) localStorage.setItem(k('projection'), JSON.stringify(d.projection));
+        if(d.fc) localStorage.setItem(k('fc'), JSON.stringify(d.fc));
+        if(d.updated) localStorage.setItem(k('last_synced_at'), d.updated);
+      }
       window._remoteUpdate = false;
     }
     window._remoteUpdate = true;
