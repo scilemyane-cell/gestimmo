@@ -1426,7 +1426,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <h3>Choisis les pages à conserver</h3>
       <button class="pdf-modal-close" onclick="annulerChoixPages()">✕</button>
     </div>
-    <div style="padding:6px 20px 0;font-size:11px;color:var(--text2)">Décoche les pages à exclure (ex : bons de livraison, CGV, pages blanches). Au moins une page doit rester cochée.</div>
+    <div style="padding:6px 20px 0;font-size:11px;color:var(--text2)">Décoche les pages à exclure (ex : bons de livraison, CGV, pages blanches). Clique sur 🔄 pour pivoter une page mal orientée. Au moins une page doit rester cochée.</div>
     <div id="page-picker-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;padding:16px 20px"></div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
       <span id="page-picker-count" style="font-size:12px;color:var(--text2)"></span>
@@ -2226,7 +2226,7 @@ function openEditDevis(idx){
   const fileInput=document.getElementById('devis-pdf-input');if(fileInput)fileInput.value='';
   const prev=document.getElementById('devis-pdf-preview');
   if(prev){
-    if(loadDevisPdf(idx)){prev.style.display='block';prev.innerHTML='📎 PDF déjà joint — <a href="#" onclick="viewDevisPdf('+idx+',\''+(d.num||'Devis').replace(/'/g,"\\'")+'\');return false;" style="color:var(--accent)">voir</a> (choisis un nouveau fichier ci-dessus pour le remplacer)';}
+    if(loadDevisPdf(idx)||d.driveLink){prev.style.display='block';prev.innerHTML='📎 PDF déjà joint — <a href="#" onclick="viewDevisPdf('+idx+',\''+(d.num||'Devis').replace(/'/g,"\\'")+'\');return false;" style="color:var(--accent)">voir</a> · <a href="#" onclick="modifierPagesDevisExistant('+idx+');return false;" style="color:var(--accent)">✂️ modifier les pages</a> (choisis un nouveau fichier ci-dessus pour le remplacer)';}
     else{prev.style.display='none';prev.textContent='';}
   }
   // Réinitialiser puis préremplir le panneau de répartition si ce devis est réparti
@@ -3991,9 +3991,9 @@ function openEdit(idx){
   // PDF actuel
   const hasPdf=!!loadPdf(idx);
   const cur=document.getElementById('e-pdf-current');
-  cur.style.display=hasPdf?'flex':'none';
+  cur.style.display=(hasPdf||f.driveLink)?'flex':'none';
   cur.style.alignItems='center';cur.style.gap='10px';
-  if(hasPdf)cur.innerHTML=`<span style="font-size:11px;color:var(--green)">📄 PDF actuel joint</span><button class="btn btn-sm btn-danger" onclick="removeCurrentPdf(${idx})">Retirer le PDF</button>`;
+  if(hasPdf||f.driveLink)cur.innerHTML=`<span style="font-size:11px;color:var(--green)">📄 PDF actuel joint</span><a href="#" onclick="modifierPagesFactureExistant(${idx});return false;" style="color:var(--accent);font-size:11px">✂️ modifier les pages</a>${hasPdf?`<button class="btn btn-sm btn-danger" onclick="removeCurrentPdf(${idx})">Retirer le PDF</button>`:''}`;
   clearUpload(true);
   const b64=loadPdf(idx);
   document.getElementById('modal-overlay').classList.add('open');
@@ -4805,21 +4805,32 @@ function imageToPortrait(dataUrl){
 
 // ── SÉLECTEUR DE PAGES À L'IMPORT (factures + devis) ──────────────────────
 // Permet d'exclure certaines pages d'un PDF multi-pages avant de l'enregistrer (CGV, bons de
-// livraison, pages blanches...) — allège aussi le fichier stocké (utile pour le quota localStorage).
-// Pour une image simple ou un PDF d'une seule page : rien à choisir, résout immédiatement avec
-// le b64 d'origine, aucun sélecteur affiché.
+// livraison, pages blanches...) et de pivoter une page mal orientée (certains PDF de tickets/
+// caisse embarquent une métadonnée de rotation erronée, ce qui donne un rendu à l'envers malgré
+// la correction automatique) — allège aussi le fichier stocké (utile pour le quota localStorage).
+// forceOpen=true : ouvre le sélecteur même pour un document d'une seule page/image (utilisé pour
+// retoucher un document déjà enregistré, où seule la rotation peut être utile). Par défaut (upload),
+// un document d'une seule page ne montre rien et résout immédiatement avec le b64 d'origine.
 let _pagePickerResolve=null;
 let _pagePickerImages=[];
 let _pagePickerSelected=[];
+let _pagePickerRotations=[];
 let _pagePickerOriginalB64=null;
-async function choisirPagesDocument(b64){
+async function choisirPagesDocument(b64,forceOpen){
   if(!b64)return b64;
-  if(b64.startsWith('data:image'))return b64;
-  const images=await pdfToImages(b64);
-  if(!images||images.length<=1)return b64;
+  let images;
+  if(b64.startsWith('data:image')){
+    if(!forceOpen)return b64;
+    images=[b64];
+  } else {
+    images=await pdfToImages(b64);
+    if(!images||!images.length)return b64;
+    if(images.length<=1&&!forceOpen)return b64;
+  }
   _pagePickerOriginalB64=b64;
   _pagePickerImages=images;
   _pagePickerSelected=images.map(()=>true);
+  _pagePickerRotations=images.map(()=>0);
   renderPagePicker();
   document.getElementById('page-picker-overlay').classList.add('open');
   return new Promise(resolve=>{_pagePickerResolve=resolve;});
@@ -4827,9 +4838,12 @@ async function choisirPagesDocument(b64){
 function renderPagePicker(){
   const grid=document.getElementById('page-picker-grid');
   grid.innerHTML=_pagePickerImages.map((img,i)=>`
-    <div style="position:relative;border-radius:8px;overflow:hidden;border:2px solid ${_pagePickerSelected[i]?'var(--accent)':'var(--border)'};opacity:${_pagePickerSelected[i]?'1':'.4'};cursor:pointer;transition:all .15s" onclick="togglePagePicker(${i})">
-      <img src="${img}" style="width:100%;display:block;background:#fff">
-      <div style="position:absolute;top:6px;left:6px;background:${_pagePickerSelected[i]?'var(--accent)':'rgba(0,0,0,.6)'};color:${_pagePickerSelected[i]?'#0a0e1a':'#fff'};border-radius:5px;padding:2px 8px;font-size:10px;font-weight:700">${_pagePickerSelected[i]?'✓ ':''}Page ${i+1}</div>
+    <div style="position:relative;border-radius:8px;overflow:hidden;border:2px solid ${_pagePickerSelected[i]?'var(--accent)':'var(--border)'};opacity:${_pagePickerSelected[i]?'1':'.4'};transition:all .15s">
+      <div onclick="togglePagePicker(${i})" style="cursor:pointer">
+        <img src="${img}" style="width:100%;display:block;background:#fff;transform:rotate(${_pagePickerRotations[i]||0}deg);transition:transform .2s">
+      </div>
+      <div style="position:absolute;top:6px;left:6px;background:${_pagePickerSelected[i]?'var(--accent)':'rgba(0,0,0,.6)'};color:${_pagePickerSelected[i]?'#0a0e1a':'#fff'};border-radius:5px;padding:2px 8px;font-size:10px;font-weight:700;pointer-events:none">${_pagePickerSelected[i]?'✓ ':''}Page ${i+1}</div>
+      <button onclick="event.stopPropagation();rotatePagePicker(${i})" title="Pivoter cette page de 90°" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:5px;padding:3px 8px;font-size:12px;cursor:pointer">🔄</button>
     </div>`).join('');
   const n=_pagePickerSelected.filter(Boolean).length;
   document.getElementById('page-picker-count').textContent=n+' page'+(n>1?'s':'')+' sur '+_pagePickerImages.length+' conservée'+(n>1?'s':'');
@@ -4840,27 +4854,88 @@ function togglePagePicker(i){
   _pagePickerSelected[i]=!_pagePickerSelected[i];
   renderPagePicker();
 }
+function rotatePagePicker(i){
+  _pagePickerRotations[i]=((_pagePickerRotations[i]||0)+90)%360;
+  renderPagePicker();
+}
+// Pivote une image data-URL de 90/180/270°, en adaptant les dimensions du canvas (largeur/hauteur
+// inversées pour 90 et 270).
+function rotateImageDataUrl(dataUrl,degrees){
+  return new Promise(resolve=>{
+    if(!degrees){resolve(dataUrl);return;}
+    const img=new Image();
+    img.onload=()=>{
+      const swap=(degrees===90||degrees===270);
+      const canvas=document.createElement('canvas');
+      canvas.width=swap?img.height:img.width;
+      canvas.height=swap?img.width:img.height;
+      const ctx=canvas.getContext('2d');
+      ctx.translate(canvas.width/2,canvas.height/2);
+      ctx.rotate(degrees*Math.PI/180);
+      ctx.drawImage(img,-img.width/2,-img.height/2);
+      resolve(canvas.toDataURL('image/jpeg',0.9));
+    };
+    img.onerror=()=>resolve(dataUrl);
+    img.src=dataUrl;
+  });
+}
 async function confirmerChoixPages(){
-  const kept=_pagePickerImages.filter((img,i)=>_pagePickerSelected[i]);
+  const keptIdx=_pagePickerImages.map((img,i)=>i).filter(i=>_pagePickerSelected[i]);
+  const uneSeuleRotation=keptIdx.some(i=>(_pagePickerRotations[i]||0)!==0);
   document.getElementById('page-picker-overlay').classList.remove('open');
   let result;
-  if(kept.length===_pagePickerImages.length){
+  if(keptIdx.length===_pagePickerImages.length&&!uneSeuleRotation){
     result=_pagePickerOriginalB64;
-  } else if(kept.length===1){
-    result=kept[0];
   } else {
-    result=await empilerImagesVerticalement(kept);
+    const kept=await Promise.all(keptIdx.map(i=>rotateImageDataUrl(_pagePickerImages[i],_pagePickerRotations[i]||0)));
+    result=kept.length===1?kept[0]:await empilerImagesVerticalement(kept);
   }
   const resolve=_pagePickerResolve;
-  _pagePickerResolve=null;_pagePickerImages=[];_pagePickerSelected=[];_pagePickerOriginalB64=null;
+  _pagePickerResolve=null;_pagePickerImages=[];_pagePickerSelected=[];_pagePickerRotations=[];_pagePickerOriginalB64=null;
   if(resolve)resolve(result);
 }
 function annulerChoixPages(){
   document.getElementById('page-picker-overlay').classList.remove('open');
   const resolve=_pagePickerResolve;
   const original=_pagePickerOriginalB64;
-  _pagePickerResolve=null;_pagePickerImages=[];_pagePickerSelected=[];_pagePickerOriginalB64=null;
+  _pagePickerResolve=null;_pagePickerImages=[];_pagePickerSelected=[];_pagePickerRotations=[];_pagePickerOriginalB64=null;
   if(resolve)resolve(original);
+}
+// Retouche a posteriori les pages d'un devis déjà enregistré (exclure/pivoter), utile pour les
+// devis importés avant l'existence de ce sélecteur, ou avec une orientation d'origine erronée.
+async function modifierPagesDevisExistant(idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ce devis."); return; }
+  const b64=await fetchDevisPdfB64(idx);
+  if(!b64){alert('Aucun document trouvé pour ce devis.');return;}
+  const result=await choisirPagesDocument(b64,true);
+  if(result===b64)return;
+  const devis=loadDevis();
+  const d=devis[idx];
+  if(d){
+    const dfour=(d.four||'devis').replace(/[^a-zA-Z0-9]/g,'_');
+    const dnum=d.num||'DEV-'+(idx+1);
+    await saveDevisPdfWithDrive(idx,result,dnum+'_'+dfour+'.pdf');
+  } else {
+    saveDevisPdf(idx,result);
+  }
+  renderDevis();
+  alert('✓ Document mis à jour.');
+}
+// Idem pour une facture déjà enregistrée.
+async function modifierPagesFactureExistant(idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier cette facture."); return; }
+  const{factures}=loadData();
+  const f=factures[idx];
+  if(!f)return;
+  let b64=loadPdf(idx);
+  if(!b64&&f.driveLink)b64=await downloadDriveFileAsBase64(f.driveLink);
+  if(!b64){alert('Aucun document trouvé pour cette facture (ni en local, ni sur Drive).');return;}
+  const result=await choisirPagesDocument(b64,true);
+  if(result===b64)return;
+  const fname=(f.num||'FAC-'+(idx+1))+'_'+(f.four||'facture').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf';
+  await savePdfWithDrive(idx,result,fname);
+  renderFactures();
+  alert('✓ Document mis à jour.');
 }
 
 async function exportZipFactures(){
