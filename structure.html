@@ -897,6 +897,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         </select>
       </div>
       <div class="form-group" style="grid-column:1/-1"><label>Description</label><input type="text" id="devis-desc" placeholder="Détail du devis"></div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Scan / PDF du devis <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label>
+        <input type="file" id="devis-pdf-input" accept="application/pdf,image/*" onchange="onDevisFileChange(event)" style="font-size:12px;color:var(--text2)">
+        <div id="devis-pdf-preview" style="display:none;margin-top:6px;font-size:11px;color:var(--text2)"></div>
+      </div>
     </div>
     <div style="display:flex;gap:10px;margin-top:14px">
       <button class="btn" onclick="ajouterOuModifierDevis()" id="devis-submit-btn">+ Ajouter le devis</button>
@@ -926,7 +931,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <table class="factures-table">
       <thead><tr>
         <th>N° Devis</th><th>Date</th><th>Fournisseur</th><th>Catégorie</th><th>Logement</th>
-        <th style="text-align:right">TTC</th><th>Statut</th><th>Facture liée</th><th style="text-align:center">Actions</th>
+        <th style="text-align:right">TTC</th><th>Statut</th><th>Facture liée</th><th style="text-align:center">PDF</th><th style="text-align:center">Actions</th>
       </tr></thead>
       <tbody id="devis-tbody"></tbody>
     </table>
@@ -1561,6 +1566,20 @@ function saveDevis(devis){
     return true;
   }catch(e){return false;}
 }
+// PDF/scan joint à un devis — stockage séparé des factures (index propre à devis1).
+function loadDevisPdf(idx){try{return localStorage.getItem(ctxKey('devispdf_'+idx));}catch(e){return null;}}
+function saveDevisPdf(idx,b64){
+  try{if(b64)localStorage.setItem(ctxKey('devispdf_'+idx),b64);else localStorage.removeItem(ctxKey('devispdf_'+idx));return true;}
+  catch(e){return false;}
+}
+function removeDevisPdf(idx){try{localStorage.removeItem(ctxKey('devispdf_'+idx));}catch(e){}}
+function viewDevisPdf(idx,name){
+  const b64=loadDevisPdf(idx);
+  if(!b64){alert('Aucun PDF joint à ce devis.');return;}
+  document.getElementById('pdf-modal-title').textContent=name||'Devis';
+  document.getElementById('pdf-iframe').src=b64;
+  document.getElementById('pdf-modal-overlay').classList.add('open');
+}
 // Lie un devis (par son N°) à une facture (par son N°) : passe le devis en "Facturé".
 function lierDevisAFacture(devisNum,factureNum){
   if(!devisNum||!factureNum)return;
@@ -1608,6 +1627,24 @@ function appliquerDevisSurFacture(){
 
 // ── ONGLET DEVIS ─────────────────────────────────────────────────────────
 let editDevisIdx=null;
+let pendingDevisPdfB64=null,pendingDevisPdfName=null;
+
+async function onDevisFileChange(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  if(file.type.startsWith('image/')){
+    pendingDevisPdfB64=await compressImage(file,1200,0.8);
+  } else if(file.type==='application/pdf'){
+    pendingDevisPdfB64=await readFileAsB64(file);
+  } else {
+    alert('Seuls les fichiers PDF ou images sont acceptés.');
+    e.target.value='';
+    return;
+  }
+  pendingDevisPdfName=file.name;
+  const prev=document.getElementById('devis-pdf-preview');
+  if(prev){prev.style.display='block';prev.textContent='📎 '+file.name+' — sera enregistré avec le devis';}
+}
 
 function renderDevis(){
   const devis=loadDevis();
@@ -1658,7 +1695,9 @@ function renderDevis(){
       <td style="text-align:right;font-weight:600">${fmt(d.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:600">${d.statut||'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${d.factureNum?('📄 '+d.factureNum):'—'}</td>
+      <td style="text-align:center">${loadDevisPdf(d._ri)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:'<span style="font-size:10px;color:var(--text3)">—</span>'}</td>
       <td style="text-align:center;white-space:nowrap">
+        ${d.statut==='En attente'?`<button class="btn btn-sm" style="background:rgba(104,211,145,.15);border-color:rgba(104,211,145,.4);color:var(--green)" onclick="validerDevis(${d._ri})" title="Valider ce devis (passe en Accepté)">✓ Valider</button>`:''}
         <button class="btn btn-sm btn-edit" onclick="openEditDevis(${d._ri})">✎</button>
         <button class="btn btn-sm btn-danger" onclick="supprimerDevis(${d._ri})">🗑</button>
       </td>
@@ -1686,8 +1725,10 @@ function ajouterOuModifierDevis(){
   };
   // Un devis déjà lié à une facture reste au statut "Facturé" tant que le lien existe
   if(obj.factureNum)obj.statut='Facturé';
+  const idxFinal=editDevisIdx!==null?editDevisIdx:devis.length;
   if(editDevisIdx!==null)devis[editDevisIdx]=obj;else devis.push(obj);
   saveDevis(devis);
+  if(pendingDevisPdfB64)saveDevisPdf(idxFinal,pendingDevisPdfB64);
   resetFormDevis();
   renderDevis();
   populateDevisSelects();
@@ -1711,16 +1752,38 @@ function openEditDevis(idx){
   document.getElementById('devis-form-title').textContent='✎ Modifier le devis '+(d.num||'');
   document.getElementById('devis-submit-btn').textContent='Enregistrer les modifications';
   document.getElementById('devis-cancel-btn').style.display='inline-block';
+  pendingDevisPdfB64=null;pendingDevisPdfName=null;
+  const fileInput=document.getElementById('devis-pdf-input');if(fileInput)fileInput.value='';
+  const prev=document.getElementById('devis-pdf-preview');
+  if(prev){
+    if(loadDevisPdf(idx)){prev.style.display='block';prev.innerHTML='📎 PDF déjà joint — <a href="#" onclick="viewDevisPdf('+idx+',\''+(d.num||'Devis').replace(/'/g,"\\'")+'\');return false;" style="color:var(--accent)">voir</a> (choisis un nouveau fichier ci-dessus pour le remplacer)';}
+    else{prev.style.display='none';prev.textContent='';}
+  }
   document.getElementById('tab-devis').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function resetFormDevis(){
   editDevisIdx=null;
+  pendingDevisPdfB64=null;pendingDevisPdfName=null;
   ['devis-num','devis-date','devis-four','devis-ttc','devis-desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const statutEl=document.getElementById('devis-statut');if(statutEl)statutEl.value='En attente';
   document.getElementById('devis-form-title').textContent='+ Ajouter un devis';
   document.getElementById('devis-submit-btn').textContent='+ Ajouter le devis';
   document.getElementById('devis-cancel-btn').style.display='none';
+  const fileInput=document.getElementById('devis-pdf-input');if(fileInput)fileInput.value='';
+  const prev=document.getElementById('devis-pdf-preview');if(prev){prev.style.display='none';prev.textContent='';}
+}
+
+// Validation rapide en un clic depuis la liste — passe le devis en "Accepté" sans ouvrir le formulaire.
+function validerDevis(idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier les devis."); return; }
+  const devis=loadDevis();
+  const d=devis[idx];
+  if(!d||d.statut==='Facturé')return;
+  d.statut='Accepté';
+  saveDevis(devis);
+  renderDevis();
+  populateDevisSelects();
 }
 
 function supprimerDevis(idx){
@@ -1732,6 +1795,12 @@ function supprimerDevis(idx){
   if(!confirm('Supprimer ce devis ?'))return;
   devis.splice(idx,1);
   saveDevis(devis);
+  removeDevisPdf(idx);
+  for(let i=idx;i<devis.length;i++){
+    const next=loadDevisPdf(i+1);
+    if(next)saveDevisPdf(i,next);else removeDevisPdf(i);
+  }
+  removeDevisPdf(devis.length);
   if(editDevisIdx===idx)resetFormDevis();
   renderDevis();
   populateDevisSelects();
