@@ -1396,7 +1396,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   <div class="pdf-modal">
     <div class="pdf-modal-header">
       <h3 id="pdf-modal-title">Facture</h3>
-      <button class="pdf-modal-close" onclick="closePdfModal()">✕</button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="btn btn-sm" onclick="imprimerPdfModal()" title="Imprimer" style="background:var(--bg3);border-color:var(--border)">🖨️</button>
+        <button class="btn btn-sm" onclick="telechargerPdfModal()" title="Télécharger" style="background:var(--bg3);border-color:var(--border)">⬇️</button>
+        <button class="btn btn-sm" onclick="partagerPdfModal()" title="Partager / Envoyer par email" style="background:var(--accent);color:#0a0e1a;border-color:var(--accent);font-weight:700">📤 Partager</button>
+        <button class="pdf-modal-close" onclick="closePdfModal()">✕</button>
+      </div>
     </div>
     <iframe class="pdf-iframe" id="pdf-iframe" src=""></iframe>
   </div>
@@ -1591,6 +1596,7 @@ function removeDevisPdf(idx){try{localStorage.removeItem(ctxKey('devispdf_'+idx)
 function viewDevisPdf(idx,name){
   const b64=loadDevisPdf(idx);
   if(!b64){alert('Aucun PDF joint à ce devis.');return;}
+  window._pdfModalCurrent={b64,name:name||'Devis'};
   document.getElementById('pdf-modal-title').textContent=name||'Devis';
   document.getElementById('pdf-iframe').src=b64;
   document.getElementById('pdf-modal-overlay').classList.add('open');
@@ -1621,8 +1627,8 @@ function dessinerTamponSurImage(dataUrl,dateTxt,tamponB64){
         ctx.globalAlpha=1;
         ctx.fillStyle='rgba(0,0,0,0.7)';
         ctx.textAlign='center';
-        ctx.font='bold '+Math.round(targetH*0.2)+'px Arial';
-        ctx.fillText('Validé le '+dateTxt,x+targetW/2,y+targetH+Math.round(targetH*0.26));
+        ctx.font='bold '+Math.round(targetH*0.11)+'px Arial';
+        ctx.fillText('Validé le '+dateTxt,x+targetW/2,y+targetH+Math.round(targetH*0.18));
         ctx.restore();
         finish();
       };
@@ -1665,6 +1671,7 @@ function empilerImagesVerticalement(images){
 }
 // Appose le tampon des Paramètres sur le document joint à un devis (idx), s'il en a un et si un
 // tampon est configuré. Silencieux sinon — le tampon n'est qu'une confirmation visuelle, pas un blocage.
+// Ré-uploade aussi la version tamponnée sur Drive pour que le fichier là-bas soit à jour.
 async function tamponnerDevisPdf(idx,dateTxt){
   const b64=loadDevisPdf(idx);
   if(!b64)return;
@@ -1676,7 +1683,15 @@ async function tamponnerDevisPdf(idx,dateTxt){
   if(!images||!images.length)return;
   const stamped=await Promise.all(images.map(img=>dessinerTamponSurImage(img,dateTxt,tamponB64)));
   const finalB64=stamped.length===1?stamped[0]:await empilerImagesVerticalement(stamped);
-  saveDevisPdf(idx,finalB64);
+  const devisNow=loadDevis();
+  const d=devisNow[idx];
+  if(d){
+    const dfour=(d.four||'devis').replace(/[^a-zA-Z0-9]/g,'_');
+    const dnum=d.num||'DEV-'+(idx+1);
+    await saveDevisPdfWithDrive(idx,finalB64,dnum+'_'+dfour+'.pdf');
+  }else{
+    saveDevisPdf(idx,finalB64);
+  }
 }
 
 // Lie un devis (par son N°) à une facture (par son N°) : passe le devis en "Facturé".
@@ -2558,7 +2573,7 @@ function getTabGroups(){
   const mods = getModulesConfig();
   const groups = [];
   if(mods.construction) groups.push({id:'construction',label:'🏗️ Construction prévisionnelle',tabs:['synthese','logements','budget','dashboard']});
-  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['factures','devis','annuel','saisie','charges-recurrentes','banque']});
+  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['devis','factures','saisie','annuel','charges-recurrentes','banque']});
   if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']});
   if(mods.financement) groups.push({id:'financement',label:'💰 Financement',tabs:['projection','financement']});
   groups.push(paramGroup);
@@ -2566,7 +2581,7 @@ function getTabGroups(){
 }
 function getTabLabels(){return{
   synthese:'Synthèse',logements:'Par logement',budget:'Budget prévisionnel',dashboard:'📊 Dashboard Prév.',
-  factures:'Factures réelles',devis:'📝 Devis',annuel:'📅 Par année',saisie:'+ Saisir une facture','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque',
+  devis:'📝 Devis',factures:'Factures réelles',saisie:'+ Saisir une facture',annuel:'📅 Par année','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque',
   locataires:'Fiches & loyers','gestion-locative':'📁 Gestion locative',rentabilite:'📈 Rentabilité',
   projection:'🔭 Projection 20 ans',financement:'💳 Crédit & charges',
   parametres:'⚙️ Paramètres'
@@ -3736,6 +3751,7 @@ function saveEditAsSplit(){
 function viewPdf(idx,name){
   const b64=loadPdf(idx);
   if(!b64){alert('PDF introuvable.');return;}
+  window._pdfModalCurrent={b64,name:name||'Facture'};
   document.getElementById('pdf-modal-title').textContent=name||'Facture';
   document.getElementById('pdf-iframe').src=b64;
   document.getElementById('pdf-modal-overlay').classList.add('open');
@@ -3743,8 +3759,59 @@ function viewPdf(idx,name){
 function closePdfModal(){
   document.getElementById('pdf-modal-overlay').classList.remove('open');
   document.getElementById('pdf-iframe').src='';
+  window._pdfModalCurrent=null;
 }
 document.getElementById('pdf-modal-overlay').addEventListener('click',function(e){if(e.target===this)closePdfModal();});
+
+// Convertit le data-URL courant du modal en Blob/File, avec un nom de fichier propre (extension déduite du type).
+function _pdfModalToFile(){
+  const cur=window._pdfModalCurrent;
+  if(!cur||!cur.b64)return null;
+  const isImg=cur.b64.startsWith('data:image');
+  const mime=cur.b64.startsWith('data:image')?(cur.b64.split(';')[0].replace('data:','')||'image/jpeg'):'application/pdf';
+  const ext=isImg?(mime.split('/')[1]||'jpg'):'pdf';
+  let base=(cur.name||'document').replace(/[^a-zA-Z0-9 _-]/g,'').trim()||'document';
+  const fileName=base+'.'+ext;
+  const base64Data=cur.b64.split(',')[1];
+  const byteChars=atob(base64Data);
+  const byteArr=new Uint8Array(byteChars.length);
+  for(let i=0;i<byteChars.length;i++)byteArr[i]=byteChars.charCodeAt(i);
+  return new File([byteArr],fileName,{type:mime});
+}
+function telechargerPdfModal(){
+  const cur=window._pdfModalCurrent;
+  if(!cur||!cur.b64){alert('Aucun document ouvert.');return;}
+  const file=_pdfModalToFile();
+  const url=URL.createObjectURL(file);
+  const a=document.createElement('a');
+  a.href=url;a.download=file.name;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+async function partagerPdfModal(){
+  const cur=window._pdfModalCurrent;
+  if(!cur||!cur.b64){alert('Aucun document ouvert.');return;}
+  const file=_pdfModalToFile();
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:file.name});return;}
+    catch(e){if(e && e.name==='AbortError')return;}
+  }
+  // Pas de partage natif disponible : on télécharge, l'utilisateur pourra joindre le fichier manuellement.
+  telechargerPdfModal();
+  alert("Le partage direct n'est pas disponible ici — le fichier a été téléchargé, tu peux le joindre à ton email.");
+}
+function imprimerPdfModal(){
+  const cur=window._pdfModalCurrent;
+  if(!cur||!cur.b64){alert('Aucun document ouvert.');return;}
+  const iframe=document.getElementById('pdf-iframe');
+  try{
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+  }catch(e){
+    // Repli : ouvre le document dans un nouvel onglet, d'où l'impression navigateur reste possible.
+    window.open(cur.b64,'_blank');
+  }
+}
 
 // ── EXPORTS ───────────────────────────────────────────────────────────────
 function exportCSV(){
@@ -11462,8 +11529,15 @@ async function uploadToDriveDevis(b64, fileName, anneeDevis){
       const existResp=await fetch("https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qExist)+"&fields=files(id,webViewLink)",{headers:{'Authorization':'Bearer '+driveAccessToken}});
       const existData=await existResp.json();
       if(existData.files&&existData.files.length>0){
-        console.warn('Fichier déjà présent sur Drive, réutilisation au lieu d\'un nouvel upload :',fileName);
-        return existData.files[0].webViewLink||null;
+        // Un fichier du même nom existe déjà (ex : re-upload après tamponnage) : on met à jour
+        // son contenu au lieu de le laisser tel quel, sinon la version tamponnée n'apparaît jamais sur Drive.
+        const fileId=existData.files[0].id;
+        const updateResp=await fetch(
+          "https://www.googleapis.com/upload/drive/v3/files/"+fileId+"?uploadType=media",
+          {method:'PATCH', headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':mimeType}, body:blob}
+        );
+        if(updateResp.ok) return existData.files[0].webViewLink||null;
+        console.warn('Mise à jour du fichier Drive existant échouée, nouvel upload en secours.');
       }
     }catch(e){console.warn('Vérification anti-doublon Drive échouée, upload normal:',e);}
 
