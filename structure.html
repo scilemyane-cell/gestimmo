@@ -3607,8 +3607,9 @@ async function exporterSelectionBanque(){
         const reglePar=f.regleby?` — Réglé par : <span style="color:#2c5282;font-weight:700">${f.regleby}</span>`:'';
         const cmdInfo=f.cmd?` — N° commande : <span style="color:#2c5282;font-weight:700">${f.cmd}</span>`:'';
         const datepayInfo=f.datepay?` — Payée le : <span style="color:#2c5282;font-weight:700">${f.datepay}</span>`:'';
+        const catInfo=` — <span style="color:#2c5282;font-weight:700">${f.cat||'—'}${f.poste?' / '+f.poste:''}</span>`;
         const repartInfo=(f.repartition&&f.repartition.length>1)?`<div style="font-size:11px;color:#805ad5;font-weight:700;margin-top:3px">🔀 Répartition à imputer sur ${f.repartition.length} logements/crédits : ${getLogDisplayText(f)}</div>`:'';
-        const labelHtml='<div style="font-family:Arial;font-size:12px;font-weight:700;color:#2b6cb0;padding:6px 0 5px;border-bottom:2px solid #2b6cb0;margin-bottom:8px">'+nom+' — <span style="color:'+sc+'">'+f.statut+'</span> — '+montant+reglePar+cmdInfo+datepayInfo+repartInfo+'</div>';
+        const labelHtml='<div style="font-family:Arial;font-size:12px;font-weight:700;color:#2b6cb0;padding:6px 0 5px;border-bottom:2px solid #2b6cb0;margin-bottom:8px">'+nom+' — <span style="color:'+sc+'">'+f.statut+'</span> — '+montant+catInfo+reglePar+cmdInfo+datepayInfo+repartInfo+'</div>';
         const firstPage='<img src="'+images[0]+'" style="width:100%;max-height:calc(100vh - 80px);object-fit:contain;display:block">';
         const restPages=images.slice(1).map(img=>
           '<div style="page-break-before:always"><img src="'+img+'" style="width:100%;display:block"></div>'
@@ -3630,7 +3631,7 @@ async function exporterSelectionBanque(){
       +'<strong style="color:#2b6cb0">'+nom+'</strong> &nbsp;|&nbsp; '
       +'<span style="color:'+sc+'">'+f.statut+'</span> &nbsp;|&nbsp; '
       +'<strong>'+montant+'</strong> &nbsp;|&nbsp; '
-      +f.cat+' &nbsp;|&nbsp; '+(f.repartition&&f.repartition.length>1?'🔀 '+getLogDisplayText(f):f.log)
+      +f.cat+(f.poste?' / '+f.poste:'')+' &nbsp;|&nbsp; '+(f.repartition&&f.repartition.length>1?'🔀 '+getLogDisplayText(f):f.log)
       +(f.regleby?' &nbsp;|&nbsp; Réglé par : <strong>'+f.regleby+'</strong>':'')
       +(f.cmd?' &nbsp;|&nbsp; N° commande : <strong>'+f.cmd+'</strong>':'')
       +(f.datepay?' &nbsp;|&nbsp; Payée le : <strong>'+f.datepay+'</strong>':'')
@@ -3638,6 +3639,36 @@ async function exporterSelectionBanque(){
       +'</div>');
   }
   const items=itemsHtml.join('');
+
+  // Récapitulatif par catégorie / sous-catégorie (poste) des factures sélectionnées — vue d'ensemble
+  // utile pour la banque avant le détail facture par facture.
+  const recapMap={};
+  filtered.forEach(f=>{
+    const catLabel=getCatDisplayText(f)||'—';
+    const posteLabel=f.poste||'';
+    const key=catLabel+'|||'+posteLabel;
+    if(!recapMap[key])recapMap[key]={cat:catLabel,poste:posteLabel,montant:0,nb:0};
+    recapMap[key].montant+=(+f.ttc||0);
+    recapMap[key].nb++;
+  });
+  const recapRows=Object.values(recapMap).sort((a,b)=>a.cat.localeCompare(b.cat)||a.poste.localeCompare(b.poste));
+  const totalGeneral=recapRows.reduce((s,r)=>s+r.montant,0);
+  const eur=n=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(n||0);
+  const recapHtml='<table style="width:100%;border-collapse:collapse;margin-bottom:28px;font-family:Arial">'
+    +'<thead><tr style="background:#ebf8ff">'
+    +'<th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#2c5282;border-bottom:2px solid #bee3f8">Catégorie</th>'
+    +'<th style="text-align:left;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#2c5282;border-bottom:2px solid #bee3f8">Sous-catégorie</th>'
+    +'<th style="text-align:right;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#2c5282;border-bottom:2px solid #bee3f8">Nb factures</th>'
+    +'<th style="text-align:right;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#2c5282;border-bottom:2px solid #bee3f8">Montant TTC</th>'
+    +'</tr></thead><tbody>'
+    +recapRows.map(r=>'<tr><td style="padding:7px 8px;font-size:11px;border-bottom:1px solid #e2e8f0">'+r.cat+'</td>'
+      +'<td style="padding:7px 8px;font-size:11px;border-bottom:1px solid #e2e8f0;color:#718096">'+(r.poste||'—')+'</td>'
+      +'<td style="text-align:right;padding:7px 8px;font-size:11px;border-bottom:1px solid #e2e8f0">'+r.nb+'</td>'
+      +'<td style="text-align:right;padding:7px 8px;font-size:11px;border-bottom:1px solid #e2e8f0;font-weight:600">'+eur(r.montant)+'</td></tr>').join('')
+    +'</tbody><tfoot><tr style="background:#f0f9ff">'
+    +'<td colspan="3" style="padding:9px 8px;font-size:12px;font-weight:700;color:#2b6cb0">TOTAL</td>'
+    +'<td style="text-align:right;padding:9px 8px;font-size:12px;font-weight:700;color:#2b6cb0">'+eur(totalGeneral)+'</td>'
+    +'</tr></tfoot></table>';
 
   const title='SCI LEMYANE — Factures à transmettre à la banque ('+filtered.length+' factures)';
   const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+title+'</title>'
@@ -3651,6 +3682,7 @@ async function exporterSelectionBanque(){
     +'<p>'+(getCTXConfig().sousTitre||'')+' · Edité le '+new Date().toLocaleDateString('fr-FR')+'</p>'
     +'<button class="no-print" onclick="window.print()" style="margin-top:8px;background:#2b6cb0;border:none;border-radius:6px;color:#fff;padding:8px 18px;font-size:12px;cursor:pointer;font-weight:600">🖨 Imprimer / Sauvegarder PDF</button>'
     +'</div>'
+    +recapHtml
     +items
     +'</body></html>';
 
@@ -4027,8 +4059,8 @@ function imprimerPdfModal(){
 function exportCSV(){
   const{factures}=loadData();
   if(!factures.length){alert('Aucune facture à exporter.');return;}
-  const cols=['N° Facture','N° Commande','Date','Fournisseur','Catégorie','Logement','TTC €','Statut','Réglé par','Description','PDF joint'];
-  const rows=factures.map((f,i)=>[f.num,f.cmd||'',f.date,f.four,getCatDisplayText(f),getLogDisplayText(f),f.ttc,f.statut,f.regleby||'',f.desc,loadPdf(i)?'Oui':'Non'].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';'));
+  const cols=['N° Facture','N° Commande','Date','Fournisseur','Catégorie','Sous-catégorie','Logement','TTC €','Statut','Réglé par','Description','PDF joint'];
+  const rows=factures.map((f,i)=>[f.num,f.cmd||'',f.date,f.four,getCatDisplayText(f),f.poste||'',getLogDisplayText(f),f.ttc,f.statut,f.regleby||'',f.desc,loadPdf(i)?'Oui':'Non'].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';'));
   const csv='\uFEFF'+cols.join(';')+'\n'+rows.join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='SCI_Lemyane_Factures_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
