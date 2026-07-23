@@ -1593,9 +1593,34 @@ function saveDevisPdf(idx,b64){
   catch(e){return false;}
 }
 function removeDevisPdf(idx){try{localStorage.removeItem(ctxKey('devispdf_'+idx));}catch(e){}}
-function viewDevisPdf(idx,name){
-  const b64=loadDevisPdf(idx);
-  if(!b64){alert('Aucun PDF joint à ce devis.');return;}
+// Récupère le PDF/scan d'un devis : d'abord en local (rapide), sinon va le chercher directement
+// sur Drive (le stockage local peut avoir échoué silencieusement — quota dépassé — même si le
+// fichier a bien été envoyé sur Drive au moment de l'ajout). Remet en cache local au passage.
+async function fetchDevisPdfB64(idx){
+  const local=loadDevisPdf(idx);
+  if(local)return local;
+  const d=(loadDevis())[idx];
+  if(!d||!d.driveLink||!driveAccessToken)return null;
+  const m=d.driveLink.match(/\/d\/([^\/]+)/);
+  const fileId=m?m[1]:null;
+  if(!fileId)return null;
+  try{
+    const resp=await fetch("https://www.googleapis.com/drive/v3/files/"+fileId+"?alt=media",{headers:{'Authorization':'Bearer '+driveAccessToken}});
+    if(!resp.ok)return null;
+    const blob=await resp.blob();
+    const b64=await new Promise((res,rej)=>{
+      const r=new FileReader();
+      r.onload=()=>res(r.result);
+      r.onerror=rej;
+      r.readAsDataURL(blob);
+    });
+    saveDevisPdf(idx,b64);
+    return b64;
+  }catch(e){console.error('Récupération du PDF devis depuis Drive échouée:',e);return null;}
+}
+async function viewDevisPdf(idx,name){
+  const b64=await fetchDevisPdfB64(idx);
+  if(!b64){alert('Impossible de récupérer ce document (ni en local, ni sur Drive).');return;}
   window._pdfModalCurrent={b64,name:name||'Devis'};
   document.getElementById('pdf-modal-title').textContent=name||'Devis';
   document.getElementById('pdf-iframe').src=b64;
@@ -1673,7 +1698,7 @@ function empilerImagesVerticalement(images){
 // tampon est configuré. Silencieux sinon — le tampon n'est qu'une confirmation visuelle, pas un blocage.
 // Ré-uploade aussi la version tamponnée sur Drive pour que le fichier là-bas soit à jour.
 async function tamponnerDevisPdf(idx,dateTxt){
-  const b64=loadDevisPdf(idx);
+  const b64=await fetchDevisPdfB64(idx);
   if(!b64)return;
   const tamponB64=(window._structureInfo&&window._structureInfo.tamponBase64)||'';
   if(!tamponB64)return;
@@ -1849,7 +1874,7 @@ function renderDevis(){
       <td style="text-align:right;font-weight:600">${fmt(d.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:600">${d.statut||'—'}${d.dateValidation?`<div style="font-size:9px;color:var(--text3);font-weight:400">le ${fmtDate(d.dateValidation)}</div>`:''}</td>
       <td style="font-size:11px;color:var(--text2)">${d.factureNum?('📄 '+d.factureNum):'—'}</td>
-      <td style="text-align:center">${loadDevisPdf(d._ri)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:''}${d.driveLink?`<a href="${d.driveLink}" target="_blank" style="background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}${!loadDevisPdf(d._ri)&&!d.driveLink?'<span style="font-size:10px;color:var(--text3)">—</span>':''}</td>
+      <td style="text-align:center">${(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:''}${d.driveLink?`<a href="${d.driveLink}" target="_blank" style="background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}${!loadDevisPdf(d._ri)&&!d.driveLink?'<span style="font-size:10px;color:var(--text3)">—</span>':''}</td>
       <td style="text-align:center;white-space:nowrap">
         ${d.statut==='En attente'?`<button class="btn btn-sm" style="background:rgba(104,211,145,.15);border-color:rgba(104,211,145,.4);color:var(--green)" onclick="validerDevis(${d._ri})" title="Valider ce devis (passe en Accepté)">✓ Valider</button>`:''}
         <button class="btn btn-sm btn-edit" onclick="openEditDevis(${d._ri})">✎</button>
