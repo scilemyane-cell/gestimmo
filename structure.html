@@ -1596,9 +1596,10 @@ function viewDevisPdf(idx,name){
   document.getElementById('pdf-modal-overlay').classList.add('open');
 }
 
-// ── Tampon visuel "BON POUR ACCORD" apposé sur le scan/PDF du devis à sa validation ────────
-// Dessine le cachet (rectangle + texte, légèrement incliné comme un vrai tampon) sur une image.
-function dessinerTamponSurImage(dataUrl,dateTxt){
+// ── Tampon visuel apposé sur le scan/PDF du devis à sa validation ─────────────────────────
+// Utilise le vrai tampon/signature déjà uploadé dans Paramètres (window._structureInfo.tamponBase64),
+// le même que celui utilisé sur les quittances de loyer — pas besoin d'en dessiner un artificiel.
+function dessinerTamponSurImage(dataUrl,dateTxt,tamponB64){
   return new Promise(resolve=>{
     const img=new Image();
     img.onload=()=>{
@@ -1606,27 +1607,27 @@ function dessinerTamponSurImage(dataUrl,dateTxt){
       canvas.width=img.width;canvas.height=img.height;
       const ctx=canvas.getContext('2d');
       ctx.drawImage(img,0,0);
-      const w=Math.min(img.width,img.height)*0.34;
-      const cx=img.width-w*0.62;
-      const cy=img.height-w*0.5;
-      ctx.save();
-      ctx.translate(cx,cy);
-      ctx.rotate(-12*Math.PI/180);
-      ctx.lineWidth=Math.max(3,w*0.022);
-      ctx.strokeStyle='rgba(39,174,96,0.9)';
-      ctx.fillStyle='rgba(39,174,96,0.08)';
-      const rw=w,rh=w*0.56,rx=-w/2,ry=-w*0.28,rr=10;
-      ctx.beginPath();
-      if(ctx.roundRect)ctx.roundRect(rx,ry,rw,rh,rr);else ctx.rect(rx,ry,rw,rh);
-      ctx.fill();ctx.stroke();
-      ctx.fillStyle='rgba(39,174,96,0.95)';
-      ctx.textAlign='center';
-      ctx.font='bold '+Math.round(w*0.105)+'px Arial';
-      ctx.fillText('BON POUR ACCORD',0,-w*0.02);
-      ctx.font=Math.round(w*0.075)+'px Arial';
-      ctx.fillText('Validé le '+dateTxt,0,w*0.15);
-      ctx.restore();
-      resolve(canvas.toDataURL('image/jpeg',0.85));
+      const finish=()=>resolve(canvas.toDataURL('image/jpeg',0.85));
+      if(!tamponB64){finish();return;}
+      const stamp=new Image();
+      stamp.onload=()=>{
+        const targetH=Math.min(img.width,img.height)*0.2;
+        const targetW=targetH*(stamp.width/stamp.height||1);
+        const x=img.width-targetW*1.15;
+        const y=img.height-targetH*1.45;
+        ctx.save();
+        ctx.globalAlpha=0.95;
+        ctx.drawImage(stamp,x,y,targetW,targetH);
+        ctx.globalAlpha=1;
+        ctx.fillStyle='rgba(0,0,0,0.7)';
+        ctx.textAlign='center';
+        ctx.font='bold '+Math.round(targetH*0.2)+'px Arial';
+        ctx.fillText('Validé le '+dateTxt,x+targetW/2,y+targetH+Math.round(targetH*0.26));
+        ctx.restore();
+        finish();
+      };
+      stamp.onerror=finish;
+      stamp.src=tamponB64;
     };
     img.onerror=()=>resolve(dataUrl);
     img.src=dataUrl;
@@ -1662,16 +1663,18 @@ function empilerImagesVerticalement(images){
     }
   });
 }
-// Appose le tampon sur le document joint à un devis (idx), s'il en a un. Silencieux si aucun
-// document n'est joint — le tampon n'est qu'une confirmation visuelle, pas un blocage.
+// Appose le tampon des Paramètres sur le document joint à un devis (idx), s'il en a un et si un
+// tampon est configuré. Silencieux sinon — le tampon n'est qu'une confirmation visuelle, pas un blocage.
 async function tamponnerDevisPdf(idx,dateTxt){
   const b64=loadDevisPdf(idx);
   if(!b64)return;
+  const tamponB64=(window._structureInfo&&window._structureInfo.tamponBase64)||'';
+  if(!tamponB64)return;
   let images;
   if(b64.startsWith('data:image')){images=[b64];}
   else{images=await pdfToImages(b64);}
   if(!images||!images.length)return;
-  const stamped=await Promise.all(images.map(img=>dessinerTamponSurImage(img,dateTxt)));
+  const stamped=await Promise.all(images.map(img=>dessinerTamponSurImage(img,dateTxt,tamponB64)));
   const finalB64=stamped.length===1?stamped[0]:await empilerImagesVerticalement(stamped);
   saveDevisPdf(idx,finalB64);
 }
