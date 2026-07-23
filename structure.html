@@ -1595,6 +1595,87 @@ function viewDevisPdf(idx,name){
   document.getElementById('pdf-iframe').src=b64;
   document.getElementById('pdf-modal-overlay').classList.add('open');
 }
+
+// ── Tampon visuel "BON POUR ACCORD" apposé sur le scan/PDF du devis à sa validation ────────
+// Dessine le cachet (rectangle + texte, légèrement incliné comme un vrai tampon) sur une image.
+function dessinerTamponSurImage(dataUrl,dateTxt){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=img.width;canvas.height=img.height;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0);
+      const w=Math.min(img.width,img.height)*0.34;
+      const cx=img.width-w*0.62;
+      const cy=img.height-w*0.5;
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.rotate(-12*Math.PI/180);
+      ctx.lineWidth=Math.max(3,w*0.022);
+      ctx.strokeStyle='rgba(39,174,96,0.9)';
+      ctx.fillStyle='rgba(39,174,96,0.08)';
+      const rw=w,rh=w*0.56,rx=-w/2,ry=-w*0.28,rr=10;
+      ctx.beginPath();
+      if(ctx.roundRect)ctx.roundRect(rx,ry,rw,rh,rr);else ctx.rect(rx,ry,rw,rh);
+      ctx.fill();ctx.stroke();
+      ctx.fillStyle='rgba(39,174,96,0.95)';
+      ctx.textAlign='center';
+      ctx.font='bold '+Math.round(w*0.105)+'px Arial';
+      ctx.fillText('BON POUR ACCORD',0,-w*0.02);
+      ctx.font=Math.round(w*0.075)+'px Arial';
+      ctx.fillText('Validé le '+dateTxt,0,w*0.15);
+      ctx.restore();
+      resolve(canvas.toDataURL('image/jpeg',0.85));
+    };
+    img.onerror=()=>resolve(dataUrl);
+    img.src=dataUrl;
+  });
+}
+// Empile plusieurs images (pages d'un PDF converties) verticalement en une seule image,
+// pour pouvoir stocker un document multi-pages tamponné sans dépendance de génération PDF.
+function empilerImagesVerticalement(images){
+  return new Promise(resolve=>{
+    const loaded=[];
+    let count=0;
+    images.forEach((src,i)=>{
+      const im=new Image();
+      im.onload=()=>{loaded[i]=im;count++;if(count===images.length)assembler();};
+      im.onerror=()=>{loaded[i]=null;count++;if(count===images.length)assembler();};
+      im.src=src;
+    });
+    function assembler(){
+      const valid=loaded.filter(Boolean);
+      if(!valid.length){resolve(images[0]);return;}
+      const w=Math.max(...valid.map(im=>im.width));
+      const totalH=valid.reduce((s,im)=>s+im.height*(w/im.width),0);
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=totalH;
+      const ctx=canvas.getContext('2d');
+      let y=0;
+      valid.forEach(im=>{
+        const h=im.height*(w/im.width);
+        ctx.drawImage(im,0,y,w,h);
+        y+=h;
+      });
+      resolve(canvas.toDataURL('image/jpeg',0.85));
+    }
+  });
+}
+// Appose le tampon sur le document joint à un devis (idx), s'il en a un. Silencieux si aucun
+// document n'est joint — le tampon n'est qu'une confirmation visuelle, pas un blocage.
+async function tamponnerDevisPdf(idx,dateTxt){
+  const b64=loadDevisPdf(idx);
+  if(!b64)return;
+  let images;
+  if(b64.startsWith('data:image')){images=[b64];}
+  else{images=await pdfToImages(b64);}
+  if(!images||!images.length)return;
+  const stamped=await Promise.all(images.map(img=>dessinerTamponSurImage(img,dateTxt)));
+  const finalB64=stamped.length===1?stamped[0]:await empilerImagesVerticalement(stamped);
+  saveDevisPdf(idx,finalB64);
+}
+
 // Lie un devis (par son N°) à une facture (par son N°) : passe le devis en "Facturé".
 function lierDevisAFacture(devisNum,factureNum){
   if(!devisNum||!factureNum)return;
@@ -1812,6 +1893,7 @@ function ajouterOuModifierDevis(){
   // Un devis déjà lié à une facture reste au statut "Facturé" tant que le lien existe
   if(obj.factureNum)obj.statut='Facturé';
   // Tampon automatique de la date de validation (une seule fois, à la première acceptation)
+  const etaitDejaValide=!!obj.dateValidation;
   if((obj.statut==='Accepté'||obj.statut==='Facturé')&&!obj.dateValidation)obj.dateValidation=todayStr();
   if(obj.statut==='En attente'||obj.statut==='Refusé')obj.dateValidation=null;
   const idxFinal=editDevisIdx!==null?editDevisIdx:devis.length;
@@ -1823,6 +1905,10 @@ function ajouterOuModifierDevis(){
   populateDevisSelects();
   const msg=document.getElementById('devis-msg-ok');
   if(msg){msg.style.display='inline';setTimeout(()=>msg.style.display='none',3000);}
+  // Apposer le tampon "BON POUR ACCORD" sur le document joint, uniquement à la première validation
+  if((obj.statut==='Accepté'||obj.statut==='Facturé')&&!etaitDejaValide){
+    tamponnerDevisPdf(idxFinal,fmtDate(obj.dateValidation)).then(()=>renderDevis());
+  }
 }
 
 function openEditDevis(idx){
@@ -1889,16 +1975,21 @@ function resetFormDevis(){
 }
 
 // Validation rapide en un clic depuis la liste — passe le devis en "Accepté" sans ouvrir le formulaire.
-function validerDevis(idx){
+async function validerDevis(idx){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier les devis."); return; }
   const devis=loadDevis();
   const d=devis[idx];
   if(!d||d.statut==='Facturé')return;
+  const dejaValide=!!d.dateValidation;
   d.statut='Accepté';
-  d.dateValidation=todayStr();
+  d.dateValidation=d.dateValidation||todayStr();
   saveDevis(devis);
   renderDevis();
   populateDevisSelects();
+  if(!dejaValide){
+    await tamponnerDevisPdf(idx,fmtDate(d.dateValidation));
+    renderDevis();
+  }
 }
 
 function supprimerDevis(idx){
