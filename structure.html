@@ -3825,8 +3825,12 @@ async function exporterSelectionBanque(){
     }
 
     if(b64){
+      // Si les pages de cette facture ont déjà été retouchées à la main (✂️ modifier les pages,
+      // qui inclut la rotation manuelle), on respecte ce choix tel quel — pas de rotation automatique
+      // par-dessus, sinon elle pourrait défaire la correction. Sinon (cas normal, non retouché),
+      // on garde l'auto-rotation habituelle, qui fonctionne bien pour la grande majorité des photos.
       const isImage=b64.startsWith('data:image');
-      const images=isImage?[await imageToPortrait(b64)]:await pdfToImages(b64);
+      const images=isImage?[f.pagesRetouchees?b64:await imageToPortrait(b64)]:await pdfToImages(b64);
       if(images.length>0){
         const reglePar=f.regleby?` — Réglé par : <span style="color:#2c5282;font-weight:700">${f.regleby}</span>`:'';
         const cmdInfo=f.cmd?` — N° commande : <span style="color:#2c5282;font-weight:700">${f.cmd}</span>`:'';
@@ -4924,6 +4928,8 @@ async function modifierPagesDevisExistant(idx){
   const devis=loadDevis();
   const d=devis[idx];
   if(d){
+    d.pagesRetouchees=true; // évite qu'un futur export ne réapplique une rotation automatique par-dessus
+    saveDevis(devis);
     const dfour=(d.four||'devis').replace(/[^a-zA-Z0-9]/g,'_');
     const dnum=d.num||'DEV-'+(idx+1);
     await saveDevisPdfWithDrive(idx,result,dnum+'_'+dfour+'.pdf');
@@ -4944,6 +4950,8 @@ async function modifierPagesFactureExistant(idx){
   if(!b64){alert('Aucun document trouvé pour cette facture (ni en local, ni sur Drive).');return;}
   const result=await choisirPagesDocument(b64,true);
   if(result===b64)return;
+  f.pagesRetouchees=true; // évite qu'un futur export (ex: banque) ne réapplique une rotation par-dessus
+  saveFactures(factures);
   const fname=(f.num||'FAC-'+(idx+1))+'_'+(f.four||'facture').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf';
   await savePdfWithDrive(idx,result,fname);
   renderFactures();
@@ -5096,9 +5104,10 @@ async function exportZipFactures(){
     }
 
     if(b64){
-      // image déjà (cas d'une photo de facture importée) → on s'assure juste qu'elle est en portrait
+      // image déjà (cas d'une photo de facture importée) → on s'assure juste qu'elle est en portrait,
+      // sauf si les pages ont déjà été retouchées à la main (on respecte alors ce choix tel quel)
       const isImage=b64.startsWith('data:image');
-      const images=isImage?[await imageToPortrait(b64)]:await pdfToImages(b64);
+      const images=isImage?[f.pagesRetouchees?b64:await imageToPortrait(b64)]:await pdfToImages(b64);
       if(images.length>0){
         // Le libellé + la 1ère page restent groupés (break-inside:avoid) pour ne jamais
         // être coupés sur deux pages à l'impression. Les pages suivantes (si plusieurs
