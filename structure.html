@@ -940,6 +940,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     </select>
     <select class="filter-select" id="devis-filter-log" onchange="renderDevis()"><option value="">Tous logements</option></select>
     <select class="filter-select" id="devis-filter-cat" onchange="renderDevis()"><option value="">Toutes catégories</option></select>
+    <div style="flex:1"></div>
+    <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllDevisPdfsToDrive()" id="btn-sync-drive-devis" title="Uploader tous les PDF de devis locaux vers Google Drive">☁ Sync Drive</button>
+    <button class="btn-export" style="background:rgba(252,129,129,.1);border-color:rgba(252,129,129,.4);color:var(--red)" onclick="nettoyerDoublonsDriveDevis()" id="btn-clean-drive-devis" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
+    <select class="filter-select" id="drive-year-select-devis" title="Année du dossier Drive à ouvrir" style="font-weight:600"></select>
+    <button class="btn-export" style="background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.4);color:var(--accent)" onclick="ouvrirDossierDriveAnneeDevis()" id="btn-open-drive-devis" title="Ouvrir le dossier Drive de l'année sélectionnée">📂 Ouvrir dossier Drive</button>
   </div>
   <div class="kpi-grid" id="devis-kpi-grid" style="margin-bottom:20px"></div>
   <div class="table-wrap">
@@ -1829,6 +1834,13 @@ Règles : la date sur le devis est TOUJOURS écrite au format français JJ/MM/AA
 
 function renderDevis(){
   const devis=loadDevis();
+  const driveYearSelD=document.getElementById('drive-year-select-devis');
+  if(driveYearSelD){
+    const yearsD=getYears(devis);
+    const curDriveYearD=driveYearSelD.value;
+    driveYearSelD.innerHTML=yearsD.map(y=>`<option value="${y}">${y}</option>`).join('');
+    if(curDriveYearD&&yearsD.includes(curDriveYearD))driveYearSelD.value=curDriveYearD;
+  }
   const searchF=(document.getElementById('devis-filter-search')?.value||'').toLowerCase().trim();
   const statutF=document.getElementById('devis-filter-statut')?.value||'';
   const logF=document.getElementById('devis-filter-log')?.value||'';
@@ -1991,8 +2003,11 @@ function openEditDevis(idx){
   if(egaleRadioD)egaleRadioD.checked=true;
   if(d.repartition&&d.repartition.length){
     document.getElementById('devis-split-toggle').checked=true;
+    const montantsD=d.repartition.map(r=>+r.montant||0);
+    const isEgaleD=montantsD.every(m=>Math.abs(m-montantsD[0])<0.02);
+    const modeRadioD=document.querySelector(`input[name="devis-split-mode"][value="${isEgaleD?'egale':'manuel'}"]`);
+    if(modeRadioD)modeRadioD.checked=true;
     toggleDevisSplit();
-    document.getElementById('devis-split-checkboxes').innerHTML='';
     d.repartition.forEach(r=>{
       const safeLog=r.log.replace(/"/g,'&quot;');
       const cb=document.querySelector(`.devis-split-log[value="${safeLog}"]`);
@@ -12246,7 +12261,189 @@ async function nettoyerDoublonsDrive(){
   }
 }
 
-// ── OUVRIR LE DOSSIER DRIVE D'UNE ANNÉE DONNÉE ────────────────────────────
+// ── NETTOYAGE DES DOUBLONS SUR DRIVE (DEVIS) ──────────────────────────────
+// Même principe que nettoyerDoublonsDrive, mais sur le dossier racine "... Devis"
+// (utile notamment si un devis a été ré-uploadé sous un nom différent, ex: fournisseur
+// modifié entre deux enregistrements — ça laisse un fichier orphelin sur Drive).
+async function nettoyerDoublonsDriveDevis(){
+  if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
+  if(!confirm('Rechercher et mettre à la corbeille les devis en double sur Drive (même nom, on garde le plus ancien) ?'))return;
+
+  const btn=document.getElementById('btn-clean-drive-devis');
+  btn.innerHTML='⏳ Analyse...';btn.disabled=true;
+  const rootName=(getCTXConfig().driveFolderName||'Devis').replace('Factures','Devis');
+
+  try{
+    const qRoot="name='"+rootName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+    const respRoot=await fetch(
+      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
+      {headers:{'Authorization':'Bearer '+driveAccessToken}}
+    );
+    const dataRoot=await respRoot.json();
+    const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
+    if(!rootId){
+      btn.innerHTML='🧹 Nettoyer doublons Drive';btn.disabled=false;
+      alert('Dossier "'+rootName+'" introuvable sur Drive.');
+      return;
+    }
+
+    const qYears="'"+rootId+"' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false";
+    const respYears=await fetch(
+      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qYears)+"&fields=files(id,name)",
+      {headers:{'Authorization':'Bearer '+driveAccessToken}}
+    );
+    const dataYears=await respYears.json();
+    const yearFolders=dataYears.files||[];
+
+    btn.innerHTML='⏳ Scan...';
+
+    let allFiles=[];
+    for(const yf of yearFolders){
+      let pageToken=null;
+      do{
+        const qFiles="'"+yf.id+"' in parents and trashed=false";
+        const url="https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qFiles)
+          +"&fields=files(id,name,createdTime,webViewLink),nextPageToken&pageSize=200"
+          +(pageToken?"&pageToken="+pageToken:"");
+        const resp=await fetch(url,{headers:{'Authorization':'Bearer '+driveAccessToken}});
+        const data=await resp.json();
+        if(data.files)allFiles=allFiles.concat(data.files);
+        pageToken=data.nextPageToken||null;
+      }while(pageToken);
+    }
+
+    const groups={};
+    allFiles.forEach(f=>{
+      if(!groups[f.name])groups[f.name]=[];
+      groups[f.name].push(f);
+    });
+
+    let trashed=0,groupsAffected=0;
+    const devis=loadDevis();
+    let devisLinksChanged=false;
+
+    for(const name in groups){
+      const files=groups[name];
+      if(files.length<2)continue;
+      groupsAffected++;
+      files.sort((a,b)=>new Date(a.createdTime)-new Date(b.createdTime));
+      const keep=files[0];
+      const toTrash=files.slice(1);
+      for(const f of toTrash){
+        try{
+          const resp=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id,{
+            method:'PATCH',
+            headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':'application/json'},
+            body:JSON.stringify({trashed:true})
+          });
+          if(resp.ok){
+            trashed++;
+            devis.forEach(dv=>{
+              if(dv.driveLink&&f.webViewLink&&dv.driveLink===f.webViewLink){
+                dv.driveLink=keep.webViewLink;
+                devisLinksChanged=true;
+              }
+            });
+          }
+        }catch(e){console.error('Erreur suppression doublon Drive devis',f.id,e);}
+      }
+    }
+
+    if(devisLinksChanged)saveDevis(devis);
+    renderDevis();
+    btn.innerHTML='🧹 Nettoyer doublons Drive';btn.disabled=false;
+    alert(`✓ Nettoyage Drive terminé !\n${groupsAffected} nom(s) de fichier en double trouvé(s)\n${trashed} fichier(s) mis à la corbeille (le plus ancien de chaque groupe a été conservé)`);
+  }catch(e){
+    console.error('Nettoyage doublons Drive devis error:',e);
+    btn.innerHTML='🧹 Nettoyer doublons Drive';btn.disabled=false;
+    alert('Erreur pendant le nettoyage : '+e.message);
+  }
+}
+
+// ── OUVRIR LE DOSSIER DRIVE D'UNE ANNÉE DONNÉE (DEVIS) ────────────────────
+async function ouvrirDossierDriveAnneeDevis(){
+  if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
+  const yearSel=document.getElementById('drive-year-select-devis');
+  const year=yearSel&&yearSel.value?yearSel.value:new Date().getFullYear().toString();
+  const rootName=(getCTXConfig().driveFolderName||'Devis').replace('Factures','Devis');
+
+  const btn=document.getElementById('btn-open-drive-devis');
+  btn.innerHTML='⏳ Recherche...';btn.disabled=true;
+
+  try{
+    const qRoot="name='"+rootName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+    const respRoot=await fetch(
+      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
+      {headers:{'Authorization':'Bearer '+driveAccessToken}}
+    );
+    const dataRoot=await respRoot.json();
+    const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
+    if(!rootId){
+      alert('Dossier "'+rootName+'" introuvable sur Drive. Lance d\'abord une synchronisation (☁ Sync Drive) pour le créer.');
+      return;
+    }
+    const qYear="name='"+year+"' and mimeType='application/vnd.google-apps.folder' and '"+rootId+"' in parents and trashed=false";
+    const respYear=await fetch(
+      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qYear),
+      {headers:{'Authorization':'Bearer '+driveAccessToken}}
+    );
+    const dataYear=await respYear.json();
+    const yearFolderId=dataYear.files&&dataYear.files[0]&&dataYear.files[0].id;
+    if(!yearFolderId){
+      alert(`Aucun dossier Drive pour l'année ${year} (pas encore de devis synchronisé pour cette année).`);
+      return;
+    }
+    window.open('https://accounts.google.com/AccountChooser?Email='+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||'')+'&continue='+encodeURIComponent('https://drive.google.com/drive/folders/'+yearFolderId),'_blank');
+  }catch(e){
+    console.error('Ouverture dossier Drive devis error:',e);
+    alert('Erreur lors de l\'ouverture du dossier : '+e.message);
+  }finally{
+    btn.innerHTML='📂 Ouvrir dossier Drive';btn.disabled=false;
+  }
+}
+
+// ── SYNC TOUS PDF DEVIS LOCAUX → DRIVE ────────────────────────────────────
+let _syncDriveDevisEnCours=false;
+async function syncAllDevisPdfsToDrive(){
+  if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
+  if(_syncDriveDevisEnCours){alert('Une synchronisation est déjà en cours, patiente qu\'elle se termine.');return;}
+  _syncDriveDevisEnCours=true;
+  const btn=document.getElementById('btn-sync-drive-devis');
+  btn.innerHTML='⏳ Sync...';btn.disabled=true;
+  let uploaded=0,skipped=0,errors=0;
+  try{
+    const total=loadDevis().length;
+    for(let i=0;i<total;i++){
+      const devisNow=loadDevis();
+      const d=devisNow[i];
+      if(!d){continue;}
+      if(d.driveLink){skipped++;continue;}
+      const b64=loadDevisPdf(i);
+      if(!b64){continue;}
+      const dfour=(d.four||'devis').replace(/[^a-zA-Z0-9]/g,'_');
+      const dnum=d.num||'DEV-'+(i+1);
+      const dfname=dnum+'_'+dfour+'.pdf';
+      const anneeDevis=(d.date||'').slice(0,4);
+      try{
+        const link=await uploadToDriveDevis(b64,dfname,anneeDevis);
+        if(link){
+          const devis2=loadDevis();
+          if(devis2[i]){devis2[i].driveLink=link;saveDevis(devis2);uploaded++;}
+        } else {errors++;}
+      }catch(e){errors++;console.error('Sync Drive error devis',i,e);}
+    }
+    renderDevis();
+    alert(`✓ Synchronisation devis terminée !\n${uploaded} PDF envoyé(s) sur Drive\n${skipped} déjà synchronisé(s)${errors?`\n⚠ ${errors} échec(s)`:''}`);
+  }catch(e){
+    console.error('Sync Drive devis error:',e);
+    alert('Erreur pendant la synchronisation : '+e.message);
+  }finally{
+    _syncDriveDevisEnCours=false;
+    btn.innerHTML='☁ Sync Drive';btn.disabled=false;
+  }
+}
+
+
 // Réutilise la même structure de dossiers que uploadToDrive :
 // "SCI Lemyane Factures" / <année> / fichiers.pdf
 async function ouvrirDossierDriveAnnee(){
