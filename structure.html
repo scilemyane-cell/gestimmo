@@ -1673,10 +1673,13 @@ function dessinerTamponSurImage(dataUrl,dateTxt,tamponB64){
       if(!tamponB64){finish();return;}
       const stamp=new Image();
       stamp.onload=()=>{
-        const targetH=Math.min(img.width,img.height)*0.2;
+        // Bas-gauche (zone "Date et signature" conventionnelle sur un devis français) plutôt que
+        // bas-droite, où se trouve presque toujours le tableau des totaux (Total TTC, Net à payer) —
+        // le tampon ne doit jamais masquer un montant.
+        const targetH=Math.min(img.width,img.height)*0.15;
         const targetW=targetH*(stamp.width/stamp.height||1);
-        const x=img.width-targetW*1.15;
-        const y=img.height-targetH*1.45;
+        const x=img.width*0.05;
+        const y=img.height-targetH*1.6;
         ctx.save();
         ctx.globalAlpha=0.95;
         ctx.drawImage(stamp,x,y,targetW,targetH);
