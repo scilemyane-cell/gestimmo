@@ -887,8 +887,23 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>Date</label><input type="date" id="devis-date"></div>
       <div class="form-group"><label>Fournisseur</label><input type="text" id="devis-four" placeholder="Nom de l'entreprise"></div>
       <div class="form-group"><label>Catégorie</label><select id="devis-cat"></select></div>
-      <div class="form-group"><label>Logement</label><select id="devis-log"></select></div>
-      <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="devis-ttc" step="0.01" placeholder="0.00"></div>
+      <div class="form-group" id="devis-log-group"><label>Logement</label><select id="devis-log"></select></div>
+      <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="devis-ttc" step="0.01" placeholder="0.00" oninput="updateDevisSplitTotal()"></div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="devis-split-toggle" onchange="toggleDevisSplit()" style="width:16px;height:16px;cursor:pointer">
+          <span>Répartir ce devis sur plusieurs logements</span>
+        </label>
+        <div id="devis-split-panel" style="display:none;margin-top:10px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px">
+          <div style="display:flex;gap:16px;margin-bottom:10px;font-size:12px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="devis-split-mode" value="egale" checked onchange="toggleDevisSplit()"> Répartition égale</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="devis-split-mode" value="manuel" onchange="toggleDevisSplit()"> Répartition manuelle (montants personnalisés)</label>
+          </div>
+          <div id="devis-split-desc" style="font-size:11px;color:var(--text3);margin-bottom:10px">Le montant TTC sera divisé à parts égales entre les logements cochés.</div>
+          <div id="devis-split-checkboxes" style="display:flex;flex-direction:column;gap:6px"></div>
+          <div id="devis-split-total-info" style="display:none;margin-top:10px;font-size:12px;font-weight:600"></div>
+        </div>
+      </div>
       <div class="form-group"><label>Statut</label>
         <select id="devis-statut">
           <option value="En attente">En attente</option>
@@ -1644,6 +1659,48 @@ async function onDevisFileChange(e){
   pendingDevisPdfName=file.name;
   const prev=document.getElementById('devis-pdf-preview');
   if(prev){prev.style.display='block';prev.textContent='📎 '+file.name+' — sera enregistré avec le devis';}
+  extractDevisInfo(pendingDevisPdfB64);
+}
+
+// Lecture automatique du devis par IA (Gemini) — préremplit les champs vides du formulaire.
+// Ne bloque jamais l'enregistrement : en cas d'échec ou d'absence de clé API, on se contente
+// de laisser les champs à saisir manuellement (contrairement à la lecture facture, pas d'alerte).
+async function extractDevisInfo(b64){
+  if(!getGeminiKeys().length)return;
+  const prev=document.getElementById('devis-pdf-preview');
+  const texteAvant=prev?prev.innerHTML:'';
+  if(prev)prev.innerHTML='⏳ Lecture automatique du devis en cours...';
+  try{
+    const base64Data=b64.split(',')[1];
+    const mimeType=b64.startsWith('data:image')?'image/jpeg':'application/pdf';
+    const data=await callGeminiAPI('gemini-2.5-flash-lite',{
+      contents:[{parts:[
+        {inline_data:{mime_type:mimeType,data:base64Data}},
+        {text:`Analyse ce devis et extrais les informations. Réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour :
+{"numero":"numéro du devis","date":"YYYY-MM-DD","fournisseur":"nom de l'entreprise émettrice du devis","montant_ttc":0,"description":"description courte de la prestation"}
+Règles : la date sur le devis est TOUJOURS écrite au format français JJ/MM/AA ou JJ/MM/AAAA — ne l'inverse jamais, réponds au format YYYY-MM-DD. Si l'année est sur 2 chiffres, complète-la en 20XX. Les montants sont en format français (le POINT est un séparateur de milliers, la VIRGULE le séparateur décimal) : "1.811,55" signifie 1811.55, pas 1.811. montant_ttc doit être le montant TOTAL TTC du devis (pas un sous-total HT). Pour le fournisseur, prends le nom commercial principal, sans slogan ni nom de groupe. Si une info est absente, mets une chaîne vide ou 0.`}
+      ]}],
+      generationConfig:{temperature:0,maxOutputTokens:400}
+    });
+    const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+    if(!text)throw new Error('Réponse vide');
+    const clean=text.replace(/```json|```/g,'').trim();
+    const info=JSON.parse(clean);
+    const setVal=(id,val)=>{const el=document.getElementById(id);if(el&&!el.value)el.value=val;};
+    if(info.date){
+      const annee=+info.date.slice(0,4);
+      const anneeActuelle=new Date().getFullYear();
+      if(annee>=anneeActuelle-2&&annee<=anneeActuelle+1)setVal('devis-date',info.date);
+    }
+    if(info.fournisseur)setVal('devis-four',info.fournisseur);
+    if(info.montant_ttc>0)setVal('devis-ttc',info.montant_ttc);
+    if(info.numero)setVal('devis-num',info.numero);
+    if(info.description)setVal('devis-desc',info.description);
+  }catch(e){
+    console.error('Lecture auto devis échouée:',e);
+  }finally{
+    if(prev)prev.innerHTML=texteAvant;
+  }
 }
 
 function renderDevis(){
@@ -1656,7 +1713,7 @@ function renderDevis(){
   const filtered=indexed.filter(d=>{
     const matchSearch=!searchF||(d.four||'').toLowerCase().includes(searchF)||(d.num||'').toLowerCase().includes(searchF)||(d.desc||'').toLowerCase().includes(searchF);
     const matchStatut=!statutF||d.statut===statutF;
-    const matchLog=!logF||d.log===logF;
+    const matchLog=!logF||(d.repartition&&d.repartition.length?d.repartition.some(r=>r.log===logF):d.log===logF);
     const matchCat=!catF||d.cat===catF;
     return matchSearch&&matchStatut&&matchLog&&matchCat;
   }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -1684,16 +1741,14 @@ function renderDevis(){
   const tbody=document.getElementById('devis-tbody');
   if(tbody)tbody.innerHTML=filtered.map(d=>{
     const sc=d.statut==='Facturé'?'#68d391':d.statut==='Accepté'?'#63b3ed':d.statut==='Refusé'?'#fc8181':'#f6ad55';
-    const lcObj=LOGS.find(l=>l.key===d.log||l.label===d.log);
-    const lc=lcObj?lcObj.color:'#b794f4';
     return`<tr>
       <td style="color:var(--accent);font-weight:500">${d.num||'—'}</td>
       <td style="color:var(--text2)">${d.date||'—'}</td>
       <td style="font-weight:500">${d.four||'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${d.cat||'—'}</td>
-      <td><span class="log-badge" style="background:${lc}26;color:${lc}">${d.log||'—'}</span></td>
+      <td>${renderLogBadgeHTML(d)}</td>
       <td style="text-align:right;font-weight:600">${fmt(d.ttc)}</td>
-      <td style="color:${sc};font-size:11px;font-weight:600">${d.statut||'—'}</td>
+      <td style="color:${sc};font-size:11px;font-weight:600">${d.statut||'—'}${d.dateValidation?`<div style="font-size:9px;color:var(--text3);font-weight:400">le ${fmtDate(d.dateValidation)}</div>`:''}</td>
       <td style="font-size:11px;color:var(--text2)">${d.factureNum?('📄 '+d.factureNum):'—'}</td>
       <td style="text-align:center">${loadDevisPdf(d._ri)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:'<span style="font-size:10px;color:var(--text3)">—</span>'}</td>
       <td style="text-align:center;white-space:nowrap">
@@ -1710,6 +1765,29 @@ function ajouterOuModifierDevis(){
   const four=document.getElementById('devis-four').value.trim();
   const ttc=parseFloat(document.getElementById('devis-ttc').value)||0;
   if(!four||ttc<=0){alert('Fournisseur et montant TTC requis.');return;}
+  const isSplit=document.getElementById('devis-split-toggle').checked;
+  const splitLogs=isSplit?Array.from(document.querySelectorAll('.devis-split-log:checked')).map(el=>el.value):[];
+  if(isSplit&&splitLogs.length<2){
+    alert('Coche au moins 2 logements pour répartir ce devis, ou décoche la case pour le saisir normalement.');
+    return;
+  }
+  const splitModeEl=document.querySelector('input[name="devis-split-mode"]:checked');
+  const splitMode=splitModeEl?splitModeEl.value:'egale';
+  let manualAmounts=null;
+  if(isSplit&&splitMode==='manuel'){
+    manualAmounts={};
+    let sommeManuelle=0;
+    for(const logVal of splitLogs){
+      const amountInput=document.querySelector(`.devis-split-amount[data-log="${logVal.replace(/"/g,'&quot;')}"]`);
+      const val=+(parseFloat(amountInput?.value)||0);
+      manualAmounts[logVal]=val;
+      sommeManuelle+=val;
+    }
+    if(Math.abs(sommeManuelle-ttc)>0.02){
+      alert('La somme des montants saisis ('+sommeManuelle.toFixed(2)+' €) ne correspond pas au montant TTC total ('+ttc.toFixed(2)+' €). Corrige les montants avant d\'enregistrer.');
+      return;
+    }
+  }
   const devis=loadDevis();
   const ancien=editDevisIdx!==null?devis[editDevisIdx]:null;
   const obj={
@@ -1717,14 +1795,25 @@ function ajouterOuModifierDevis(){
     date:document.getElementById('devis-date').value,
     four,
     cat:document.getElementById('devis-cat').value,
-    log:document.getElementById('devis-log').value,
+    log:isSplit?'Réparti':document.getElementById('devis-log').value,
     ttc,
     statut:document.getElementById('devis-statut').value,
     desc:document.getElementById('devis-desc').value.trim(),
-    factureNum:ancien?ancien.factureNum:null
+    factureNum:ancien?ancien.factureNum:null,
+    dateValidation:ancien?ancien.dateValidation:null
   };
+  if(isSplit){
+    const nbParts=splitLogs.length;
+    obj.repartition=splitLogs.map(logVal=>({
+      log:logVal,
+      montant:manualAmounts?+manualAmounts[logVal].toFixed(2):+(ttc/nbParts).toFixed(2)
+    }));
+  }
   // Un devis déjà lié à une facture reste au statut "Facturé" tant que le lien existe
   if(obj.factureNum)obj.statut='Facturé';
+  // Tampon automatique de la date de validation (une seule fois, à la première acceptation)
+  if((obj.statut==='Accepté'||obj.statut==='Facturé')&&!obj.dateValidation)obj.dateValidation=todayStr();
+  if(obj.statut==='En attente'||obj.statut==='Refusé')obj.dateValidation=null;
   const idxFinal=editDevisIdx!==null?editDevisIdx:devis.length;
   if(editDevisIdx!==null)devis[editDevisIdx]=obj;else devis.push(obj);
   saveDevis(devis);
@@ -1745,7 +1834,7 @@ function openEditDevis(idx){
   document.getElementById('devis-date').value=d.date||'';
   document.getElementById('devis-four').value=d.four||'';
   document.getElementById('devis-cat').value=d.cat||'';
-  document.getElementById('devis-log').value=d.log||'';
+  document.getElementById('devis-log').value=d.repartition&&d.repartition.length?(d.repartition[0].log||''):d.log;
   document.getElementById('devis-ttc').value=d.ttc||'';
   document.getElementById('devis-statut').value=d.statut||'En attente';
   document.getElementById('devis-desc').value=d.desc||'';
@@ -1758,6 +1847,25 @@ function openEditDevis(idx){
   if(prev){
     if(loadDevisPdf(idx)){prev.style.display='block';prev.innerHTML='📎 PDF déjà joint — <a href="#" onclick="viewDevisPdf('+idx+',\''+(d.num||'Devis').replace(/'/g,"\\'")+'\');return false;" style="color:var(--accent)">voir</a> (choisis un nouveau fichier ci-dessus pour le remplacer)';}
     else{prev.style.display='none';prev.textContent='';}
+  }
+  // Réinitialiser puis préremplir le panneau de répartition si ce devis est réparti
+  document.getElementById('devis-split-toggle').checked=false;
+  document.getElementById('devis-log-group').style.display='block';
+  document.getElementById('devis-split-panel').style.display='none';
+  const egaleRadioD=document.querySelector('input[name="devis-split-mode"][value="egale"]');
+  if(egaleRadioD)egaleRadioD.checked=true;
+  if(d.repartition&&d.repartition.length){
+    document.getElementById('devis-split-toggle').checked=true;
+    toggleDevisSplit();
+    document.getElementById('devis-split-checkboxes').innerHTML='';
+    d.repartition.forEach(r=>{
+      const safeLog=r.log.replace(/"/g,'&quot;');
+      const cb=document.querySelector(`.devis-split-log[value="${safeLog}"]`);
+      if(cb)cb.checked=true;
+      const amountInput=document.querySelector(`.devis-split-amount[data-log="${safeLog}"]`);
+      if(amountInput)amountInput.value=r.montant;
+    });
+    updateDevisSplitTotal();
   }
   document.getElementById('tab-devis').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -1772,6 +1880,12 @@ function resetFormDevis(){
   document.getElementById('devis-cancel-btn').style.display='none';
   const fileInput=document.getElementById('devis-pdf-input');if(fileInput)fileInput.value='';
   const prev=document.getElementById('devis-pdf-preview');if(prev){prev.style.display='none';prev.textContent='';}
+  document.getElementById('devis-split-toggle').checked=false;
+  document.getElementById('devis-log-group').style.display='block';
+  document.getElementById('devis-split-panel').style.display='none';
+  document.querySelectorAll('.devis-split-log').forEach(el=>el.checked=false);
+  const egaleRadioR=document.querySelector('input[name="devis-split-mode"][value="egale"]');
+  if(egaleRadioR)egaleRadioR.checked=true;
 }
 
 // Validation rapide en un clic depuis la liste — passe le devis en "Accepté" sans ouvrir le formulaire.
@@ -1781,6 +1895,7 @@ function validerDevis(idx){
   const d=devis[idx];
   if(!d||d.statut==='Facturé')return;
   d.statut='Accepté';
+  d.dateValidation=todayStr();
   saveDevis(devis);
   renderDevis();
   populateDevisSelects();
@@ -10774,6 +10889,68 @@ window.updateSplitTotal=function(){
   let saisi=0;
   document.querySelectorAll('.f-split-log:checked').forEach(cb=>{
     const amountInput=document.querySelector(`.f-split-amount[data-log="${cb.value.replace(/"/g,'&quot;')}"]`);
+    saisi+=parseFloat(amountInput?.value)||0;
+  });
+  const diff=+(ttcTotal-saisi).toFixed(2);
+  if(Math.abs(diff)<0.01){
+    infoEl.style.color='var(--green,#68d391)';
+    infoEl.textContent=`✓ Total réparti : ${saisi.toFixed(2)} € — correspond au montant TTC`;
+  } else if(diff>0){
+    infoEl.style.color='#f6ad55';
+    infoEl.textContent=`Il reste ${diff.toFixed(2)} € à répartir (saisi : ${saisi.toFixed(2)} € sur ${ttcTotal.toFixed(2)} €)`;
+  } else {
+    infoEl.style.color='#e53e3e';
+    infoEl.textContent=`⚠ Dépassement de ${Math.abs(diff).toFixed(2)} € (saisi : ${saisi.toFixed(2)} € sur ${ttcTotal.toFixed(2)} €)`;
+  }
+};
+
+// ── Répartition d'un devis sur plusieurs logements (même logique que les factures) ─────────
+window.toggleDevisSplit=function(){
+  const on=document.getElementById('devis-split-toggle').checked;
+  document.getElementById('devis-log-group').style.display=on?'none':'block';
+  document.getElementById('devis-split-panel').style.display=on?'block':'none';
+  const modeEl=document.querySelector('input[name="devis-split-mode"]:checked');
+  const mode=modeEl?modeEl.value:'egale';
+  document.getElementById('devis-split-desc').textContent=mode==='manuel'
+    ?'Saisis le montant exact pour chaque logement coché. La somme doit correspondre au montant TTC total.'
+    :'Le montant TTC sera divisé à parts égales entre les logements cochés.';
+  if(on){
+    const cfg=getCTXConfig();
+    const prevChecked={};
+    const prevAmounts={};
+    document.querySelectorAll('.devis-split-log').forEach(el=>{prevChecked[el.value]=el.checked;});
+    document.querySelectorAll('.devis-split-amount').forEach(el=>{prevAmounts[el.dataset.log]=el.value;});
+    document.getElementById('devis-split-checkboxes').innerHTML=cfg.logements.map(l=>{
+      const lbl=l.label.replace(/"/g,'&quot;');
+      const checked=prevChecked[l.label]?'checked':'';
+      const amount=prevAmounts[l.label]||'';
+      const amountInput=mode==='manuel'
+        ?`<input type="number" step="0.01" class="devis-split-amount" data-log="${lbl}" placeholder="Montant €" value="${amount}" oninput="updateDevisSplitTotal()" style="width:100px;margin-left:auto;padding:4px 8px;font-size:12px">`
+        :'';
+      return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
+        <input type="checkbox" class="devis-split-log" value="${lbl}" ${checked} onchange="updateDevisSplitTotal()" style="width:15px;height:15px;cursor:pointer">
+        <span>${l.label}</span>
+        ${amountInput}
+      </label>`;
+    }).join('');
+    document.getElementById('devis-split-total-info').style.display=mode==='manuel'?'block':'none';
+    updateDevisSplitTotal();
+  }
+};
+
+window.updateDevisSplitTotal=function(){
+  const modeEl=document.querySelector('input[name="devis-split-mode"]:checked');
+  const mode=modeEl?modeEl.value:'egale';
+  const infoEl=document.getElementById('devis-split-total-info');
+  if(mode!=='manuel'||!infoEl)return;
+  document.querySelectorAll('.devis-split-log').forEach(cb=>{
+    const amountInput=document.querySelector(`.devis-split-amount[data-log="${cb.value.replace(/"/g,'&quot;')}"]`);
+    if(amountInput)amountInput.disabled=!cb.checked;
+  });
+  const ttcTotal=parseFloat(document.getElementById('devis-ttc').value)||0;
+  let saisi=0;
+  document.querySelectorAll('.devis-split-log:checked').forEach(cb=>{
+    const amountInput=document.querySelector(`.devis-split-amount[data-log="${cb.value.replace(/"/g,'&quot;')}"]`);
     saisi+=parseFloat(amountInput?.value)||0;
   });
   const diff=+(ttcTotal-saisi).toFixed(2);
