@@ -3888,7 +3888,7 @@ async function exporterSelectionBanque(){
     +'.hdr{border-bottom:3px solid #2b6cb0;padding-bottom:12px;margin-bottom:24px}'
     +'.hdr h1{font-size:15px;color:#2b6cb0;margin:0 0 3px}'
     +'.hdr p{font-size:10px;color:#718096;margin:0}'
-    +'@media print{body{padding:10px}.no-print{display:none}img{max-width:100%}}'
+    +'@media print{@page{size:A4 portrait;margin:10mm}body{padding:10px}.no-print{display:none}img{max-width:100%}}'
     +'</style></head><body>'
     +'<div class="hdr"><h1>'+title+'</h1>'
     +'<p>'+(getCTXConfig().sousTitre||'')+' · Edité le '+new Date().toLocaleDateString('fr-FR')+'</p>'
@@ -4284,7 +4284,7 @@ function exportPDF(){
   const rows=factures.map((f,i)=>`<tr><td>${f.num||'—'}</td><td>${f.date||'—'}</td><td>${f.four||'—'}</td><td>${getCatDisplayText(f)}</td><td>${getLogDisplayText(f)}</td><td style="text-align:right">${fmt(f.ttc)}</td><td>${f.statut}</td><td>${f.cmd||'—'}</td><td><strong>${f.regleby||'—'}</strong></td><td style="text-align:center">${loadPdf(i)?'✓':''}</td></tr>`).join('');
   const cfg=getCTXConfig();
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${cfg.nom}</title>
-  <style>body{font-family:Arial,sans-serif;font-size:12px;color:#1a202c;padding:32px}h1{font-size:18px;color:#2b6cb0;margin-bottom:4px}p.sub{color:#718096;font-size:11px;margin-bottom:24px}h2{font-size:13px;color:#2b6cb0;margin:20px 0 10px;border-bottom:2px solid #bee3f8;padding-bottom:4px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{text-align:left;padding:8px;background:#ebf8ff;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#2c5282}td{padding:7px 8px;font-size:11px;border-bottom:1px solid #e2e8f0}.kpi-grid{display:flex;gap:16px;margin-bottom:24px}.kpi{flex:1;background:#f0f9ff;border:1px solid #bee3f8;border-radius:8px;padding:12px}.kpi label{display:block;font-size:10px;color:#718096;text-transform:uppercase;margin-bottom:4px}.kpi span{font-size:18px;font-weight:700;color:#2b6cb0}</style></head><body>
+  <style>@media print{@page{size:A4 portrait;margin:15mm}body{padding:0}}body{font-family:Arial,sans-serif;font-size:12px;color:#1a202c;padding:32px}h1{font-size:18px;color:#2b6cb0;margin-bottom:4px}p.sub{color:#718096;font-size:11px;margin-bottom:24px}h2{font-size:13px;color:#2b6cb0;margin:20px 0 10px;border-bottom:2px solid #bee3f8;padding-bottom:4px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{text-align:left;padding:8px;background:#ebf8ff;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#2c5282}td{padding:7px 8px;font-size:11px;border-bottom:1px solid #e2e8f0}.kpi-grid{display:flex;gap:16px;margin-bottom:24px}.kpi{flex:1;background:#f0f9ff;border:1px solid #bee3f8;border-radius:8px;padding:12px}.kpi label{display:block;font-size:10px;color:#718096;text-transform:uppercase;margin-bottom:4px}.kpi span{font-size:18px;font-weight:700;color:#2b6cb0}</style></head><body>
   <h1>${cfg.nom} — Rapport de suivi des dépenses</h1>
   <p class="sub">${cfg.sousTitre||''} · Édité le ${new Date().toLocaleDateString('fr-FR')}</p>
   <div class="kpi-grid">
@@ -5059,7 +5059,7 @@ async function exportZipFactures(){
     +'.hdr{border-bottom:3px solid #2b6cb0;padding-bottom:12px;margin-bottom:24px}'
     +'.hdr h1{font-size:15px;color:#2b6cb0;margin:0 0 3px}'
     +'.hdr p{font-size:10px;color:#718096;margin:0}'
-    +'@media print{body{padding:10px}.no-print{display:none}img{max-width:100%}}'
+    +'@media print{@page{size:A4 portrait;margin:10mm}body{padding:10px}.no-print{display:none}img{max-width:100%}}'
     +'</style></head><body>'
     +'<div class="hdr"><h1>'+title+'</h1>'
     +'<p>'+(getCTXConfig().sousTitre||'')+' · Edité le '+new Date().toLocaleDateString('fr-FR')+'</p>'
