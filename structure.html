@@ -507,10 +507,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <span style="font-size:13px;font-weight:700;color:var(--accent)" id="synth-pct-label">0%</span>
     </div>
     <div style="height:14px;background:rgba(255,255,255,0.06);border-radius:7px;overflow:hidden;position:relative">
-      <div id="synth-jauge-bar" style="height:100%;border-radius:7px;background:linear-gradient(90deg,#63b3ed,#4fd1c5);transition:width .8s cubic-bezier(.4,0,.2,1);width:0%"></div>
+      <div id="synth-jauge-bar-engage" style="position:absolute;inset:0;height:100%;border-radius:7px;width:0%;background:repeating-linear-gradient(45deg,rgba(183,148,244,.4),rgba(183,148,244,.4) 6px,rgba(183,148,244,.15) 6px,rgba(183,148,244,.15) 12px);transition:width .8s cubic-bezier(.4,0,.2,1)"></div>
+      <div id="synth-jauge-bar" style="position:relative;height:100%;border-radius:7px;background:linear-gradient(90deg,#63b3ed,#4fd1c5);transition:width .8s cubic-bezier(.4,0,.2,1);width:0%"></div>
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text3)">
       <span>0 €</span><span id="synth-jauge-max">—</span>
+    </div>
+    <div id="synth-jauge-legend" style="display:none;gap:16px;margin-top:10px;font-size:10px;color:var(--text3)">
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:linear-gradient(90deg,#63b3ed,#4fd1c5);display:inline-block"></span>Dépensé (factures)</span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:repeating-linear-gradient(45deg,rgba(183,148,244,.9),rgba(183,148,244,.9) 2px,rgba(183,148,244,.4) 2px,rgba(183,148,244,.4) 4px);display:inline-block"></span>Engagé (devis validés, pas encore facturés)</span>
     </div>
   </div>
 
@@ -2283,6 +2288,34 @@ function getReelTotals(factures){
   });
   return{byCat,byLog};
 }
+// Totaux des devis "Accepté" (engagement de dépense pas encore facturé) — même forme que
+// getReelTotals, réutilise getFactureShares (générique : marche sur tout objet {repartition,log,cat,ttc}).
+// Volontairement EXCLUT les devis "Facturé" : une fois facturés, ils sont déjà comptés dans le réel
+// via la facture liée — les compter aussi ici doublonnerait le montant.
+function getEngageTotals(devis){
+  const cfg=getCTXConfig();
+  const byCat={},byLog={Commun:0};
+  cfg.logements.forEach(lg=>{byLog[lg.label]=0;});
+  CATEGORIES.forEach(c=>{byCat[c.name]=0;});
+  const nLogs=cfg.logements.length;
+  devis.forEach(dv=>{
+    if(dv.statut!=='Accepté')return;
+    const ttc=+dv.ttc||0;
+    if(dv.repartition && dv.repartition.length){
+      getFactureShares(dv,cfg.logements).forEach(s=>{
+        if(byCat[s.cat]!==undefined)byCat[s.cat]+=s.montant;
+        if(byLog[s.log]!==undefined)byLog[s.log]+=s.montant;
+      });
+    } else {
+      if(byCat[dv.cat]!==undefined)byCat[dv.cat]+=ttc;
+      if(dv.log==='Commun'){
+        cfg.logements.forEach(lg=>{byLog[lg.label]+=ttc/nLogs;});
+        byLog['Commun']+=ttc;
+      } else if(byLog[dv.log]!==undefined){byLog[dv.log]+=ttc;}
+    }
+  });
+  return{byCat,byLog};
+}
 
 // Totaux TTC par catégorie ET logement (pour tableau miroir)
 function getReelMatrix(factures){
@@ -2678,26 +2711,34 @@ function destroyChart(ref){if(ref)ref.destroy();return null;}
 // ── SYNTHESE ──────────────────────────────────────────────────────────────
 function renderSynthese(){
   const{budget,factures}=loadData();
+  const devisAll=loadDevis();
   const{byCat:prev,byLog:bPrev}=getBudgetTotals(budget);
   const{byCat:reel,byLog:bReel}=getReelTotals(factures);
-  let tPrev=0,tReel=0;
-  CATEGORIES.forEach(c=>{tPrev+=prev[c.name]||0;tReel+=reel[c.name]||0;});
+  const{byCat:engage,byLog:bEngage}=getEngageTotals(devisAll);
+  let tPrev=0,tReel=0,tEngage=0;
+  CATEGORIES.forEach(c=>{tPrev+=prev[c.name]||0;tReel+=reel[c.name]||0;tEngage+=engage[c.name]||0;});
   const ecart=tPrev-tReel;
+  const ecartApresEngagement=ecart-tEngage;
   const pct=tPrev>0?Math.min(tReel/tPrev*100,100):0;
+  const pctCombine=tPrev>0?Math.min((tReel+tEngage)/tPrev*100,100):0;
   const payees=factures.filter(f=>f.statut==='Payée'&&f.inclus!==false).reduce((s,f)=>s+(+f.ttc||0),0);
   const attente=factures.filter(f=>f.statut!=='Payée'&&f.inclus!==false).reduce((s,f)=>s+(+f.ttc||0),0);
 
   // KPI
   document.getElementById('kpi-grid').innerHTML=`
     <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">Budget total prévu TTC</div><div class="kpi-val">${fmt(tPrev)}</div><div class="kpi-sub">${CATEGORIES.filter(c=>(prev[c.name]||0)>0).length} catégories budgétées</div></div>
-    <div class="kpi" style="--kpi-color:#4fd1c5"><div class="kpi-label">Dépenses réelles TTC</div><div class="kpi-val">${fmt(tReel)}</div><div class="kpi-sub">${factures.filter(f=>f.inclus!==false).length} factures · ${Math.round(pct)}% du budget</div></div>
-    <div class="kpi" style="--kpi-color:${ecart>=0?'#68d391':'#fc8181'}"><div class="kpi-label">Reste disponible</div><div class="kpi-val" style="color:${ecart>=0?'#68d391':'#fc8181'}">${fmt(ecart)}</div><div class="kpi-sub">${ecart>=0?'✓ Sous budget':'⚠ Dépassement'}</div></div>
+    <div class="kpi" style="--kpi-color:#4fd1c5"><div class="kpi-label">Dépenses réelles TTC</div><div class="kpi-val">${fmt(tReel)}</div><div class="kpi-sub">${factures.filter(f=>f.inclus!==false).length} factures · ${Math.round(pct)}% du budget${tEngage>0?` · <span style="color:var(--purple)">+${fmt(tEngage)} engagés</span>`:''}</div></div>
+    <div class="kpi" style="--kpi-color:${ecart>=0?'#68d391':'#fc8181'}"><div class="kpi-label">Reste disponible</div><div class="kpi-val" style="color:${ecart>=0?'#68d391':'#fc8181'}">${fmt(ecart)}</div><div class="kpi-sub">${ecart>=0?'✓ Sous budget':'⚠ Dépassement'}${tEngage>0?` · <span style="color:${ecartApresEngagement>=0?'var(--text3)':'#f6ad55'}">${fmt(ecartApresEngagement)} après engagements</span>`:''}</div></div>
     <div class="kpi" style="--kpi-color:var(--purple)"><div class="kpi-label">En attente paiement</div><div class="kpi-val">${fmt(attente)}</div><div class="kpi-sub">Payées : ${fmt(payees)}</div></div>`;
 
-  // Jauge globale
-  document.getElementById('synth-pct-label').textContent=Math.round(pct)+'%';
+  // Jauge globale — couche pleine = dépensé (factures), couche hachurée = engagé (devis validés non facturés)
+  document.getElementById('synth-pct-label').innerHTML=`${Math.round(pct)}%${tEngage>0?` <span style="color:var(--purple);font-weight:600">+${Math.round(pctCombine-pct)}% engagé</span>`:''}`;
   document.getElementById('synth-jauge-max').textContent=fmt(tPrev);
-  setTimeout(()=>{document.getElementById('synth-jauge-bar').style.width=pct.toFixed(1)+'%';},100);
+  setTimeout(()=>{
+    document.getElementById('synth-jauge-bar').style.width=pct.toFixed(1)+'%';
+    document.getElementById('synth-jauge-bar-engage').style.width=pctCombine.toFixed(1)+'%';
+  },100);
+  document.getElementById('synth-jauge-legend').style.display=tEngage>0?'flex':'none';
 
   // Tableau de bord par logement — dynamique selon le contexte
   const cfg=getCTXConfig();
@@ -2707,7 +2748,9 @@ function renderSynthese(){
     const l=lg.key;
     const p=bPrev[l]||0;
     const r=bReel[lg.label]||0;
+    const e=bEngage[lg.label]||0;
     const lPct=p>0?Math.min(r/p*100,100):0;
+    const lPctCombine=p>0?Math.min((r+e)/p*100,100):0;
     const reste=p-r;
     const nbFac=factures.filter(f=>(f.log===lg.label)&&f.inclus!==false).length;
     // Alertes catégories pour ce logement
@@ -2725,8 +2768,10 @@ function renderSynthese(){
         <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Budget prévu</div><div style="font-size:15px;font-weight:700;color:var(--text)">${fmt(p)}</div></div>
         <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Dépensé</div><div style="font-size:15px;font-weight:700;color:${logColors[l]}">${fmt(r)}</div></div>
       </div>
-      <div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:8px">
-        <div style="height:100%;width:${lPct.toFixed(1)}%;background:${logColors[l]};border-radius:4px;transition:width .8s"></div>
+      ${e>0?`<div style="font-size:10px;color:var(--purple);margin-bottom:6px">+ ${fmt(e)} engagés (devis validés)</div>`:''}
+      <div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:8px;position:relative">
+        ${e>0?`<div style="position:absolute;inset:0;height:100%;border-radius:4px;width:${lPctCombine.toFixed(1)}%;background:repeating-linear-gradient(45deg,${logColors[l]}66,${logColors[l]}66 4px,${logColors[l]}22 4px,${logColors[l]}22 8px);transition:width .8s"></div>`:''}
+        <div style="position:relative;height:100%;width:${lPct.toFixed(1)}%;background:${logColors[l]};border-radius:4px;transition:width .8s"></div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:10px">
         <span style="color:var(--text3)">${Math.round(lPct)}% consommé</span>
@@ -2736,21 +2781,34 @@ function renderSynthese(){
     </div>`;
   }).join('');
 
-  // Alertes catégories
-  const alertes=CATEGORIES.filter(cat=>{
-    const p=prev[cat.name]||0;const r=reel[cat.name]||0;
-    return p>0&&r>p*0.8;
-  });
+  // Alertes catégories — 3 niveaux : dépassement réel, attention (>80% réel), et prévisible
+  // (réel + devis validés en cours dépasserait le budget si tout était facturé)
+  const alertes=CATEGORIES.map(cat=>{
+    const p=prev[cat.name]||0,r=reel[cat.name]||0,e=engage[cat.name]||0;
+    if(!p)return null;
+    if(r>p)return{cat,p,r,e,niveau:'depasse'};
+    if(r>p*0.8)return{cat,p,r,e,niveau:'attention'};
+    if((r+e)>p)return{cat,p,r,e,niveau:'previsible'};
+    return null;
+  }).filter(Boolean);
+  const styleParNiveau={
+    depasse:{icon:'🔴',bg:'rgba(252,129,129,.08)',border:'rgba(252,129,129,.3)',tag:'DÉPASSEMENT',tagColor:'#fc8181'},
+    attention:{icon:'🟠',bg:'rgba(246,173,85,.08)',border:'rgba(246,173,85,.3)',tag:'ATTENTION',tagColor:'#f6ad55'},
+    previsible:{icon:'🟣',bg:'rgba(183,148,244,.08)',border:'rgba(183,148,244,.3)',tag:'À PRÉVOIR',tagColor:'#b794f4'}
+  };
   const alertesHtml=alertes.length?`<div style="display:flex;flex-direction:column;gap:8px">
-    ${alertes.map(cat=>{
-      const p=prev[cat.name]||0;const r=reel[cat.name]||0;const over=r>p;
-      return`<div style="display:flex;align-items:center;gap:12px;background:${over?'rgba(252,129,129,.08)':'rgba(246,173,85,.08)'};border:1px solid ${over?'rgba(252,129,129,.3)':'rgba(246,173,85,.3)'};border-radius:8px;padding:10px 14px">
-        <span style="font-size:18px">${over?'🔴':'🟠'}</span>
+    ${alertes.map(a=>{
+      const st=styleParNiveau[a.niveau];
+      const detail=a.niveau==='previsible'
+        ?`${fmt(a.r)} dépensé + ${fmt(a.e)} engagé (devis validés) = ${fmt(a.r+a.e)} sur ${fmt(a.p)} prévu — dépassement probable si les devis sont facturés`
+        :`${fmt(a.r)} dépensé sur ${fmt(a.p)} prévu — ${Math.round(a.r/a.p*100)}%`;
+      return`<div style="display:flex;align-items:center;gap:12px;background:${st.bg};border:1px solid ${st.border};border-radius:8px;padding:10px 14px">
+        <span style="font-size:18px">${st.icon}</span>
         <div style="flex:1">
-          <div style="font-size:12px;font-weight:600;color:var(--text)">${cat.name}</div>
-          <div style="font-size:11px;color:var(--text2);margin-top:2px">${fmt(r)} dépensé sur ${fmt(p)} prévu — ${Math.round(r/p*100)}%</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text)">${a.cat.name}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${detail}</div>
         </div>
-        <span style="font-size:12px;font-weight:700;color:${over?'#fc8181':'#f6ad55'}">${over?'DÉPASSEMENT':'ATTENTION'}</span>
+        <span style="font-size:12px;font-weight:700;color:${st.tagColor}">${st.tag}</span>
       </div>`;
     }).join('')}
   </div>`:'<div style="background:rgba(104,211,145,.08);border:1px solid rgba(104,211,145,.2);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--green)">✅ Toutes les catégories sont dans les limites budgétaires</div>';
