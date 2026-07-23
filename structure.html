@@ -3476,9 +3476,9 @@ function renderFactures(){
     if(ma&&mb){
       const ya=parseInt(ma[1]);const yb=parseInt(mb[1]);
       if(ya!==yb)return yb-ya;
-      return parseInt(ma[2])-parseInt(mb[2]);
+      return parseInt(mb[2])-parseInt(ma[2]);
     }
-    return na.localeCompare(nb);
+    return nb.localeCompare(na);
   });
   document.getElementById('empty-factures').style.display=filtered.length?'none':'block';
   const countEl=document.getElementById('filter-count');
@@ -4953,9 +4953,13 @@ async function modifierPagesFactureExistant(idx){
   f.pagesRetouchees=true; // évite qu'un futur export (ex: banque) ne réapplique une rotation par-dessus
   saveFactures(factures);
   const fname=(f.num||'FAC-'+(idx+1))+'_'+(f.four||'facture').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf';
-  await savePdfWithDrive(idx,result,fname);
+  const res=await savePdfWithDrive(idx,result,fname);
   renderFactures();
-  alert('✓ Document mis à jour.');
+  if(!res.localOk&&!res.driveLink){
+    alert('⚠ Le document corrigé est trop volumineux pour être enregistré en local, et Drive n\'est pas connecté (ou l\'envoi a échoué). Connecte Google Drive pour fiabiliser cette correction.');
+  } else {
+    alert('✓ Document mis à jour.');
+  }
 }
 
 async function exportZipFactures(){
@@ -4966,7 +4970,7 @@ async function exportZipFactures(){
   const filtered=factures.map((f,i)=>({...f,_idx:i})).filter(f=>{
     const d=f.date||f.datepay||'';
     return !yearEl||d.slice(0,4)===year;
-  });
+  }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
   if(filtered.length===0){alert('Aucune facture pour cette année.');return;}
 
@@ -12267,24 +12271,34 @@ async function uploadToDriveGestionLocative(b64, fileName, logKey){
   }
 }
 
+// Retourne {localOk, driveLink} — jamais d'échec silencieux. Si la sauvegarde locale échoue
+// (quota localStorage dépassé, fréquent avec beaucoup de PDF stockés) mais que l'upload Drive
+// réussit, on NETTOIE l'ancienne copie locale (removePdf) au lieu de la laisser mentir : sans ça,
+// loadPdf(idx) continuait de renvoyer l'ANCIENNE version (jamais mise à jour) car "!b64" ne
+// devenait jamais vrai — c'est ce qui donnait l'impression qu'une correction manuelle (rotation,
+// pages retirées) "revenait en arrière" alors qu'elle était bien enregistrée... sur Drive seulement.
 async function savePdfWithDrive(idx, b64, fileName){
-  // Sauvegarder localement
-  savePdf(idx, b64);
-  // Upload sur Drive si connecté
+  const localOk=savePdf(idx, b64);
+  let driveLink=null;
   if(driveAccessToken && b64){
-    const d0 = loadData();
-    const anneeFacture = (d0.factures[idx]?.date||'').slice(0,4);
-    const link = await uploadToDrive(b64, fileName, anneeFacture);
-    if(link){
-      // Sauvegarder le lien Drive dans la facture
-      const d = loadData();
-      if(d.factures[idx]){
-        d.factures[idx].driveLink = link;
-        saveFactures(d.factures);
+    try{
+      const d0 = loadData();
+      const anneeFacture = (d0.factures[idx]?.date||'').slice(0,4);
+      driveLink = await uploadToDrive(b64, fileName, anneeFacture);
+      if(driveLink){
+        const d = loadData();
+        if(d.factures[idx]){
+          d.factures[idx].driveLink = driveLink;
+          saveFactures(d.factures);
+        }
+        console.log('PDF uploadé sur Drive:', driveLink);
       }
-      console.log('PDF uploadé sur Drive:', link);
-    }
+    }catch(e){console.error('Upload Drive facture échoué:',e);}
   }
+  if(!localOk && driveLink){
+    removePdf(idx); // évite qu'une ancienne version locale périmée masque la nouvelle version (Drive)
+  }
+  return{localOk,driveLink};
 }
 
 
