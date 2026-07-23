@@ -891,7 +891,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>N° de devis</label><input type="text" id="devis-num" placeholder="DEV-2026-001"></div>
       <div class="form-group"><label>Date</label><input type="date" id="devis-date"></div>
       <div class="form-group"><label>Fournisseur</label><input type="text" id="devis-four" placeholder="Nom de l'entreprise"></div>
-      <div class="form-group"><label>Catégorie</label><select id="devis-cat"></select></div>
+      <div class="form-group"><label>Catégorie</label><select id="devis-cat" onchange="populatePosteSelect('devis-cat','devis-poste')"></select></div>
+      <div class="form-group"><label>Ligne de budget (poste) <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label><select id="devis-poste"><option value="">— Ligne générale (toute la catégorie) —</option></select></div>
       <div class="form-group" id="devis-log-group"><label>Logement</label><select id="devis-log"></select></div>
       <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="devis-ttc" step="0.01" placeholder="0.00" oninput="updateDevisSplitTotal()"></div>
       <div class="form-group" style="grid-column:1/-1">
@@ -1034,7 +1035,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
           <div class="autocomplete-list" id="ac-four" style="display:none"></div>
         </div>
       </div>
-      <div class="form-group"><label>Catégorie</label><select id="f-cat"></select></div>
+      <div class="form-group"><label>Catégorie</label><select id="f-cat" onchange="populatePosteSelect('f-cat','f-poste')"></select></div>
+      <div class="form-group"><label>Ligne de budget (poste) <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label><select id="f-poste"><option value="">— Ligne générale (toute la catégorie) —</option></select></div>
       <div class="form-group" id="f-log-group"><label>Logement</label>
         <select id="f-log">
           <option value="Logement A">Logement A</option>
@@ -1270,7 +1272,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>N° de document (interne)</label><input type="text" id="e-num"></div>
       <div class="form-group"><label>Date</label><input type="date" id="e-date"></div>
       <div class="form-group"><label>Fournisseur</label><input type="text" id="e-four"></div>
-      <div class="form-group"><label>Catégorie</label><select id="e-cat"></select></div>
+      <div class="form-group"><label>Catégorie</label><select id="e-cat" onchange="populatePosteSelect('e-cat','e-poste')"></select></div>
+      <div class="form-group"><label>Ligne de budget (poste) <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label><select id="e-poste"><option value="">— Ligne générale (toute la catégorie) —</option></select></div>
       <div class="form-group" id="e-log-group"><label>Logement</label>
         <select id="e-log">
           <option value="Logement A">Logement A</option><option value="Logement B">Logement B</option>
@@ -1705,27 +1708,37 @@ function empilerImagesVerticalement(images){
   });
 }
 // Appose le tampon des Paramètres sur le document joint à un devis (idx), s'il en a un et si un
-// tampon est configuré. Silencieux sinon — le tampon n'est qu'une confirmation visuelle, pas un blocage.
-// Ré-uploade aussi la version tamponnée sur Drive pour que le fichier là-bas soit à jour.
+// tampon est configuré. Ré-uploade aussi la version tamponnée sur Drive pour que le fichier là-bas
+// soit à jour. Retourne {ok, reason} au lieu d'échouer en silence — un document multi-pages tamponné
+// est plus lourd et peut dépasser le quota localStorage : dans ce cas on considère que ça a réussi
+// tant que l'upload Drive, lui, a fonctionné (sinon l'utilisateur ne serait jamais prévenu).
 async function tamponnerDevisPdf(idx,dateTxt){
-  const b64=await fetchDevisPdfB64(idx);
-  if(!b64)return;
-  const tamponB64=(window._structureInfo&&window._structureInfo.tamponBase64)||'';
-  if(!tamponB64)return;
-  let images;
-  if(b64.startsWith('data:image')){images=[b64];}
-  else{images=await pdfToImages(b64);}
-  if(!images||!images.length)return;
-  const stamped=await Promise.all(images.map(img=>dessinerTamponSurImage(img,dateTxt,tamponB64)));
-  const finalB64=stamped.length===1?stamped[0]:await empilerImagesVerticalement(stamped);
-  const devisNow=loadDevis();
-  const d=devisNow[idx];
-  if(d){
-    const dfour=(d.four||'devis').replace(/[^a-zA-Z0-9]/g,'_');
-    const dnum=d.num||'DEV-'+(idx+1);
-    await saveDevisPdfWithDrive(idx,finalB64,dnum+'_'+dfour+'.pdf');
-  }else{
-    saveDevisPdf(idx,finalB64);
+  try{
+    const b64=await fetchDevisPdfB64(idx);
+    if(!b64)return{ok:false,reason:'Aucun document trouvé pour ce devis (ni en local, ni sur Drive).'};
+    const tamponB64=(window._structureInfo&&window._structureInfo.tamponBase64)||'';
+    if(!tamponB64)return{ok:true,reason:null}; // pas de tampon configuré en Paramètres : rien à faire, ce n'est pas une erreur
+    let images;
+    if(b64.startsWith('data:image')){images=[b64];}
+    else{images=await pdfToImages(b64);}
+    if(!images||!images.length)return{ok:false,reason:'Impossible de lire ce document pour y apposer le tampon (conversion échouée).'};
+    const stamped=await Promise.all(images.map(img=>dessinerTamponSurImage(img,dateTxt,tamponB64)));
+    const finalB64=stamped.length===1?stamped[0]:await empilerImagesVerticalement(stamped);
+    if(!finalB64)return{ok:false,reason:'Échec de la composition du document tamponné (document à plusieurs pages).'};
+    const devisNow=loadDevis();
+    const d=devisNow[idx];
+    if(d){
+      const dfour=(d.four||'devis').replace(/[^a-zA-Z0-9]/g,'_');
+      const dnum=d.num||'DEV-'+(idx+1);
+      const res=await saveDevisPdfWithDrive(idx,finalB64,dnum+'_'+dfour+'.pdf');
+      if(!res.localOk&&!res.driveLink)return{ok:false,reason:'Le document tamponné est trop volumineux pour être enregistré en local, et Drive n\'est pas connecté (ou l\'envoi a échoué). Connecte Google Drive pour fiabiliser le tamponnage des documents à plusieurs pages.'};
+      return{ok:true,reason:null};
+    }
+    const localOk=saveDevisPdf(idx,finalB64);
+    return{ok:localOk,reason:localOk?null:'Le document tamponné est trop volumineux pour être enregistré en local.'};
+  }catch(e){
+    console.error('Tamponnage devis échoué:',e);
+    return{ok:false,reason:'Erreur inattendue pendant le tamponnage : '+e.message};
   }
 }
 
@@ -1748,6 +1761,21 @@ function delierDevisDeFacture(factureNum){
 }
 // Peuple les sélecteurs "Devis associé" des formulaires facture (ajout/édition), en conservant
 // la valeur sélectionnée si elle reste valide (utile pour le devis déjà lié en édition).
+// Peuple un select "Ligne de budget (poste)" avec les postes déjà saisis dans le budget prévisionnel
+// pour la catégorie actuellement choisie — permet de rattacher un devis/une facture à la ligne exacte
+// (ex: "Zinguerie") plutôt qu'à toute la catégorie (ex: "Charpente / Couverture / Zinguerie").
+// keepValue optionnel : force la valeur à sélectionner après repeuplement (utile en édition).
+function populatePosteSelect(catSelId,posteSelId,keepValue){
+  const catSel=document.getElementById(catSelId);
+  const posteSel=document.getElementById(posteSelId);
+  if(!catSel||!posteSel)return;
+  const catName=catSel.value;
+  const val=keepValue!==undefined?keepValue:posteSel.value;
+  const rows=((loadData().budget||{})[catName]||[]).map(r=>(r.desc||'').trim()).filter(Boolean);
+  const uniques=[...new Set(rows)];
+  posteSel.innerHTML='<option value="">— Ligne générale (toute la catégorie) —</option>'+uniques.map(p=>`<option value="${p.replace(/"/g,'&quot;')}">${p}</option>`).join('');
+  if(uniques.includes(val))posteSel.value=val;
+}
 function populateDevisSelects(){
   const devis=loadDevis();
   ['f-devis','e-devis'].forEach(id=>{
@@ -1770,6 +1798,7 @@ function appliquerDevisSurFacture(){
   const four=document.getElementById('f-four');if(four&&!four.value)four.value=devis.four||'';
   const ttc=document.getElementById('f-ttc');if(ttc&&!ttc.value)ttc.value=devis.ttc||'';
   const cat=document.getElementById('f-cat');if(cat&&devis.cat)cat.value=devis.cat;
+  populatePosteSelect('f-cat','f-poste',devis.poste||'');
   const log=document.getElementById('f-log');if(log&&devis.log)log.value=devis.log;
   const desc=document.getElementById('f-desc');if(desc&&!desc.value)desc.value=devis.desc||'';
 }
@@ -1936,6 +1965,7 @@ function ajouterOuModifierDevis(){
     date:document.getElementById('devis-date').value,
     four,
     cat:document.getElementById('devis-cat').value,
+    poste:document.getElementById('devis-poste')?.value||'',
     log:isSplit?'Réparti':document.getElementById('devis-log').value,
     ttc,
     statut:document.getElementById('devis-statut').value,
@@ -1973,7 +2003,10 @@ function ajouterOuModifierDevis(){
   if(msg){msg.style.display='inline';setTimeout(()=>msg.style.display='none',3000);}
   // Apposer le tampon "BON POUR ACCORD" sur le document joint, uniquement à la première validation
   if((obj.statut==='Accepté'||obj.statut==='Facturé')&&!etaitDejaValide){
-    tamponnerDevisPdf(idxFinal,fmtDate(obj.dateValidation)).then(()=>renderDevis());
+    tamponnerDevisPdf(idxFinal,fmtDate(obj.dateValidation)).then(res=>{
+      renderDevis();
+      if(res&&!res.ok)alert('⚠ '+res.reason);
+    });
   }
 }
 
@@ -1986,6 +2019,7 @@ function openEditDevis(idx){
   document.getElementById('devis-date').value=d.date||'';
   document.getElementById('devis-four').value=d.four||'';
   document.getElementById('devis-cat').value=d.cat||'';
+  populatePosteSelect('devis-cat','devis-poste',d.poste||'');
   document.getElementById('devis-log').value=d.repartition&&d.repartition.length?(d.repartition[0].log||''):d.log;
   document.getElementById('devis-ttc').value=d.ttc||'';
   document.getElementById('devis-statut').value=d.statut||'En attente';
@@ -2041,6 +2075,7 @@ function resetFormDevis(){
   document.querySelectorAll('.devis-split-log').forEach(el=>el.checked=false);
   const egaleRadioR=document.querySelector('input[name="devis-split-mode"][value="egale"]');
   if(egaleRadioR)egaleRadioR.checked=true;
+  populatePosteSelect('devis-cat','devis-poste','');
 }
 
 // Validation rapide en un clic depuis la liste — passe le devis en "Accepté" sans ouvrir le formulaire.
@@ -2056,8 +2091,9 @@ async function validerDevis(idx){
   renderDevis();
   populateDevisSelects();
   if(!dejaValide){
-    await tamponnerDevisPdf(idx,fmtDate(d.dateValidation));
+    const resTampon=await tamponnerDevisPdf(idx,fmtDate(d.dateValidation));
     renderDevis();
+    if(resTampon&&!resTampon.ok)alert('⚠ '+resTampon.reason);
   }
 }
 
@@ -2316,6 +2352,20 @@ function getEngageTotals(devis){
   });
   return{byCat,byLog};
 }
+// Totaux TTC par poste (ligne de budget exacte, ex: "Zinguerie" dans la catégorie "Charpente /
+// Couverture / Zinguerie") — clé = cat+'|||'+poste. Ignore les entrées sans poste renseigné (celles
+// qui restent au niveau "catégorie entière" ne remontent que dans getReelTotals/getEngageTotals).
+// filterFn : prédicat appliqué à chaque devis/facture (ex: statut, inclus) avant de sommer.
+function sumByPoste(items,filterFn){
+  const totals={};
+  (items||[]).forEach(it=>{
+    if(!filterFn(it))return;
+    if(!it.poste)return;
+    const key=it.cat+'|||'+it.poste;
+    totals[key]=(totals[key]||0)+(+it.ttc||0);
+  });
+  return totals;
+}
 
 // Totaux TTC par catégorie ET logement (pour tableau miroir)
 function getReelMatrix(factures){
@@ -2440,6 +2490,7 @@ function resetSaisieFields(){
     const el=document.getElementById(id);if(el)el.value='';
   });
   const fcat=document.getElementById('f-cat');if(fcat)fcat.selectedIndex=0;
+  populatePosteSelect('f-cat','f-poste','');
   const ftva=document.getElementById('f-tva');if(ftva)ftva.value='20';
   const flog=document.getElementById('f-log');if(flog)flog.value='Logement A';
   const fstatut=document.getElementById('f-statut');if(fstatut)fstatut.value='En attente';
@@ -2911,9 +2962,12 @@ function renderLogements(){
 
 // ── BUDGET ────────────────────────────────────────────────────────────────
 function renderBudget(){
-  const{budget}=loadData();
+  const{budget,factures}=loadData();
+  const devisAll=loadDevis();
+  const reelParPoste=sumByPoste(factures,f=>f.inclus!==false);
+  const engageParPoste=sumByPoste(devisAll,d=>d.statut==='Accepté');
   const grid=document.getElementById('budget-grid');
-  grid.style.gridTemplateColumns=`210px repeat(${Math.max(LOGS.length,1)},1fr) 110px`;
+  grid.style.gridTemplateColumns=`210px repeat(${Math.max(LOGS.length,1)},1fr) 130px`;
   grid.innerHTML='<div class="bg-th">Description</div>'+
     LOGS.map(l=>`<div class="bg-th" style="text-align:right">${l.key} TTC</div>`).join('')+
     '<div class="bg-th" style="text-align:right">Total TTC</div>';
@@ -2985,10 +3039,21 @@ function renderBudget(){
         inp.addEventListener('change',onBudgetChange);
         td.appendChild(inp);grid.appendChild(td);
       });
-      const tdTot=document.createElement('div');tdTot.className='bg-td';tdTot.style.textAlign='right';tdTot.style.color='var(--text2)';tdTot.style.fontSize='11px';tdTot.style.display='flex';tdTot.style.alignItems='center';tdTot.style.justifyContent='flex-end';tdTot.style.gap='8px';
+      const tdTot=document.createElement('div');tdTot.className='bg-td';tdTot.style.textAlign='right';tdTot.style.color='var(--text2)';tdTot.style.fontSize='11px';tdTot.style.display='flex';tdTot.style.flexDirection='column';tdTot.style.alignItems='flex-end';tdTot.style.justifyContent='center';tdTot.style.gap='2px';
       const tot=LOGS.reduce((s,l)=>s+(+row[l.prevKey]||0),0);
-      const span=document.createElement('span');span.textContent=tot>0?fmt(tot):'—';tdTot.appendChild(span);
-      if(rows.length>1){const btn=document.createElement('button');btn.textContent='−';btn.title='Supprimer ce poste';btn.style.cssText='background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.4);border-radius:4px;color:var(--red);cursor:pointer;font-size:12px;font-weight:700;padding:1px 7px;line-height:1.4;flex-shrink:0';btn.onclick=()=>removeBudgetRow(cat.name,idx);tdTot.appendChild(btn);}
+      const topRow=document.createElement('div');topRow.style.cssText='display:flex;align-items:center;gap:8px';
+      const span=document.createElement('span');span.textContent=tot>0?fmt(tot):'—';topRow.appendChild(span);
+      if(rows.length>1){const btn=document.createElement('button');btn.textContent='−';btn.title='Supprimer ce poste';btn.style.cssText='background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.4);border-radius:4px;color:var(--red);cursor:pointer;font-size:12px;font-weight:700;padding:1px 7px;line-height:1.4;flex-shrink:0';btn.onclick=()=>removeBudgetRow(cat.name,idx);topRow.appendChild(btn);}
+      tdTot.appendChild(topRow);
+      const posteKey=cat.name+'|||'+(row.desc||'').trim();
+      const reelPoste=row.desc?(reelParPoste[posteKey]||0):0;
+      const engagePoste=row.desc?(engageParPoste[posteKey]||0):0;
+      if(reelPoste>0||engagePoste>0){
+        const sub=document.createElement('div');sub.style.cssText='font-size:9px;line-height:1.5;text-align:right';
+        if(reelPoste>0){const l1=document.createElement('div');l1.style.color='#4fd1c5';l1.textContent='✓ '+fmt(reelPoste)+' réel';sub.appendChild(l1);}
+        if(engagePoste>0){const l2=document.createElement('div');l2.style.color='#b794f4';l2.textContent='◐ '+fmt(engagePoste)+' engagé';sub.appendChild(l2);}
+        tdTot.appendChild(sub);
+      }
       grid.appendChild(tdTot);
     });
     // Bouton ajouter poste
@@ -3240,6 +3305,7 @@ function ajouterFacture(){
     datepay:document.getElementById('f-datepay').value,
     four,
     cat:document.getElementById('f-cat').value,
+    poste:document.getElementById('f-poste')?.value||'',
     log: isSplit ? 'Réparti' : document.getElementById('f-log').value,
     ht,tva,ttc:ttcInput,
     statut:document.getElementById('f-statut').value,
@@ -3617,6 +3683,7 @@ function openEdit(idx){
   document.getElementById('e-date').value=f.date||'';
   document.getElementById('e-four').value=f.four||'';
   document.getElementById('e-cat').value=f.cat;
+  populatePosteSelect('e-cat','e-poste',f.poste||'');
   document.getElementById('e-log').value=f.repartition&&f.repartition.length?(f.repartition[0].log||''):f.log;
   document.getElementById('e-statut').value=f.statut;
   const devisLie=loadDevis().find(d=>d.factureNum===f.num);
@@ -3700,6 +3767,7 @@ function saveEdit(){
     date:document.getElementById('e-date').value,
     four:document.getElementById('e-four').value.trim(),
     cat:document.getElementById('e-cat').value,
+    poste:document.getElementById('e-poste')?.value||'',
     log:document.getElementById('e-log').value,
     statut:document.getElementById('e-statut').value,
     regleby:document.getElementById('e-regleby').value,
@@ -3827,6 +3895,7 @@ function saveEditAsSplit(){
     date:document.getElementById('e-date').value,
     four:document.getElementById('e-four').value.trim(),
     cat:document.getElementById('e-cat').value,
+    poste:document.getElementById('e-poste')?.value||'',
     log:'Réparti',
     ht,tva,ttc:ttcInput,
     statut:document.getElementById('e-statut').value,
@@ -11657,21 +11726,25 @@ async function uploadToDriveDevis(b64, fileName, anneeDevis){
 }
 // Sauvegarde locale + upload Drive pour un devis — même principe que savePdfWithDrive (factures).
 async function saveDevisPdfWithDrive(idx, b64, fileName){
-  saveDevisPdf(idx, b64);
+  const localOk=saveDevisPdf(idx, b64);
+  let driveLink=null;
   if(driveAccessToken && b64){
-    const devisNow = loadDevis();
-    const anneeDevis = (devisNow[idx]?.date||'').slice(0,4);
-    const link = await uploadToDriveDevis(b64, fileName, anneeDevis);
-    if(link){
-      const devis2 = loadDevis();
-      if(devis2[idx]){
-        devis2[idx].driveLink = link;
-        saveDevis(devis2);
-        renderDevis();
+    try{
+      const devisNow = loadDevis();
+      const anneeDevis = (devisNow[idx]?.date||'').slice(0,4);
+      driveLink = await uploadToDriveDevis(b64, fileName, anneeDevis);
+      if(driveLink){
+        const devis2 = loadDevis();
+        if(devis2[idx]){
+          devis2[idx].driveLink = driveLink;
+          saveDevis(devis2);
+          renderDevis();
+        }
+        console.log('PDF devis uploadé sur Drive:', driveLink);
       }
-      console.log('PDF devis uploadé sur Drive:', link);
-    }
+    }catch(e){console.error('Upload Drive devis échoué:',e);}
   }
+  return{localOk,driveLink};
 }
 
 async function uploadToDriveGestionLocative(b64, fileName, logKey){
@@ -12771,6 +12844,10 @@ window._authReady.then(async () => {
   initContexteUI();
   refreshLOGS();
   initSelects();
+  ['devis-cat','f-cat','e-cat'].forEach(id=>{
+    const posteId=id.replace('cat','poste');
+    if(document.getElementById(posteId))populatePosteSelect(id,posteId);
+  });
   renderNavigation('synthese');
   initGoogleDrive();
   // Charger depuis le cloud puis afficher
