@@ -3825,12 +3825,8 @@ async function exporterSelectionBanque(){
     }
 
     if(b64){
-      // Image déjà stockée : on l'utilise telle quelle, SANS la repasser dans imageToPortrait —
-      // sinon une rotation automatique pourrait défaire une correction manuelle faite via
-      // "✂️ modifier les pages" sur cette facture, et l'export banque ne serait plus dans le même
-      // sens que l'affichage/téléchargement normal de la facture.
       const isImage=b64.startsWith('data:image');
-      const images=isImage?[b64]:await pdfToImages(b64);
+      const images=isImage?[await imageToPortrait(b64)]:await pdfToImages(b64);
       if(images.length>0){
         const reglePar=f.regleby?` — Réglé par : <span style="color:#2c5282;font-weight:700">${f.regleby}</span>`:'';
         const cmdInfo=f.cmd?` — N° commande : <span style="color:#2c5282;font-weight:700">${f.cmd}</span>`:'';
