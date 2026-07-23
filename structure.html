@@ -873,6 +873,68 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 </div>
 
 
+<!-- DEVIS -->
+<div class="content" id="tab-devis">
+  <div class="section-title">📝 Devis</div>
+  <div style="background:rgba(99,179,237,.08);border:1px solid rgba(99,179,237,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
+    ℹ️ Enregistre ici les devis reçus, avant même de recevoir la facture — ça permet de suivre l'engagement de dépense en amont. Une fois la facture reçue, saisis-la dans l'onglet Factures en la liant à ce devis (champ "Devis associé") : le devis passera automatiquement au statut "Facturé".
+  </div>
+
+  <div class="table-wrap" style="padding:24px 24px 20px;margin-bottom:20px">
+    <div class="section-title" style="margin:0 0 14px" id="devis-form-title">+ Ajouter un devis</div>
+    <div class="form-grid">
+      <div class="form-group"><label>N° de devis</label><input type="text" id="devis-num" placeholder="DEV-2026-001"></div>
+      <div class="form-group"><label>Date</label><input type="date" id="devis-date"></div>
+      <div class="form-group"><label>Fournisseur</label><input type="text" id="devis-four" placeholder="Nom de l'entreprise"></div>
+      <div class="form-group"><label>Catégorie</label><select id="devis-cat"></select></div>
+      <div class="form-group"><label>Logement</label><select id="devis-log"></select></div>
+      <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="devis-ttc" step="0.01" placeholder="0.00"></div>
+      <div class="form-group"><label>Statut</label>
+        <select id="devis-statut">
+          <option value="En attente">En attente</option>
+          <option value="Accepté">Accepté</option>
+          <option value="Refusé">Refusé</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Description</label><input type="text" id="devis-desc" placeholder="Détail du devis"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn" onclick="ajouterOuModifierDevis()" id="devis-submit-btn">+ Ajouter le devis</button>
+      <button class="btn btn-sm" onclick="resetFormDevis()" id="devis-cancel-btn" style="display:none;background:rgba(100,116,139,.1);border-color:rgba(100,116,139,.3);color:var(--text2)">Annuler la modification</button>
+    </div>
+    <span class="msg-ok" id="devis-msg-ok" style="display:none">Devis enregistré ✓</span>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:10px">
+    <div class="section-title" style="margin-bottom:0">Liste des devis</div>
+    <div id="devis-count" style="font-size:11px;color:var(--text3)"></div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <input type="text" id="devis-filter-search" placeholder="🔍 Rechercher fournisseur, N°..." oninput="renderDevis()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;min-width:220px;flex:1">
+    <select class="filter-select" id="devis-filter-statut" onchange="renderDevis()">
+      <option value="">Tous statuts</option>
+      <option value="En attente">En attente</option>
+      <option value="Accepté">Accepté</option>
+      <option value="Refusé">Refusé</option>
+      <option value="Facturé">Facturé</option>
+    </select>
+    <select class="filter-select" id="devis-filter-log" onchange="renderDevis()"><option value="">Tous logements</option></select>
+    <select class="filter-select" id="devis-filter-cat" onchange="renderDevis()"><option value="">Toutes catégories</option></select>
+  </div>
+  <div class="kpi-grid" id="devis-kpi-grid" style="margin-bottom:20px"></div>
+  <div class="table-wrap">
+    <table class="factures-table">
+      <thead><tr>
+        <th>N° Devis</th><th>Date</th><th>Fournisseur</th><th>Catégorie</th><th>Logement</th>
+        <th style="text-align:right">TTC</th><th>Statut</th><th>Facture liée</th><th style="text-align:center">Actions</th>
+      </tr></thead>
+      <tbody id="devis-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="devis-empty" style="display:none">Aucun devis enregistré.</div>
+  </div>
+</div>
+
+
 <!-- ANNUEL -->
 <div class="content" id="tab-annuel">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
@@ -965,6 +1027,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
           <div id="f-split-checkboxes" style="display:flex;flex-direction:column;gap:6px"></div>
           <div id="f-split-total-info" style="display:none;margin-top:10px;font-size:12px;font-weight:600"></div>
         </div>
+      </div>
+      <div class="form-group"><label>Devis associé <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label>
+        <select id="f-devis" onchange="appliquerDevisSurFacture()"><option value="">— Aucun —</option></select>
       </div>
       <div class="form-group"><label>Statut paiement</label>
         <select id="f-statut">
@@ -1196,6 +1261,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
           <div id="e-split-checkboxes" style="display:flex;flex-direction:column;gap:6px"></div>
           <div id="e-split-total-info" style="display:none;margin-top:10px;font-size:12px;font-weight:600"></div>
         </div>
+      </div>
+      <div class="form-group"><label>Devis associé <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label>
+        <select id="e-devis"><option value="">— Aucun —</option></select>
       </div>
       <div class="form-group"><label>Statut</label>
         <select id="e-statut">
@@ -1480,6 +1548,193 @@ function saveFactures(factures){
     syncToCloud();
     return true;
   }catch(e){return false;}
+}
+// ── Devis (engagements avant facturation) ──────────────────────────────────
+function loadDevis(){
+  const d=localStorage.getItem(ctxKey('devis1'));
+  return d?JSON.parse(d):[];
+}
+function saveDevis(devis){
+  try{
+    localStorage.setItem(ctxKey('devis1'),JSON.stringify(devis));
+    syncToCloud();
+    return true;
+  }catch(e){return false;}
+}
+// Lie un devis (par son N°) à une facture (par son N°) : passe le devis en "Facturé".
+function lierDevisAFacture(devisNum,factureNum){
+  if(!devisNum||!factureNum)return;
+  const dv=loadDevis();
+  const d=dv.find(x=>x.num===devisNum);
+  if(d){d.statut='Facturé';d.factureNum=factureNum;saveDevis(dv);}
+}
+// Délie tout devis actuellement rattaché à cette facture (avant modif/suppression de la facture).
+function delierDevisDeFacture(factureNum){
+  if(!factureNum)return;
+  const dv=loadDevis();
+  let changed=false;
+  dv.forEach(d=>{
+    if(d.factureNum===factureNum){d.factureNum=null;if(d.statut==='Facturé')d.statut='Accepté';changed=true;}
+  });
+  if(changed)saveDevis(dv);
+}
+// Peuple les sélecteurs "Devis associé" des formulaires facture (ajout/édition), en conservant
+// la valeur sélectionnée si elle reste valide (utile pour le devis déjà lié en édition).
+function populateDevisSelects(){
+  const devis=loadDevis();
+  ['f-devis','e-devis'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    const keepValue=el.value;
+    const disponibles=devis.filter(d=>d.statut!=='Facturé'||d.num===keepValue);
+    el.innerHTML='<option value="">— Aucun —</option>'+disponibles.map(d=>
+      `<option value="${d.num.replace(/"/g,'&quot;')}">${d.num} — ${d.four} (${fmt(d.ttc)})</option>`
+    ).join('');
+    if(disponibles.some(d=>d.num===keepValue))el.value=keepValue;
+  });
+}
+// Pré-remplit les champs vides du formulaire d'ajout de facture depuis le devis sélectionné.
+function appliquerDevisSurFacture(){
+  const val=document.getElementById('f-devis').value;
+  if(!val)return;
+  const devis=loadDevis().find(d=>d.num===val);
+  if(!devis)return;
+  const four=document.getElementById('f-four');if(four&&!four.value)four.value=devis.four||'';
+  const ttc=document.getElementById('f-ttc');if(ttc&&!ttc.value)ttc.value=devis.ttc||'';
+  const cat=document.getElementById('f-cat');if(cat&&devis.cat)cat.value=devis.cat;
+  const log=document.getElementById('f-log');if(log&&devis.log)log.value=devis.log;
+  const desc=document.getElementById('f-desc');if(desc&&!desc.value)desc.value=devis.desc||'';
+}
+
+// ── ONGLET DEVIS ─────────────────────────────────────────────────────────
+let editDevisIdx=null;
+
+function renderDevis(){
+  const devis=loadDevis();
+  const searchF=(document.getElementById('devis-filter-search')?.value||'').toLowerCase().trim();
+  const statutF=document.getElementById('devis-filter-statut')?.value||'';
+  const logF=document.getElementById('devis-filter-log')?.value||'';
+  const catF=document.getElementById('devis-filter-cat')?.value||'';
+  const indexed=devis.map((d,i)=>({...d,_ri:i}));
+  const filtered=indexed.filter(d=>{
+    const matchSearch=!searchF||(d.four||'').toLowerCase().includes(searchF)||(d.num||'').toLowerCase().includes(searchF)||(d.desc||'').toLowerCase().includes(searchF);
+    const matchStatut=!statutF||d.statut===statutF;
+    const matchLog=!logF||d.log===logF;
+    const matchCat=!catF||d.cat===catF;
+    return matchSearch&&matchStatut&&matchLog&&matchCat;
+  }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+
+  const emptyEl=document.getElementById('devis-empty');
+  if(emptyEl)emptyEl.style.display=filtered.length?'none':'block';
+  const countEl=document.getElementById('devis-count');
+  if(countEl){
+    const total=devis.length;
+    countEl.textContent=filtered.length===total?total+' devis':filtered.length+' / '+total+' devis';
+  }
+
+  const totEnAttente=devis.filter(d=>d.statut==='En attente').reduce((s,d)=>s+(+d.ttc||0),0);
+  const totAccepte=devis.filter(d=>d.statut==='Accepté').reduce((s,d)=>s+(+d.ttc||0),0);
+  const totFacture=devis.filter(d=>d.statut==='Facturé').reduce((s,d)=>s+(+d.ttc||0),0);
+  const totEngage=totAccepte+totFacture;
+  const kpiEl=document.getElementById('devis-kpi-grid');
+  if(kpiEl)kpiEl.innerHTML=`
+    <div class="kpi" style="--kpi-color:#f6ad55"><div class="kpi-label">En attente de réponse</div><div class="kpi-val">${fmt(totEnAttente)}</div><div class="kpi-sub">${devis.filter(d=>d.statut==='En attente').length} devis</div></div>
+    <div class="kpi" style="--kpi-color:#63b3ed"><div class="kpi-label">Accepté, non facturé</div><div class="kpi-val">${fmt(totAccepte)}</div><div class="kpi-sub">${devis.filter(d=>d.statut==='Accepté').length} devis</div></div>
+    <div class="kpi" style="--kpi-color:#68d391"><div class="kpi-label">Déjà facturé</div><div class="kpi-val">${fmt(totFacture)}</div><div class="kpi-sub">${devis.filter(d=>d.statut==='Facturé').length} devis</div></div>
+    <div class="kpi" style="--kpi-color:#b794f4"><div class="kpi-label">Engagement total</div><div class="kpi-val">${fmt(totEngage)}</div><div class="kpi-sub">accepté + facturé</div></div>
+  `;
+
+  const tbody=document.getElementById('devis-tbody');
+  if(tbody)tbody.innerHTML=filtered.map(d=>{
+    const sc=d.statut==='Facturé'?'#68d391':d.statut==='Accepté'?'#63b3ed':d.statut==='Refusé'?'#fc8181':'#f6ad55';
+    const lcObj=LOGS.find(l=>l.key===d.log||l.label===d.log);
+    const lc=lcObj?lcObj.color:'#b794f4';
+    return`<tr>
+      <td style="color:var(--accent);font-weight:500">${d.num||'—'}</td>
+      <td style="color:var(--text2)">${d.date||'—'}</td>
+      <td style="font-weight:500">${d.four||'—'}</td>
+      <td style="font-size:11px;color:var(--text2)">${d.cat||'—'}</td>
+      <td><span class="log-badge" style="background:${lc}26;color:${lc}">${d.log||'—'}</span></td>
+      <td style="text-align:right;font-weight:600">${fmt(d.ttc)}</td>
+      <td style="color:${sc};font-size:11px;font-weight:600">${d.statut||'—'}</td>
+      <td style="font-size:11px;color:var(--text2)">${d.factureNum?('📄 '+d.factureNum):'—'}</td>
+      <td style="text-align:center;white-space:nowrap">
+        <button class="btn btn-sm btn-edit" onclick="openEditDevis(${d._ri})">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="supprimerDevis(${d._ri})">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function ajouterOuModifierDevis(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier les devis."); return; }
+  const four=document.getElementById('devis-four').value.trim();
+  const ttc=parseFloat(document.getElementById('devis-ttc').value)||0;
+  if(!four||ttc<=0){alert('Fournisseur et montant TTC requis.');return;}
+  const devis=loadDevis();
+  const ancien=editDevisIdx!==null?devis[editDevisIdx]:null;
+  const obj={
+    num:document.getElementById('devis-num').value.trim()||('DEV-'+(devis.length+1)),
+    date:document.getElementById('devis-date').value,
+    four,
+    cat:document.getElementById('devis-cat').value,
+    log:document.getElementById('devis-log').value,
+    ttc,
+    statut:document.getElementById('devis-statut').value,
+    desc:document.getElementById('devis-desc').value.trim(),
+    factureNum:ancien?ancien.factureNum:null
+  };
+  // Un devis déjà lié à une facture reste au statut "Facturé" tant que le lien existe
+  if(obj.factureNum)obj.statut='Facturé';
+  if(editDevisIdx!==null)devis[editDevisIdx]=obj;else devis.push(obj);
+  saveDevis(devis);
+  resetFormDevis();
+  renderDevis();
+  populateDevisSelects();
+  const msg=document.getElementById('devis-msg-ok');
+  if(msg){msg.style.display='inline';setTimeout(()=>msg.style.display='none',3000);}
+}
+
+function openEditDevis(idx){
+  const devis=loadDevis();
+  const d=devis[idx];
+  if(!d)return;
+  editDevisIdx=idx;
+  document.getElementById('devis-num').value=d.num||'';
+  document.getElementById('devis-date').value=d.date||'';
+  document.getElementById('devis-four').value=d.four||'';
+  document.getElementById('devis-cat').value=d.cat||'';
+  document.getElementById('devis-log').value=d.log||'';
+  document.getElementById('devis-ttc').value=d.ttc||'';
+  document.getElementById('devis-statut').value=d.statut||'En attente';
+  document.getElementById('devis-desc').value=d.desc||'';
+  document.getElementById('devis-form-title').textContent='✎ Modifier le devis '+(d.num||'');
+  document.getElementById('devis-submit-btn').textContent='Enregistrer les modifications';
+  document.getElementById('devis-cancel-btn').style.display='inline-block';
+  document.getElementById('tab-devis').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function resetFormDevis(){
+  editDevisIdx=null;
+  ['devis-num','devis-date','devis-four','devis-ttc','devis-desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const statutEl=document.getElementById('devis-statut');if(statutEl)statutEl.value='En attente';
+  document.getElementById('devis-form-title').textContent='+ Ajouter un devis';
+  document.getElementById('devis-submit-btn').textContent='+ Ajouter le devis';
+  document.getElementById('devis-cancel-btn').style.display='none';
+}
+
+function supprimerDevis(idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de supprimer un devis."); return; }
+  const devis=loadDevis();
+  const d=devis[idx];
+  if(!d)return;
+  if(d.factureNum){alert('Ce devis est lié à la facture '+d.factureNum+'. Modifie ou supprime d\'abord cette facture (ou change son devis associé) avant de supprimer ce devis.');return;}
+  if(!confirm('Supprimer ce devis ?'))return;
+  devis.splice(idx,1);
+  saveDevis(devis);
+  if(editDevisIdx===idx)resetFormDevis();
+  renderDevis();
+  populateDevisSelects();
 }
 function loadPdf(idx){
   try{return localStorage.getItem(ctxKey('pdf_'+idx));}catch(e){return null;}
@@ -2016,7 +2271,7 @@ function getTabGroups(){
   const mods = getModulesConfig();
   const groups = [];
   if(mods.construction) groups.push({id:'construction',label:'🏗️ Construction prévisionnelle',tabs:['synthese','logements','budget','dashboard']});
-  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['factures','annuel','saisie','charges-recurrentes','banque']});
+  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['factures','devis','annuel','saisie','charges-recurrentes','banque']});
   if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']});
   if(mods.financement) groups.push({id:'financement',label:'💰 Financement',tabs:['projection','financement']});
   groups.push(paramGroup);
@@ -2024,7 +2279,7 @@ function getTabGroups(){
 }
 function getTabLabels(){return{
   synthese:'Synthèse',logements:'Par logement',budget:'Budget prévisionnel',dashboard:'📊 Dashboard Prév.',
-  factures:'Factures réelles',annuel:'📅 Par année',saisie:'+ Saisir une facture','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque',
+  factures:'Factures réelles',devis:'📝 Devis',annuel:'📅 Par année',saisie:'+ Saisir une facture','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque',
   locataires:'Fiches & loyers','gestion-locative':'📁 Gestion locative',rentabilite:'📈 Rentabilité',
   projection:'🔭 Projection 20 ans',financement:'💳 Crédit & charges',
   parametres:'⚙️ Paramètres'
@@ -2069,6 +2324,7 @@ function showTab(id){
   if(id==='annuel')renderAnnuel();
   if(id==='charges-recurrentes')renderChargesRecurrentes();
   if(id==='banque')renderBanque();
+  if(id==='devis')renderDevis();
   if(id==='saisie'){
     const numField=document.getElementById('f-num');
     if(numField&&!numField.value) numField.value=getNextFactureNum();
@@ -2447,6 +2703,7 @@ function getDuplicateIndices(factures){
 function renderFactures(){
   const{factures}=loadData();
   renderReelGrid();
+  populateDevisSelects();
   // Peupler le sélecteur d'année pour l'ouverture du dossier Drive (conserve la sélection en cours)
   const driveYearSel=document.getElementById('drive-year-select');
   if(driveYearSel){
@@ -2603,6 +2860,8 @@ function ajouterFacture(){
 
   const ok=saveFactures(d.factures);
   if(!ok){alert('Erreur de stockage — données trop volumineuses.');return;}
+  const devisSelectionne=document.getElementById('f-devis')?document.getElementById('f-devis').value:'';
+  if(devisSelectionne)lierDevisAFacture(devisSelectionne,factureObj.num);
   if(pendingPdfB64){
     const ffour=(document.getElementById('f-four').value||'facture').replace(/[^a-zA-Z0-9]/g,'_');
     const fnum=d.factures[newIdx].num||'FAC-'+(newIdx+1);
@@ -2619,6 +2878,7 @@ function ajouterFacture(){
   ['f-num','f-date','f-datepay','f-four','f-ttc','f-desc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-regleby').value='';
   document.getElementById('f-cmd').value='';
+  if(document.getElementById('f-devis'))document.getElementById('f-devis').value='';
   // Nouveau numéro auto pour la prochaine facture
   setTimeout(()=>{const n=document.getElementById('f-num');if(n)n.value=getNextFactureNum();},100);
   clearUpload(false);
@@ -2939,7 +3199,9 @@ async function supprimerFacture(idx){
     if(next)savePdf(i,next);else removePdf(i);
   }
   removePdf(d.factures.length);
-  saveFactures(d.factures);renderFactures();
+  saveFactures(d.factures);
+  if(f)delierDevisDeFacture(f.num);
+  renderFactures();
 }
 
 function openEdit(idx){
@@ -2957,6 +3219,14 @@ function openEdit(idx){
   document.getElementById('e-cat').value=f.cat;
   document.getElementById('e-log').value=f.repartition&&f.repartition.length?(f.repartition[0].log||''):f.log;
   document.getElementById('e-statut').value=f.statut;
+  const devisLie=loadDevis().find(d=>d.factureNum===f.num);
+  const eDevisSel=document.getElementById('e-devis');
+  if(eDevisSel){
+    if(devisLie&&!Array.from(eDevisSel.options).some(o=>o.value===devisLie.num)){
+      eDevisSel.innerHTML+=`<option value="${devisLie.num.replace(/"/g,'&quot;')}">${devisLie.num} — ${devisLie.four} (${fmt(devisLie.ttc)})</option>`;
+    }
+    eDevisSel.value=devisLie?devisLie.num:'';
+  }
   document.getElementById('e-regleby').value=f.regleby||'';
   document.getElementById('e-datepay').value=f.datepay||'';
   document.getElementById('e-ttc').value=f.ttc;
@@ -3023,8 +3293,10 @@ function saveEdit(){
   const ht=+(ttcEdit/(1+tva/100)).toFixed(2);
   const d=loadData();
   const hadPdf=!!loadPdf(editIdx);
+  const ancienNum=d.factures[editIdx]?d.factures[editIdx].num:null;
+  const nouveauNum=document.getElementById('e-num').value.trim();
   d.factures[editIdx]={
-    num:document.getElementById('e-num').value.trim(),
+    num:nouveauNum,
     date:document.getElementById('e-date').value,
     four:document.getElementById('e-four').value.trim(),
     cat:document.getElementById('e-cat').value,
@@ -3039,6 +3311,9 @@ function saveEdit(){
     hasPdf:editPdfB64?true:hadPdf
   };
   saveFactures(d.factures);
+  delierDevisDeFacture(ancienNum);
+  const devisSelectionne=document.getElementById('e-devis')?document.getElementById('e-devis').value:'';
+  if(devisSelectionne)lierDevisAFacture(devisSelectionne,nouveauNum);
   if(editPdfB64){
     const fname=(document.getElementById('e-num').value||'FAC-'+(editIdx+1))+'_'+(document.getElementById('e-four').value||'facture').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf';
     savePdfWithDrive(editIdx, editPdfB64, fname);
@@ -3164,6 +3439,9 @@ function saveEditAsSplit(){
   };
   const ok=saveFactures(d.factures);
   if(!ok){alert('Erreur de stockage — données trop volumineuses.');return;}
+  delierDevisDeFacture(original.num);
+  const devisSelectionneSplit=document.getElementById('e-devis')?document.getElementById('e-devis').value:'';
+  if(devisSelectionneSplit)lierDevisAFacture(devisSelectionneSplit,baseNum);
   closeModal();renderFactures();
 }
 
@@ -3933,6 +4211,7 @@ async function syncToCloud(){
   if(!window._db)return;
   try{
     const{budget,factures}=loadData();
+    const devis=loadDevis();
     const fin=loadFinancement();
     const locataires=loadLocataires();
     const logements=loadLogements();
@@ -3942,7 +4221,7 @@ async function syncToCloud(){
     const syncEl=document.getElementById('sync-status');
     if(syncEl){syncEl.textContent='⟳ Sync...';syncEl.style.color='#f6ad55';}
     await window._setDoc(window._appDataDoc(),{
-      budget,factures,fin,locataires,logements,projection,fc:fcData,glDocs,
+      budget,factures,devis,fin,locataires,logements,projection,fc:fcData,glDocs,
       updated:new Date().toISOString()
     });
     // Sync séparée des biens patrimoine — communs aux deux contextes, document indépendant
@@ -3967,6 +4246,7 @@ async function loadFromCloud(){
       const d=snap.data();
       if(d.budget)localStorage.setItem(ctxKey('budget3'),JSON.stringify(d.budget));
       if(d.factures)localStorage.setItem(ctxKey('factures3'),JSON.stringify(d.factures));
+      if(d.devis)localStorage.setItem(ctxKey('devis1'),JSON.stringify(d.devis));
       if(d.fin)localStorage.setItem(ctxKey('fin4'),JSON.stringify(d.fin));
       if(d.locataires)localStorage.setItem(ctxKey('locataires'),JSON.stringify(d.locataires));
       if(d.logements)localStorage.setItem(ctxKey('logements_config'),JSON.stringify(d.logements));
@@ -11221,12 +11501,12 @@ function initContexteUI(){
   }
   // Sélecteurs logements
   const logs=cfg.logements;
-  [['filter-log','label',true],['f-log','label',true],['e-log','label',true],['sv-log','label',true],['banque-filter-log','label',true]].forEach(([id,prop,commun])=>{
+  [['filter-log','label',true],['f-log','label',true],['e-log','label',true],['sv-log','label',true],['banque-filter-log','label',true],['devis-log','label',true],['devis-filter-log','label',true]].forEach(([id,prop,commun])=>{
     const el=document.getElementById(id);
     if(!el)return;
-    el.innerHTML=(id==='filter-log'||id==='banque-filter-log'?'<option value="">Tous logements</option>':'')+
+    el.innerHTML=(id==='filter-log'||id==='banque-filter-log'||id==='devis-filter-log'?'<option value="">Tous logements</option>':'')+
       logs.map(l=>`<option value="${l[prop]}">${l.label}</option>`).join('')+
-      (commun&&id!=='filter-log'&&id!=='banque-filter-log'?'<option value="Commun">Commun / Global</option>':'');
+      (commun&&id!=='filter-log'&&id!=='banque-filter-log'&&id!=='devis-filter-log'?'<option value="Commun">Commun / Global</option>':'');
   });
   const locLog=document.getElementById('loc-logement');
   if(locLog)locLog.innerHTML=logs.map(l=>`<option value="${l.key}">${l.label}</option>`).join('');
@@ -11646,7 +11926,7 @@ async function renumeroterFactures(){
 }
 
 function initSelects(){
-  [document.getElementById('f-cat'),document.getElementById('e-cat'),document.getElementById('filter-cat'),document.getElementById('sv-cat')].forEach((sel,i)=>{
+  [document.getElementById('f-cat'),document.getElementById('e-cat'),document.getElementById('filter-cat'),document.getElementById('sv-cat'),document.getElementById('devis-cat'),document.getElementById('devis-filter-cat')].forEach((sel,i)=>{
     if(!sel)return;
     const ogTravaux=document.createElement('optgroup');
     ogTravaux.label='🔨 Travaux (investissement)';
