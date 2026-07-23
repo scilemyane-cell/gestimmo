@@ -483,7 +483,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   <div class="header-right" style="align-items:center">
     <div class="badge" id="badge-date"></div>
     <div class="badge" onclick="toggleTheme()" id="btn-theme-toggle" title="Changer le thème" style="cursor:pointer">🌙 Sombre</div>
-    <div class="badge" id="sync-status" style="color:var(--accent);cursor:pointer" onclick="loadFromCloud().then(()=>location.reload())" title="Cliquer pour forcer la synchronisation">☁ Cloud</div>
+    <div class="badge" id="sync-status" style="color:var(--accent);cursor:pointer" onclick="handleSyncStatusClick()" title="Cliquer pour forcer la synchronisation">☁ Cloud</div>
     <div class="badge" id="drive-status" onclick="disconnectDrive()" style="color:var(--green);cursor:pointer;display:none" title="Cliquer pour déconnecter / changer de compte Google">📁 Drive</div>
     <div class="badge" onclick="connectDrive()" id="drive-connect" style="color:var(--orange);cursor:pointer" title="Connecter Google Drive pour stocker les PDF">📁 Connecter Drive</div>
     <div class="badge" onclick="scanGmail()" id="btn-gmail" style="color:#f687b3;cursor:pointer;display:none" title="Scanner Gmail pour importer les factures">📧 Scanner Gmail</div>
@@ -4832,6 +4832,7 @@ let _pagePickerImages=[];
 let _pagePickerSelected=[];
 let _pagePickerRotations=[];
 let _pagePickerOriginalB64=null;
+let _pagePickerForceOpen=false;
 async function choisirPagesDocument(b64,forceOpen){
   if(!b64)return b64;
   let images;
@@ -4847,6 +4848,7 @@ async function choisirPagesDocument(b64,forceOpen){
   _pagePickerImages=images;
   _pagePickerSelected=images.map(()=>true);
   _pagePickerRotations=images.map(()=>0);
+  _pagePickerForceOpen=!!forceOpen;
   renderPagePicker();
   document.getElementById('page-picker-overlay').classList.add('open');
   return new Promise(resolve=>{_pagePickerResolve=resolve;});
@@ -4900,21 +4902,25 @@ async function confirmerChoixPages(){
   const uneSeuleRotation=keptIdx.some(i=>(_pagePickerRotations[i]||0)!==0);
   document.getElementById('page-picker-overlay').classList.remove('open');
   let result;
-  if(keptIdx.length===_pagePickerImages.length&&!uneSeuleRotation){
+  // En mode retouche a posteriori (forceOpen), on ré-encode TOUJOURS l'image affichée, même si rien
+  // n'a été coché/pivoté — sinon le raccourci "rien n'a changé" garde le PDF original intact, qui
+  // peut être rendu différemment par un lecteur PDF natif que par notre aperçu (pdfToImages) : ce qui
+  // était visible dans l'aperçu ne correspondrait alors plus à ce qui est réellement enregistré.
+  if(!_pagePickerForceOpen&&keptIdx.length===_pagePickerImages.length&&!uneSeuleRotation){
     result=_pagePickerOriginalB64;
   } else {
     const kept=await Promise.all(keptIdx.map(i=>rotateImageDataUrl(_pagePickerImages[i],_pagePickerRotations[i]||0)));
     result=kept.length===1?kept[0]:await empilerImagesVerticalement(kept);
   }
   const resolve=_pagePickerResolve;
-  _pagePickerResolve=null;_pagePickerImages=[];_pagePickerSelected=[];_pagePickerRotations=[];_pagePickerOriginalB64=null;
+  _pagePickerResolve=null;_pagePickerImages=[];_pagePickerSelected=[];_pagePickerRotations=[];_pagePickerOriginalB64=null;_pagePickerForceOpen=false;
   if(resolve)resolve(result);
 }
 function annulerChoixPages(){
   document.getElementById('page-picker-overlay').classList.remove('open');
   const resolve=_pagePickerResolve;
   const original=_pagePickerOriginalB64;
-  _pagePickerResolve=null;_pagePickerImages=[];_pagePickerSelected=[];_pagePickerRotations=[];_pagePickerOriginalB64=null;
+  _pagePickerResolve=null;_pagePickerImages=[];_pagePickerSelected=[];_pagePickerRotations=[];_pagePickerOriginalB64=null;_pagePickerForceOpen=false;
   if(resolve)resolve(original);
 }
 // Retouche a posteriori les pages d'un devis déjà enregistré (exclure/pivoter), utile pour les
@@ -4937,7 +4943,6 @@ async function modifierPagesDevisExistant(idx){
     saveDevisPdf(idx,result);
   }
   renderDevis();
-  alert('✓ Document mis à jour.');
 }
 // Idem pour une facture déjà enregistrée.
 async function modifierPagesFactureExistant(idx){
@@ -4957,8 +4962,6 @@ async function modifierPagesFactureExistant(idx){
   renderFactures();
   if(!res.localOk&&!res.driveLink){
     alert('⚠ Le document corrigé est trop volumineux pour être enregistré en local, et Drive n\'est pas connecté (ou l\'envoi a échoué). Connecte Google Drive pour fiabiliser cette correction.');
-  } else {
-    alert('✓ Document mis à jour.');
   }
 }
 
@@ -5188,9 +5191,10 @@ async function syncToCloud(){
     const glDocs=loadGLDocs();
     const syncEl=document.getElementById('sync-status');
     if(syncEl){syncEl.textContent='⟳ Sync...';syncEl.style.color='#f6ad55';}
+    const updatedAt=new Date().toISOString();
     await window._setDoc(window._appDataDoc(),{
       budget,factures,devis,fin,locataires,logements,projection,fc:fcData,glDocs,
-      updated:new Date().toISOString()
+      updated:updatedAt
     });
     // Sync séparée des biens patrimoine — communs aux deux contextes, document indépendant
     const biensPatrimoine=loadBiensPatrimoine();
@@ -5199,11 +5203,25 @@ async function syncToCloud(){
     });
     if(syncEl){syncEl.textContent='✓ Sauvegardé';syncEl.style.color='#68d391';
       setTimeout(()=>{syncEl.textContent='☁ Cloud';syncEl.style.color='#63b3ed';},2000);}
+    window._lastSyncError=null;
+    localStorage.setItem(ctxKey('last_synced_at'),updatedAt);
   }catch(e){
     const syncEl=document.getElementById('sync-status');
     if(syncEl){syncEl.textContent='✗ Erreur sync';syncEl.style.color='#fc8181';}
+    window._lastSyncError=(e&&e.message)?e.message:String(e);
     console.error('Sync error:',e);
   }
+}
+// Clic sur le badge de statut sync — si une synchronisation a échoué, affiche l'erreur réelle au
+// lieu de recharger aveuglément depuis le cloud : si le cloud est resté sur une ancienne version
+// (à cause de CETTE même erreur), recharger écraserait silencieusement des données locales plus
+// récentes et jamais synchronisées. Sync saine → comportement habituel (forcer une resynchro).
+function handleSyncStatusClick(){
+  if(window._lastSyncError){
+    alert('⚠ La dernière synchronisation vers le cloud a échoué :\n\n'+window._lastSyncError+'\n\nPour éviter d\'écraser des modifications locales non sauvegardées, l\'app ne recharge PAS automatiquement depuis le cloud tant que cette erreur n\'est pas résolue. Vérifie ta connexion, puis réessaie (une nouvelle modification relance une synchronisation).');
+    return;
+  }
+  loadFromCloud().then(()=>location.reload());
 }
 
 async function loadFromCloud(){
@@ -5212,15 +5230,25 @@ async function loadFromCloud(){
     const snap=await window._getDoc(window._appDataDoc());
     if(snap.exists()){
       const d=snap.data();
-      if(d.budget)localStorage.setItem(ctxKey('budget3'),JSON.stringify(d.budget));
-      if(d.factures)localStorage.setItem(ctxKey('factures3'),JSON.stringify(d.factures));
-      if(d.devis)localStorage.setItem(ctxKey('devis1'),JSON.stringify(d.devis));
-      if(d.fin)localStorage.setItem(ctxKey('fin4'),JSON.stringify(d.fin));
-      if(d.locataires)localStorage.setItem(ctxKey('locataires'),JSON.stringify(d.locataires));
-      if(d.logements)localStorage.setItem(ctxKey('logements_config'),JSON.stringify(d.logements));
-      if(d.projection)localStorage.setItem(ctxKey('projection'),JSON.stringify(d.projection));
-      if(d.fc)localStorage.setItem(ctxKey('fc'),JSON.stringify(d.fc));
-      if(d.glDocs)localStorage.setItem(ctxKey('gl_docs'),JSON.stringify(d.glDocs));
+      // Protection anti-écrasement : si le cloud n'est pas plus récent que la dernière synchronisation
+      // locale réussie, on NE remplace RIEN. Sans ça, un cloud resté périmé (parce que la sync a
+      // échoué — quota, taille du document, etc.) écraserait silencieusement des corrections locales
+      // jamais synchronisées, à chaque rechargement de la page.
+      const lastSyncedAt=localStorage.getItem(ctxKey('last_synced_at'))||'';
+      if(d.updated && lastSyncedAt && d.updated<=lastSyncedAt){
+        console.log('Cloud non plus récent que la dernière synchro locale — local conservé tel quel.');
+      } else {
+        if(d.budget)localStorage.setItem(ctxKey('budget3'),JSON.stringify(d.budget));
+        if(d.factures)localStorage.setItem(ctxKey('factures3'),JSON.stringify(d.factures));
+        if(d.devis)localStorage.setItem(ctxKey('devis1'),JSON.stringify(d.devis));
+        if(d.fin)localStorage.setItem(ctxKey('fin4'),JSON.stringify(d.fin));
+        if(d.locataires)localStorage.setItem(ctxKey('locataires'),JSON.stringify(d.locataires));
+        if(d.logements)localStorage.setItem(ctxKey('logements_config'),JSON.stringify(d.logements));
+        if(d.projection)localStorage.setItem(ctxKey('projection'),JSON.stringify(d.projection));
+        if(d.fc)localStorage.setItem(ctxKey('fc'),JSON.stringify(d.fc));
+        if(d.glDocs)localStorage.setItem(ctxKey('gl_docs'),JSON.stringify(d.glDocs));
+        if(d.updated)localStorage.setItem(ctxKey('last_synced_at'),d.updated);
+      }
     }
     // Charger aussi les biens patrimoine (document séparé, indépendant du contexte)
     try{
