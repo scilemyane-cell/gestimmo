@@ -1420,6 +1420,24 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   </div>
 </div>
 
+<div class="modal-overlay" id="page-picker-overlay">
+  <div class="pdf-modal" style="max-width:820px">
+    <div class="pdf-modal-header">
+      <h3>Choisis les pages à conserver</h3>
+      <button class="pdf-modal-close" onclick="annulerChoixPages()">✕</button>
+    </div>
+    <div style="padding:6px 20px 0;font-size:11px;color:var(--text2)">Décoche les pages à exclure (ex : bons de livraison, CGV, pages blanches). Au moins une page doit rester cochée.</div>
+    <div id="page-picker-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;padding:16px 20px"></div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <span id="page-picker-count" style="font-size:12px;color:var(--text2)"></span>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="annulerChoixPages()" style="background:var(--bg3);border-color:var(--border)">Annuler</button>
+        <button class="btn" onclick="confirmerChoixPages()" style="background:var(--accent);color:#0a0e1a;border-color:var(--accent);font-weight:700">✓ Valider la sélection</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── SYSTÈME DE CONTEXTE SCI / LMNP ──────────────────────────────────────────
 let CTX = window._structureId;
@@ -1813,7 +1831,9 @@ async function onDevisFileChange(e){
   if(file.type.startsWith('image/')){
     pendingDevisPdfB64=await compressImage(file,1200,0.8);
   } else if(file.type==='application/pdf'){
-    pendingDevisPdfB64=await readFileAsB64(file);
+    let b64=await readFileAsB64(file);
+    b64=await choisirPagesDocument(b64);
+    pendingDevisPdfB64=b64;
   } else {
     alert('Seuls les fichiers PDF ou images sont acceptés.');
     e.target.value='';
@@ -2503,7 +2523,8 @@ async function processFile(file,isEdit){
     if(!isEdit){const w=document.getElementById('upload-warn');w.textContent='⚠ Fichier volumineux ('+fmtSize(file.size)+') — peut dépasser le stockage navigateur.';w.style.display='block';}
     else{alert('Fichier trop volumineux ('+fmtSize(file.size)+') — max recommandé 4 MB.');}
   } else {if(!isEdit){document.getElementById('upload-warn').style.display='none';}}
-  const b64=await readFileAsB64(file);
+  const b64Brut=await readFileAsB64(file);
+  const b64=await choisirPagesDocument(b64Brut);
   if(isEdit){editPdfB64=b64;editPdfName=file.name;showUploadPreview(file.name,file.size,true);}
   else{pendingPdfB64=b64;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);openSplitView(b64);extractFactureInfo(b64);}
 }
@@ -4589,6 +4610,66 @@ function imageToPortrait(dataUrl){
     img.onerror=()=>resolve(dataUrl);
     img.src=dataUrl;
   });
+}
+
+// ── SÉLECTEUR DE PAGES À L'IMPORT (factures + devis) ──────────────────────
+// Permet d'exclure certaines pages d'un PDF multi-pages avant de l'enregistrer (CGV, bons de
+// livraison, pages blanches...) — allège aussi le fichier stocké (utile pour le quota localStorage).
+// Pour une image simple ou un PDF d'une seule page : rien à choisir, résout immédiatement avec
+// le b64 d'origine, aucun sélecteur affiché.
+let _pagePickerResolve=null;
+let _pagePickerImages=[];
+let _pagePickerSelected=[];
+let _pagePickerOriginalB64=null;
+async function choisirPagesDocument(b64){
+  if(!b64)return b64;
+  if(b64.startsWith('data:image'))return b64;
+  const images=await pdfToImages(b64);
+  if(!images||images.length<=1)return b64;
+  _pagePickerOriginalB64=b64;
+  _pagePickerImages=images;
+  _pagePickerSelected=images.map(()=>true);
+  renderPagePicker();
+  document.getElementById('page-picker-overlay').classList.add('open');
+  return new Promise(resolve=>{_pagePickerResolve=resolve;});
+}
+function renderPagePicker(){
+  const grid=document.getElementById('page-picker-grid');
+  grid.innerHTML=_pagePickerImages.map((img,i)=>`
+    <div style="position:relative;border-radius:8px;overflow:hidden;border:2px solid ${_pagePickerSelected[i]?'var(--accent)':'var(--border)'};opacity:${_pagePickerSelected[i]?'1':'.4'};cursor:pointer;transition:all .15s" onclick="togglePagePicker(${i})">
+      <img src="${img}" style="width:100%;display:block;background:#fff">
+      <div style="position:absolute;top:6px;left:6px;background:${_pagePickerSelected[i]?'var(--accent)':'rgba(0,0,0,.6)'};color:${_pagePickerSelected[i]?'#0a0e1a':'#fff'};border-radius:5px;padding:2px 8px;font-size:10px;font-weight:700">${_pagePickerSelected[i]?'✓ ':''}Page ${i+1}</div>
+    </div>`).join('');
+  const n=_pagePickerSelected.filter(Boolean).length;
+  document.getElementById('page-picker-count').textContent=n+' page'+(n>1?'s':'')+' sur '+_pagePickerImages.length+' conservée'+(n>1?'s':'');
+}
+function togglePagePicker(i){
+  const n=_pagePickerSelected.filter(Boolean).length;
+  if(_pagePickerSelected[i]&&n<=1)return;
+  _pagePickerSelected[i]=!_pagePickerSelected[i];
+  renderPagePicker();
+}
+async function confirmerChoixPages(){
+  const kept=_pagePickerImages.filter((img,i)=>_pagePickerSelected[i]);
+  document.getElementById('page-picker-overlay').classList.remove('open');
+  let result;
+  if(kept.length===_pagePickerImages.length){
+    result=_pagePickerOriginalB64;
+  } else if(kept.length===1){
+    result=kept[0];
+  } else {
+    result=await empilerImagesVerticalement(kept);
+  }
+  const resolve=_pagePickerResolve;
+  _pagePickerResolve=null;_pagePickerImages=[];_pagePickerSelected=[];_pagePickerOriginalB64=null;
+  if(resolve)resolve(result);
+}
+function annulerChoixPages(){
+  document.getElementById('page-picker-overlay').classList.remove('open');
+  const resolve=_pagePickerResolve;
+  const original=_pagePickerOriginalB64;
+  _pagePickerResolve=null;_pagePickerImages=[];_pagePickerSelected=[];_pagePickerOriginalB64=null;
+  if(resolve)resolve(original);
 }
 
 async function exportZipFactures(){
@@ -10984,7 +11065,10 @@ window.toggleTheme=function(){
 // ── LOGO ET TAMPON DE LA STRUCTURE ──────────────────────────────────────
 // Compresse une image dans le navigateur (redimensionne + réduit la qualité JPEG)
 // jusqu'à passer sous la taille cible, sans jamais bloquer l'utilisateur sur un souci de poids de fichier.
-function compresserImage(file, maxDimension, targetBytes){
+// preserveTransparency=true : n'ajoute pas de fond blanc et exporte en PNG (garde la transparence) —
+// utilisé pour le tampon/signature, qui doit se superposer proprement sur un document sans le
+// recouvrir d'un rectangle blanc opaque. Sans ce paramètre (logo) : comportement inchangé (JPEG, fond blanc).
+function compresserImage(file, maxDimension, targetBytes, preserveTransparency){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Lecture du fichier impossible'));
@@ -11001,8 +11085,16 @@ function compresserImage(file, maxDimension, targetBytes){
         const canvas = document.createElement('canvas');
         canvas.width = width; canvas.height = height;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); // fond blanc (le JPEG ne gère pas la transparence)
+        if(!preserveTransparency){
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); // fond blanc (le JPEG ne gère pas la transparence)
+        }
         ctx.drawImage(img, 0, 0, width, height);
+        if(preserveTransparency){
+          // PNG : pas de boucle de réduction de qualité (elle n'a de sens que pour le JPEG), mais un
+          // tampon/signature reste généralement léger en PNG (grandes zones transparentes/unies).
+          resolve(canvas.toDataURL('image/png'));
+          return;
+        }
         let quality = 0.9;
         let dataUrl = canvas.toDataURL('image/jpeg', quality);
         while(dataUrl.length > targetBytes && quality > 0.25){
@@ -11026,8 +11118,16 @@ window.uploadLogoOuTampon=async function(input,type){
     return;
   }
   try{
-    // Compression : 900px de côté max, cible ~350 Ko encodé (large marge pour rester sous la limite Firestore)
-    const b64=await compresserImage(file, 900, 350*1024);
+    // Compression : 900px de côté max, cible ~350 Ko encodé (large marge pour rester sous la limite Firestore).
+    // Pour le tampon : on garde la transparence (PNG) pour qu'il se superpose proprement sur un document
+    // au lieu d'y coller un rectangle blanc opaque.
+    const b64=await compresserImage(file, 900, 350*1024, type==='tampon');
+
+    if(type==='tampon'&&b64.length>700*1024){
+      alert("Ce tampon est trop lourd une fois converti en PNG transparent (grande zone non-transparente ou image très détaillée). Essaie une image plus simple, plus petite, ou recadrée sur la signature elle-même.");
+      input.value='';
+      return;
+    }
 
     // Firestore limite un document entier à 1 Mo : on vérifie logo + tampon combinés
     const info=window._structureInfo||{};
