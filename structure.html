@@ -5204,11 +5204,18 @@ async function syncToCloud(){
       budget,factures,devis,fin,locataires,logements,projection,fc:fcData,glDocs,
       updated:updatedAt
     });
-    // Sync séparée des biens patrimoine — communs aux deux contextes, document indépendant
-    const biensPatrimoine=loadBiensPatrimoine();
-    await window._setDoc(window._doc(window._db,'patrimoine','data'),{
-      biensPatrimoine,updated:new Date().toISOString()
-    });
+    // Sync séparée des biens patrimoine — document indépendant, isolé dans son propre try/catch :
+    // son échec (ex: pas de règle Firestore dédiée pour /patrimoine/data) ne doit JAMAIS faire
+    // passer la sync en erreur alors que les données importantes (budget, factures, devis) ci-dessus
+    // viennent d'être enregistrées avec succès.
+    try{
+      const biensPatrimoine=loadBiensPatrimoine();
+      await window._setDoc(window._doc(window._db,'patrimoine','data'),{
+        biensPatrimoine,updated:new Date().toISOString()
+      });
+    }catch(ePatrimoine){
+      console.warn('Sync patrimoine échouée (non bloquant) :',ePatrimoine);
+    }
     if(syncEl){syncEl.textContent='✓ Sauvegardé';syncEl.style.color='#68d391';
       setTimeout(()=>{syncEl.textContent='☁ Cloud';syncEl.style.color='#63b3ed';},2000);}
     window._lastSyncError=null;
