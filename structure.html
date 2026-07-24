@@ -8963,6 +8963,12 @@ function buildQuittanceHTML(locId,mk,forPrint,isDuplicate){
       DUPLICATA
     </div>`:'';
 
+  // QR code en haut de la quittance — encode un résumé (bailleur, locataire, logement, période,
+  // montant) permettant de vérifier rapidement le contenu de la quittance en le scannant.
+  // Généré via un service d'image externe (pas de librairie à charger dans ce document autonome).
+  const qrData=`Quittance de loyer\nBailleur : ${nomBailleur}\nLocataire : ${l.nom||''}\nLogement : ${adresseLogement}\nPériode : ${moisNom}\nMontant : ${totalReel.toFixed(2)} €\nÉmise le : ${dateEmission}`;
+  const qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data='+encodeURIComponent(qrData);
+
   const html=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
   <title>Quittance ${moisNom}${isDuplicate?' - DUPLICATA':''}</title>
   <style>
@@ -8998,6 +9004,7 @@ function buildQuittanceHTML(locId,mk,forPrint,isDuplicate){
         </div>
       </div>
       <div style="text-align:right">
+        <img src="${qrUrl}" alt="QR code" style="width:64px;height:64px;margin-bottom:6px">
         <p>Période : <b>${moisNom}</b></p>
         <p>Du ${debutMois} au ${finMois}</p>
         <p style="font-size:11px;color:#4a5568">Émise le : ${dateEmission}</p>
