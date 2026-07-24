@@ -2358,6 +2358,19 @@ function savePdf(idx,b64){
   catch(e){return false;}
 }
 function removePdf(idx){try{localStorage.removeItem(ctxKey('pdf_'+idx));}catch(e){}}
+// Récupère le PDF/scan d'une facture : d'abord en local (rapide), sinon va le chercher directement
+// sur Drive si un lien existe — même principe que fetchDevisPdfB64 côté devis. Remet en cache local
+// au passage (best-effort) pour accélérer les lectures suivantes.
+async function fetchFacturePdfB64(idx){
+  const local=loadPdf(idx);
+  if(local)return local;
+  const{factures}=loadData();
+  const f=factures[idx];
+  if(!f||!f.driveLink)return null;
+  const b64=await downloadDriveFileAsBase64(f.driveLink);
+  if(b64)savePdf(idx,b64);
+  return b64;
+}
 
 // ── Locataires ──────────────────────────────────────────────────────────
 function loadLocataires(){
@@ -4226,9 +4239,9 @@ function saveEditAsSplit(){
 }
 
 // ── PDF VIEWER ────────────────────────────────────────────────────────────
-function viewPdf(idx,name){
-  const b64=loadPdf(idx);
-  if(!b64){alert('PDF introuvable.');return;}
+async function viewPdf(idx,name){
+  const b64=await fetchFacturePdfB64(idx);
+  if(!b64){alert('PDF introuvable (ni en local, ni sur Drive).');return;}
   window._pdfModalCurrent={b64,name:name||'Facture'};
   document.getElementById('pdf-modal-title').textContent=name||'Facture';
   document.getElementById('pdf-iframe').src=b64;
@@ -12122,16 +12135,22 @@ async function uploadToDrive(b64, fileName, anneeFacture){
       localStorage.setItem(cacheKey, yearFolderId);
     }
 
-    // Vérifie qu'un fichier de ce nom n'existe pas déjà dans ce dossier avant d'uploader,
-    // pour éviter de créer un doublon si le lien local avait été perdu (ex: appareil changé,
-    // données locales effacées) alors que le fichier était déjà sur Drive.
+    // Vérifie qu'un fichier de ce nom n'existe pas déjà dans ce dossier — si oui, on met à jour
+    // SON CONTENU (au lieu de le laisser inchangé) : sinon une facture corrigée a posteriori
+    // (ex: rotation via "✂️ modifier les pages") ne verrait jamais sa version corrigée arriver
+    // sur Drive, qui garderait indéfiniment l'ancien fichier (même nom = jamais réécrit).
     try{
       const qExist="name='"+fileName.replace(/'/g,"\\'")+"' and '"+yearFolderId+"' in parents and trashed=false";
       const existResp=await fetch("https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qExist)+"&fields=files(id,webViewLink)",{headers:{'Authorization':'Bearer '+driveAccessToken}});
       const existData=await existResp.json();
       if(existData.files&&existData.files.length>0){
-        console.warn('Fichier déjà présent sur Drive, réutilisation au lieu d\'un nouvel upload :',fileName);
-        return existData.files[0].webViewLink||null;
+        const fileId=existData.files[0].id;
+        const updateResp=await fetch(
+          "https://www.googleapis.com/upload/drive/v3/files/"+fileId+"?uploadType=media",
+          {method:'PATCH', headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':mimeType}, body:blob}
+        );
+        if(updateResp.ok) return existData.files[0].webViewLink||null;
+        console.warn('Mise à jour du fichier Drive existant échouée, nouvel upload en secours.');
       }
     }catch(e){console.warn('Vérification anti-doublon Drive échouée, upload normal:',e);}
 
