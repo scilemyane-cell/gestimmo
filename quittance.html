@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quittance de loyer</title>
+<style>
+  html,body{margin:0;padding:0;background:#f7fafc;font-family:Arial,Helvetica,sans-serif}
+  #etat{padding:80px 24px;text-align:center;color:#4a5568;font-size:15px;max-width:420px;margin:0 auto}
+  #etat.erreur{color:#c53030}
+  #etat .spinner{width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#4299e1;border-radius:50%;
+    margin:0 auto 18px;animation:tourner .8s linear infinite}
+  @keyframes tourner{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div id="etat">
+    <div class="spinner"></div>
+    Chargement de la quittance…
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // Même projet Firebase que l'application principale (structure.html) — cette page ne fait
+    // que LIRE un document précis (par identifiant non-devinable), jamais lister ni écrire.
+    const firebaseConfig = {
+      apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
+      authDomain: "gestimmo-app.firebaseapp.com",
+      projectId: "gestimmo-app",
+      storageBucket: "gestimmo-app.firebasestorage.app",
+      messagingSenderId: "658875106145",
+      appId: "1:658875106145:web:8d797303b2168efbe6bb20"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    const etatEl = document.getElementById('etat');
+
+    function afficherErreur(message){
+      etatEl.classList.add('erreur');
+      etatEl.textContent = message;
+    }
+
+    async function afficherQuittance(){
+      if(!id){
+        afficherErreur("Lien invalide — aucun identifiant de quittance fourni.");
+        return;
+      }
+      try{
+        const snap = await getDoc(doc(db, 'quittances_publiques', id));
+        if(!snap.exists()){
+          afficherErreur("Cette quittance est introuvable. Le lien est peut-être incorrect, ou le document a été retiré.");
+          return;
+        }
+        const data = snap.data();
+        if(!data || !data.html){
+          afficherErreur("Le contenu de cette quittance est incomplet ou corrompu.");
+          return;
+        }
+        // Remplace entièrement la page par le document de quittance déjà mis en forme
+        // (même rendu que dans l'application, logo/tampon/QR inclus).
+        document.open();
+        document.write(data.html);
+        document.close();
+      }catch(e){
+        console.error('Erreur chargement quittance publique:', e);
+        afficherErreur("Erreur lors du chargement de la quittance. Vérifie ta connexion et réessaie.");
+      }
+    }
+
+    afficherQuittance();
+  </script>
+</body>
+</html>
