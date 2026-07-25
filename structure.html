@@ -5956,7 +5956,10 @@ async function validerPaiementModal(){
     const logsLocs=locs.filter(l=>l.logement===logKey);
     // Effacer tout paiement existant pour ce mois
     logsLocs.forEach(l=>{
-      if(l.paiements&&l.paiements[mk])delete l.paiements[mk];
+      if(l.paiements&&l.paiements[mk]){
+        if(l.paiements[mk].quittanceId)supprimerQuittancePublique(l.paiements[mk].quittanceId);
+        delete l.paiements[mk];
+      }
     });
     // Stocker le flag vacant sur le locataire le plus récent pour que le calendrier le détecte
     const locRecent=logsLocs.sort((a,b)=>(b.dateEntree||'').localeCompare(a.dateEntree||''))[0];
@@ -5984,11 +5987,18 @@ async function validerPaiementModal(){
   // Si le logement a changé de locataire, effacer le paiement de l'ancien locataire pour ce mois
   if(logKey){
     locs.filter(l=>l.logement===logKey&&String(l.id)!==String(locId)).forEach(l=>{
-      if(l.paiements&&l.paiements[mk])delete l.paiements[mk];
+      if(l.paiements&&l.paiements[mk]){
+        if(l.paiements[mk].quittanceId)supprimerQuittancePublique(l.paiements[mk].quittanceId);
+        delete l.paiements[mk];
+      }
     });
   }
 
   if(!loc.paiements)loc.paiements={};
+  // Si ce mois avait déjà une quittance publiée (paiement corrigé après coup), on la révoque —
+  // la nouvelle quittance générée plus bas ci-dessous la remplacera avec les bonnes données.
+  const ancienneQuittanceId=loc.paiements[mk]?.quittanceId;
+  if(ancienneQuittanceId)supprimerQuittancePublique(ancienneQuittanceId);
   loc.paiements[mk]={paye:true,date,montant,note};
 
   // Mémoriser pour le mois suivant
@@ -6018,7 +6028,10 @@ function supprimerPaiementModal(){
   // Effacer sur tous les locataires du logement (paiement ou flag vacant)
   const logsLocs=logKey?locs.filter(l=>l.logement===logKey):[locs.find(l=>String(l.id)===String(locId))].filter(Boolean);
   logsLocs.forEach(l=>{
-    if(l.paiements&&l.paiements[mk])delete l.paiements[mk];
+    if(l.paiements&&l.paiements[mk]){
+      if(l.paiements[mk].quittanceId)supprimerQuittancePublique(l.paiements[mk].quittanceId);
+      delete l.paiements[mk];
+    }
   });
   saveLocataires(locs);
   fermerModalPaiement();
@@ -6177,6 +6190,7 @@ function toggleLoyerPaiement(locId,mk){
   if(!l)return;
   if(!l.paiements)l.paiements={};
   const cur=l.paiements[mk]||{};
+  if(cur.paye&&cur.quittanceId)supprimerQuittancePublique(cur.quittanceId);
   l.paiements[mk]=cur.paye?{paye:false}:{paye:true,date:todayStr()};
   saveLocataires(locs);
   renderLocataires();
@@ -10256,10 +10270,21 @@ async function publierQuittancePublique(id, html){
     });
   }catch(e){console.error('Publication de la quittance publique échouée:',e);}
 }
+// Révoque (supprime) une quittance publiée — le lien/QR déjà distribué au locataire cesse alors de
+// fonctionner (page "introuvable"). Nécessite que la règle Firestore autorise la suppression par
+// le propriétaire connecté (allow delete: if request.auth != null;).
+async function supprimerQuittancePublique(id){
+  if(!window._db||!id)return;
+  try{
+    await window._deleteDoc(window._doc(window._db,'quittances_publiques',id));
+  }catch(e){console.error('Suppression de la quittance publique échouée (non bloquant) :',e);}
+}
 // Orchestre la génération complète d'une quittance : génère l'identifiant public AVANT de
 // construire le HTML (pour encoder son URL dans le QR), retourne immédiatement le résultat pour
 // l'aperçu, puis publie la version finale sur Firestore et archive une copie privée sur Drive en
-// arrière-plan (silencieux, ne bloque pas l'affichage).
+// arrière-plan (silencieux, ne bloque pas l'affichage). L'id publié est aussi mémorisé sur le
+// paiement du locataire (l.paiements[mk].quittanceId), pour pouvoir la révoquer plus tard si le
+// paiement est corrigé/supprimé.
 async function genererEtArchiverQuittance(locId, mk, isDuplicate){
   const id=genererIdQuittancePublique();
   const publicUrl=window.location.origin+window.location.pathname.replace(/structure\.html$/,'')+'quittance.html?id='+id;
@@ -10267,6 +10292,12 @@ async function genererEtArchiverQuittance(locId, mk, isDuplicate){
   if(!r)return null;
   publierQuittancePublique(id,r.html);
   archiverQuittanceDrivePrive(locId,mk,r.html);
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(locId));
+  if(loc&&loc.paiements&&loc.paiements[mk]){
+    loc.paiements[mk].quittanceId=id;
+    saveLocataires(locs);
+  }
   return r;
 }
 
