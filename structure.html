@@ -137,6 +137,10 @@ onAuthStateChanged(auth, async (user) => {
   } catch(e){
     window._structureInfo = { nom: 'Ma structure', adresse: '' };
   }
+  // Mis en cache localement (indépendant du contexte actif) pour que le module Patrimoine puisse
+  // afficher un nom lisible pour n'importe quelle structure déjà ouverte sur cet appareil, sans
+  // dépendre de deux structures nommées "sci"/"lmnp" codées en dur.
+  try{ if(window._structureInfo.nom) localStorage.setItem(window._structureId+'_nom', window._structureInfo.nom); }catch(e){}
 
   // Charge les clés API Gemini personnelles (si pas déjà en local sur cet appareil)
   if(!localStorage.getItem('gestimmo_gemini_keys')){
@@ -605,7 +609,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 <!-- GESTION LOCATIVE -->
 <div class="content" id="tab-gestion-locative">
   <div class="section-title">Synthèse — Gestion locative</div>
-  <div style="font-size:10px;color:var(--text3);margin:-12px 0 20px">Documents stockés sur Google Drive (dossier "SCI Lemyane Gestion locative"), distinct du dossier des factures. Renseigne une date d'expiration sur un document pour être alerté ici quand il approche.</div>
+  <div style="font-size:10px;color:var(--text3);margin:-12px 0 20px">Documents stockés sur Google Drive (dossier "Gestion locative" dédié à cette structure), distinct du dossier des factures. Renseigne une date d'expiration sur un document pour être alerté ici quand il approche.</div>
   <div id="gl-synthese-cards" style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px"></div>
 
   <div class="section-title">Détail par logement</div>
@@ -2815,7 +2819,7 @@ async function extractFactureInfo(b64){
           parts:[
             {inline_data:{mime_type:mimeType,data:base64Data}},
             {text:`Analyse cette facture et extrais les informations. Réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour :
-{"numero":"numéro de facture","date":"YYYY-MM-DD","fournisseur":"nom de l'entreprise émettrice de la facture (celle qui vend/facture, PAS le client SCI LEMYANE)","montant_ttc":0,"tva_pct":20,"description":"description courte de la prestation"${lireLignes?',"lignes":[{"desc":"description de cette ligne ou de ce bloc de lignes","reference":"toute référence trouvée sur cette ligne (n° de lot, logement, bon de commande, chantier, V/REF...), telle quelle, chaîne vide si aucune","montant_ht":0}]':''}}
+{"numero":"numéro de facture","date":"YYYY-MM-DD","fournisseur":"nom de l'entreprise émettrice de la facture (celle qui vend/facture, PAS le client ${getCTXConfig().nom||''})","montant_ttc":0,"tva_pct":20,"description":"description courte de la prestation"${lireLignes?',"lignes":[{"desc":"description de cette ligne ou de ce bloc de lignes","reference":"toute référence trouvée sur cette ligne (n° de lot, logement, bon de commande, chantier, V/REF...), telle quelle, chaîne vide si aucune","montant_ht":0}]':''}}
 Règles : la date sur la facture est TOUJOURS écrite au format français JJ/MM/AA ou JJ/MM/AAAA (jour, puis mois, puis année) — ne l'inverse jamais. Prends la date principale de la facture, celle indiquée à côté de "FACTURE n°" ou "Date" en haut du document (PAS la date d'un bon de commande ou d'un bon de livraison mentionné plus bas dans le corps du document, qui peut être différente). Si l'année est écrite sur 2 chiffres (ex: "26"), complète-la en "20XX" (ex: "26" devient 2026) — n'utilise jamais un 2 chiffres qui ressemble à un jour comme s'il s'agissait de l'année. Réponds avec la date convertie au format YYYY-MM-DD.
 ATTENTION AUX NOMBRES : les montants sont écrits en format français — le POINT est un séparateur de milliers et la VIRGULE est le séparateur décimal. Exemple : "1.811,55" signifie MILLE HUIT CENT ONZE euros et cinquante-cinq centimes (1811.55), PAS 1.811 ni 1,81155. Lis chaque chiffre un par un avant de convertir, ne devine pas. montant_ttc doit être EXACTEMENT le nombre indiqué dans la case/colonne "Total TTC" ou "Net à payer" du tableau récapitulatif en bas de la facture (pas le total HT, pas un sous-total intermédiaire) — recopie-le au centime près. tva_pct = 20 ou 10 ou 5.5 ou 0. Pour le fournisseur, prends le nom commercial principal de l'entreprise (sans le slogan/groupe affiché dans le logo, juste le nom usuel court, ex: "Clisson Metal" pas "Clisson Metal Groupe Clisson"). Si info absente mets chaine vide ou 0.${lireLignes?`
 Pour "lignes" : liste CHAQUE ligne ou bloc de lignes distinct de la facture (regroupe les lignes consécutives qui partagent la même référence/bon de commande en une seule entrée). Reprends le champ "reference" TEL QUEL trouvé sur la facture (ex: "LOGT 1", "Lot A", "V/REF: ...") sans essayer de deviner à quel logement de la structure ça correspond — laisse cette référence brute, l'utilisateur fera l'attribution lui-même. Pour chaque ligne, montant_ht doit être le montant HORS TAXES exact de cette ligne tel qu'imprimé dans la colonne "Montant" ou "Prix H-T" du tableau (presque toujours HT sur les lignes de détail — la TVA et le TTC n'apparaissent en général que dans le total final en bas de la facture, pas ligne par ligne). Applique la même règle de format français pour ces montants (point = milliers, virgule = décimales). Ne fais AUCUN calcul ni arrondi de ta part : recopie le chiffre imprimé sur chaque ligne. Avant de répondre, vérifie que la somme de tous les montant_ht correspond bien (à moins d'un euro près) au total HT global indiqué sur la facture ("Total H-T") ; si ce n'est pas le cas, relis les montants plus attentivement et corrige-les.`:''}`}
@@ -3815,6 +3819,7 @@ function renderBanque(){
 // pdfToImages, imageToPortrait), promus en fonctions globales ci-dessous.
 async function exporterSelectionBanque(){
   const{factures}=loadData();
+  const cfg=getCTXConfig();
   const ids=Array.from(banqueSelection).filter(idx=>factures[idx]);
   if(ids.length===0){alert('Sélectionne au moins une facture.');return;}
   const filtered=ids.map(idx=>({...factures[idx],_idx:idx}));
@@ -3919,7 +3924,7 @@ async function exporterSelectionBanque(){
     +'<td style="text-align:right;padding:9px 8px;font-size:12px;font-weight:700;color:#2b6cb0">'+eur(totalGeneral)+'</td>'
     +'</tr></tfoot></table>';
 
-  const title='SCI LEMYANE — Factures à transmettre à la banque ('+filtered.length+' factures)';
+  const title=cfg.nom+' — Factures à transmettre à la banque ('+filtered.length+' factures)';
   const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+title+'</title>'
     +'<style>body{margin:0;padding:20px;font-family:Arial,sans-serif;background:#fff}'
     +'.hdr{border-bottom:3px solid #2b6cb0;padding-bottom:12px;margin-bottom:24px}'
@@ -4308,10 +4313,11 @@ function imprimerPdfModal(){
 function exportCSV(){
   const{factures}=loadData();
   if(!factures.length){alert('Aucune facture à exporter.');return;}
+  const cfg=getCTXConfig();
   const cols=['N° Facture','N° Commande','Date','Fournisseur','Catégorie','Sous-catégorie','Logement','TTC €','Statut','Réglé par','Description','PDF joint'];
   const rows=factures.map((f,i)=>[f.num,f.cmd||'',f.date,f.four,getCatDisplayText(f),f.poste||'',getLogDisplayText(f),f.ttc,f.statut,f.regleby||'',f.desc,loadPdf(i)?'Oui':'Non'].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';'));
   const csv='\uFEFF'+cols.join(';')+'\n'+rows.join('\n');
-  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='SCI_Lemyane_Factures_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download=(cfg.nom||'Structure').replace(/[^a-zA-Z0-9]/g,'_')+'_Factures_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
 function exportPDF(){
   const{factures,budget}=loadData();
@@ -4699,7 +4705,7 @@ function exportComptablePDF(){
   </tr>`).join('');
 
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>SCI Lemyane — Exercice ${year}</title>
+  <title>${getCTXConfig().nom} — Exercice ${year}</title>
   <style>
     body{font-family:Arial,sans-serif;font-size:11px;color:#1a202c;padding:28px;max-width:900px;margin:0 auto}
     .header{border-bottom:3px solid #2b6cb0;padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end}
@@ -4750,7 +4756,7 @@ function exportComptablePDF(){
   </tr></thead><tbody>${detailRows}</tbody></table>
 
   <div class="footer">
-    <span>SCI LEMYANE · Document confidentiel à usage comptable</span>
+    <span>${getCTXConfig().nom} · Document confidentiel à usage comptable</span>
     <span>Généré le ${new Date().toLocaleDateString('fr-FR')} · Exercice ${year}</span>
   </div>
   <script>window.onload=function(){window.print()}<\/script>
@@ -5177,7 +5183,7 @@ async function exportZipFactures(){
   }
   const items=itemsHtml.join('');
 
-  const title='SCI LEMYANE — Factures '+year+' ('+filtered.length+' factures)';
+  const title=getCTXConfig().nom+' — Factures '+year+' ('+filtered.length+' factures)';
   const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+title+'</title>'
     +'<style>body{margin:0;padding:20px;font-family:Arial,sans-serif;background:#fff}'
     +'.hdr{border-bottom:3px solid #2b6cb0;padding-bottom:12px;margin-bottom:24px}'
@@ -7374,9 +7380,6 @@ function saveValeurMarche(cle, valeur){
   localStorage.setItem('patrimoine_valeurs_marche',JSON.stringify(v));
   syncToCloud();
 }
-function getValeurMarcheKey(source, logKey){
-  return (source==='SCI Lémyane'?'sci_':'lmnp_')+logKey;
-}
 
 function ajouterBienPatrimoine(){
   const nom=document.getElementById('pb-nom').value.trim();
@@ -7508,23 +7511,37 @@ function getCapitalRestantDu(capital, taux, duree, debutCredit){
 }
 
 // Lit les logements SCI et LMNP avec leurs crédits, peu importe le contexte actif
+// Lit les logements de TOUTES les structures déjà ouvertes sur cet appareil, peu importe leur
+// nombre ou leur identifiant (découverte dynamique via les clés localStorage en cache), pour
+// alimenter le tableau de bord "Patrimoine" consolidé. Auparavant limité à deux préfixes "sci"/
+// "lmnp" codés en dur (spécifiques à l'usage personnel d'origine) — généralisé pour fonctionner
+// avec n'importe quel nombre de structures, tout en restant rétrocompatible avec ces deux-là.
 function getLogementsAutoPatrimoine(){
   const result=[];
   const valeursMarche=loadValeursMarche();
-  ['sci','lmnp'].forEach(ctx=>{
+  const prefixesConnus=new Set();
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.endsWith('_logements_config'))prefixesConnus.add(k.slice(0,-'_logements_config'.length));
+  }
+  const NOMS_HERITES={sci:'SCI Lémyane',lmnp:'LMNP Barreteau'}; // rétrocompatibilité anciens préfixes perso
+  const COULEURS=['#63b3ed','#68d391','#f6ad55','#b794f4','#4fd1c5','#fc8181'];
+  let colorIdx=0;
+  prefixesConnus.forEach(prefix=>{
     try{
-      const logs=JSON.parse(localStorage.getItem(ctx+'_logements_config')||'[]');
-      const fc=JSON.parse(localStorage.getItem(ctx+'_fc')||'{}');
-      const sourceName=ctx==='sci'?'SCI Lémyane':'LMNP Barreteau';
+      const logs=JSON.parse(localStorage.getItem(prefix+'_logements_config')||'[]');
+      const fc=JSON.parse(localStorage.getItem(prefix+'_fc')||'{}');
+      const sourceName=localStorage.getItem(prefix+'_nom')||NOMS_HERITES[prefix]||prefix;
+      const sourceColor=COULEURS[colorIdx%COULEURS.length];colorIdx++;
       logs.filter(lg=>lg.actif!==false).forEach(lg=>{
         const d=fc[lg.key]||{};
         const capital=+d.capital||0;
         const capitalRestant=getCapitalRestantDu(capital,d.taux,d.duree,d.debut);
-        const cleMarche=(ctx==='sci'?'sci_':'lmnp_')+lg.key;
+        const cleMarche=prefix+'_'+lg.key;
         const valeurMarche=valeursMarche[cleMarche]||0;
         result.push({
           source:sourceName,
-          sourceColor:ctx==='sci'?'#63b3ed':'#68d391',
+          sourceColor,
           nom:lg.label||lg.key,
           adresse:lg.adresse||'',
           logKey:lg.key,cleMarche,
@@ -10445,7 +10462,8 @@ async function glOnFileChange(evt){
     }
     saveGLDocs(docs);
     renderGestionLocative();
-    alert('Document envoyé sur Drive (dossier "SCI Lemyane Gestion locative / Logement '+ctx.logement+'") et enregistré.');
+    const nomDossierGL=(getCTXConfig().driveFolderName||'Gestion locative').replace('Factures','Gestion locative');
+    alert('Document envoyé sur Drive (dossier "'+nomDossierGL+' / Logement '+ctx.logement+'") et enregistré.');
   };
   reader.readAsDataURL(file);
 }
@@ -12359,11 +12377,12 @@ async function uploadToDriveGestionLocative(b64, fileName, logKey){
       return createData.id;
     }
 
-    // Structure : SCI Lemyane Gestion locative / Logement A / fichier.pdf
+    // Structure : <Nom structure> Gestion locative / Logement A / fichier.pdf
+    const rootFolderName=(getCTXConfig().driveFolderName||'Gestion locative').replace('Factures','Gestion locative');
     const cacheKey = 'drive_folder_gl_'+logKey;
     let logFolderId = localStorage.getItem(cacheKey);
     if(!logFolderId){
-      const rootId = await getOrCreateFolderGL('SCI Lemyane Gestion locative', null);
+      const rootId = await getOrCreateFolderGL(rootFolderName, null);
       logFolderId = await getOrCreateFolderGL('Logement '+logKey, rootId);
       localStorage.setItem(cacheKey, logFolderId);
     }
@@ -12766,7 +12785,7 @@ function initContexteUI(){
   const s=document.getElementById('app-subtitle');
   if(t)t.textContent=cfg.nom;
   if(s)s.textContent=cfg.sousTitre;
-  document.title=cfg.nom+' — GestImmo';
+  document.title='GestImmo — '+cfg.nom;
 
   // Raccourci boîte mail — simple lien, aucune autorisation Google nécessaire
   const m=document.getElementById('btn-boite-mail');
