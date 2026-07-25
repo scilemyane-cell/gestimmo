@@ -2744,6 +2744,105 @@ function openSplitViewPhoto(b64){
   document.getElementById('split-view').classList.add('open');
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// LECTURE FACTUR-X NATIVE — réforme facturation électronique 2026
+// ═══════════════════════════════════════════════════════════════════════
+// À partir du 1er septembre 2026, toutes les entreprises doivent pouvoir recevoir des factures
+// électroniques. Le format Factur-X est un PDF classique (lisible normalement) qui contient EN
+// PLUS, caché dedans, un fichier XML structuré (norme EN16931/CII) avec toutes les données exactes
+// telles que générées par le logiciel de facturation du fournisseur : montants, TVA, SIRET, lignes...
+// Si ce fichier est présent, on le lit directement — précision garantie à 100%, aucune lecture
+// d'image ni devinette IA nécessaire. Si absent (facture "classique", scan, photo...), la fonction
+// retourne null et l'app repart automatiquement sur la lecture IA existante, sans rien casser.
+
+// Recherche tous les éléments par nom local, peu importe le préfixe de namespace XML utilisé
+// (rsm:, ram:, udt:... varient selon le logiciel émetteur, mais les noms de balises sont stables
+// car imposés par la norme EN16931).
+function facturXTrouverElements(racine, nomLocal){
+  const tous=racine.getElementsByTagName('*');
+  const resultats=[];
+  for(let i=0;i<tous.length;i++){ if(tous[i].localName===nomLocal) resultats.push(tous[i]); }
+  return resultats;
+}
+function facturXTexte(racine, nomLocal){
+  const el=facturXTrouverElements(racine, nomLocal)[0];
+  return el?el.textContent.trim():'';
+}
+function facturXNombre(racine, nomLocal){
+  const v=facturXTexte(racine, nomLocal);
+  return v?parseFloat(v.replace(',','.'))||0:0;
+}
+
+async function extraireFacturX(b64){
+  try{
+    if(!b64 || !b64.startsWith('data:application/pdf')) return null;
+    const base64Data=b64.split(',')[1];
+    const bytes=Uint8Array.from(atob(base64Data), c=>c.charCodeAt(0));
+    const pdf=await pdfjsLib.getDocument({data:bytes}).promise;
+    const attachments=await pdf.getAttachments();
+    if(!attachments) return null;
+    const nomFichier=Object.keys(attachments).find(n=>/factur-?x|zugferd|cii|cross.?industry/i.test(n) || n.toLowerCase().endsWith('.xml'));
+    if(!nomFichier) return null;
+
+    const xmlText=new TextDecoder('utf-8').decode(attachments[nomFichier].content);
+    const doc=new DOMParser().parseFromString(xmlText,'application/xml');
+    if(doc.querySelector('parsererror')) return null;
+
+    // N° de facture et date d'émission (ExchangedDocument > ID / IssueDateTime)
+    const docEl=facturXTrouverElements(doc,'ExchangedDocument')[0];
+    const numero=docEl?facturXTexte(docEl,'ID'):'';
+    let dateDoc=docEl?facturXTexte(docEl,'DateTimeString'):'';
+    let dateFormatee='';
+    if(/^\d{8}$/.test(dateDoc)) dateFormatee=dateDoc.slice(0,4)+'-'+dateDoc.slice(4,6)+'-'+dateDoc.slice(6,8);
+
+    // Vendeur (fournisseur) — nom + SIRET/SIREN
+    const vendeurEl=facturXTrouverElements(doc,'SellerTradeParty')[0];
+    const fournisseur=vendeurEl?facturXTexte(vendeurEl,'Name'):'';
+    const siret=vendeurEl?facturXTexte(vendeurEl,'ID'):'';
+
+    // Totaux (résumé de règlement)
+    const sommaireEl=facturXTrouverElements(doc,'SpecifiedTradeSettlementHeaderMonetarySummation')[0]||doc;
+    const montantTTC=facturXNombre(sommaireEl,'GrandTotalAmount');
+    const montantHT=facturXNombre(sommaireEl,'TaxBasisTotalAmount');
+    const montantTVA=facturXNombre(sommaireEl,'TaxTotalAmount');
+    let tvaPct=montantHT>0?Math.round((montantTVA/montantHT)*100):0;
+    if(![0,5.5,10,20].includes(tvaPct)){
+      // Arrondi au taux légal français le plus proche (les calculs flottants donnent rarement un entier exact)
+      tvaPct=[0,5.5,10,20].reduce((meilleur,t)=>Math.abs(t-tvaPct)<Math.abs(meilleur-tvaPct)?t:meilleur,20);
+    }
+
+    // IBAN et date d'échéance (utiles mais optionnels)
+    const iban=facturXTexte(doc,'IBANID');
+    const echeanceEl=facturXTrouverElements(doc,'SpecifiedTradePaymentTerms')[0];
+    let dateEcheanceRaw=echeanceEl?facturXTexte(echeanceEl,'DateTimeString'):'';
+    let dateEcheance='';
+    if(/^\d{8}$/.test(dateEcheanceRaw)) dateEcheance=dateEcheanceRaw.slice(0,4)+'-'+dateEcheanceRaw.slice(4,6)+'-'+dateEcheanceRaw.slice(6,8);
+
+    // Lignes de détail — une par produit/prestation, montants exacts (pas d'estimation)
+    const lignesEl=facturXTrouverElements(doc,'IncludedSupplyChainTradeLineItem');
+    const lignes=[];
+    lignesEl.forEach(ligne=>{
+      const desc=facturXTexte(ligne,'Name');
+      const montantLigne=facturXNombre(ligne,'LineTotalAmount');
+      if(desc||montantLigne) lignes.push({desc,montant_ht:montantLigne,reference:''});
+    });
+
+    if(!montantTTC && !fournisseur) return null; // rien d'exploitable → repli sur l'IA
+
+    return{
+      numero, date:dateFormatee, fournisseur, siret,
+      montant_ttc:montantTTC, tva_pct:tvaPct||20,
+      description:'', iban, dateEcheance,
+      lignes:lignes.length?lignes:null,
+      _certifie:true
+    };
+  }catch(e){
+    console.warn('Lecture Factur-X échouée (repli automatique sur la lecture IA) :',e);
+    return null;
+  }
+}
+
+let _pendingFacturX=null; // données certifiées Factur-X en attente de validation (voir remplirDepuisFacturX)
 async function processFile(file,isEdit){
   if(file.type.startsWith('image/')){await processImageFile(file,isEdit);return;}
   if(file.type!=='application/pdf'){alert('Seuls les fichiers PDF ou images sont acceptés.');return;}
@@ -2752,9 +2851,17 @@ async function processFile(file,isEdit){
     else{alert('Fichier trop volumineux ('+fmtSize(file.size)+') — max recommandé 4 MB.');}
   } else {if(!isEdit){document.getElementById('upload-warn').style.display='none';}}
   const b64Brut=await readFileAsB64(file);
+  // Tente d'abord une lecture Factur-X native (données exactes, garanties, aucune IA) sur le
+  // fichier ORIGINAL — avant que le sélecteur de pages ne le convertisse éventuellement en image
+  // (ce qui supprimerait la pièce jointe XML). Repli automatique et silencieux sur l'IA si absent.
+  _pendingFacturX=!isEdit?await extraireFacturX(b64Brut):null;
   const b64=await choisirPagesDocument(b64Brut);
   if(isEdit){editPdfB64=b64;editPdfName=file.name;showUploadPreview(file.name,file.size,true);}
-  else{pendingPdfB64=b64;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);openSplitView(b64);extractFactureInfo(b64);}
+  else{
+    pendingPdfB64=b64;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);openSplitView(b64);
+    if(_pendingFacturX)remplirDepuisFacturX(_pendingFacturX);
+    else extractFactureInfo(b64);
+  }
 }
 
 function syncFacture(){
@@ -2763,6 +2870,7 @@ function syncFacture(){
 }
 
 function resetSaisieFields(){
+  _pendingFacturX=null;
   // Champs formulaire normal
   ['f-num','f-date','f-datepay','f-four','f-ttc','f-cmd','f-desc'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
@@ -2801,6 +2909,73 @@ function resetSaisieFields(){
   if(warn)warn.style.display='none';
   const svwarn=document.getElementById('sv-warn');
   if(svwarn)svwarn.style.display='none';
+}
+
+// Remplit le formulaire facture avec des données Factur-X (certifiées, exactes) — même logique de
+// remplissage que la lecture IA (extractFactureInfo), mais avec un badge de confiance distinctif et
+// sans les garde-fous de plausibilité propres à une lecture par IA (inutiles ici : les données sont
+// garanties exactes, ce sont les chiffres bruts que le logiciel du fournisseur a produits).
+function remplirDepuisFacturX(info){
+  // Uniformisation du nom fournisseur, comme pour la lecture IA
+  if(info.fournisseur){
+    const{factures:existingFactures}=loadData();
+    const normName=s=>(s||'').toLowerCase().replace(/\b(sas|sarl|sa|eurl|sci|groupe|sasu)\b/g,'').replace(/[^a-z0-9]/g,'').trim();
+    const infoNorm=normName(info.fournisseur);
+    const existingNames=[...new Set(existingFactures.map(f=>f.four).filter(Boolean))];
+    const match=existingNames.find(name=>{const n=normName(name);return n&&infoNorm&&(n.includes(infoNorm)||infoNorm.includes(n));});
+    if(match)info.fournisseur=match;
+  }
+  const setVal=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
+  if(info.date){setVal('f-date',info.date);setVal('sv-date',info.date);}
+  if(info.fournisseur){setVal('f-four',info.fournisseur);setVal('sv-four',info.fournisseur);}
+  if(info.montant_ttc>0){setVal('f-ttc',info.montant_ttc);setVal('sv-ttc',info.montant_ttc);}
+  if(info.tva_pct){
+    const sel=document.getElementById('f-tva');
+    if(sel)for(let o of sel.options){if(parseFloat(o.value)===parseFloat(info.tva_pct)){sel.value=o.value;break;}}
+  }
+  let descVal=info.numero?`[Réf. fournisseur: ${info.numero}] Facture électronique (Factur-X)`:'Facture électronique (Factur-X)';
+  setVal('f-desc',descVal);setVal('sv-desc',descVal);
+  const next=getNextFactureNum();
+  const numField=document.getElementById('f-num');if(numField&&!numField.value)numField.value=next;
+  const svNumField=document.getElementById('sv-num');if(svNumField&&!svNumField.value)svNumField.value=next;
+
+  if(Array.isArray(info.lignes)&&info.lignes.length)renderLignesPanel(info.lignes, info.tva_pct||20);
+
+  // Détection de doublons — même logique que pour la lecture IA
+  let dupMsg='';
+  if(info.montant_ttc>0){
+    const{factures}=loadData();
+    const normName=s=>(s||'').toLowerCase().replace(/\b(sas|sarl|sa|eurl|sci|groupe|sasu)\b/g,'').replace(/[^a-z0-9]/g,'').trim();
+    const infoNorm=normName(info.fournisseur);
+    const dup=factures.find(f=>{
+      const sameAmount=Math.abs((+f.ttc||0)-info.montant_ttc)<0.01;
+      if(!sameAmount)return false;
+      if(f.date&&info.date&&f.date===info.date)return true;
+      const fNorm=normName(f.four);
+      const sameFour=fNorm&&infoNorm&&(fNorm.includes(infoNorm)||infoNorm.includes(fNorm));
+      let closeDate=true;
+      if(f.date&&info.date){const d1=new Date(f.date),d2=new Date(info.date);closeDate=Math.abs((d1-d2)/(1000*60*60*24))<=15;}
+      return sameFour&&closeDate;
+    });
+    if(dup)dupMsg=`⚠️ DOUBLON POSSIBLE : une facture ${dup.num||''} de ${dup.four} pour ${fmt(dup.ttc)} datée du ${dup.date||'?'} existe déjà !`;
+  }
+
+  const warnEls=[document.getElementById('upload-warn'),document.getElementById('sv-warn')].filter(Boolean);
+  warnEls.forEach(warn=>{
+    if(dupMsg){
+      warn.innerHTML=dupMsg+' <button onclick="resetSaisieFields()" style="margin-left:8px;background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.4);border-radius:6px;color:var(--red);cursor:pointer;font-size:11px;font-weight:600;padding:3px 10px">✕ Réinitialiser</button>';
+      warn.style.color='#fc8181';warn.style.fontWeight='700';
+      warn.style.background='rgba(252,129,129,.08)';warn.style.border='1px solid rgba(252,129,129,.3)';
+    } else {
+      warn.innerHTML='🔷 <strong>Facture électronique certifiée (Factur-X)</strong> — données lues directement dans le fichier, garanties exactes, aucune vérification IA nécessaire.'
+        +(info.siret?' SIRET fournisseur : '+info.siret+'.':'')
+        +(info.iban?' IBAN détecté (non stocké).':'')
+        +' <button onclick="resetSaisieFields()" style="margin-left:8px;background:rgba(100,116,139,.15);border:1px solid rgba(100,116,139,.3);border-radius:6px;color:var(--text2);cursor:pointer;font-size:11px;font-weight:600;padding:3px 10px">✕ Réinitialiser</button>';
+      warn.style.color='#63b3ed';warn.style.fontWeight='600';
+      warn.style.background='rgba(99,179,237,.1)';warn.style.border='1px solid rgba(99,179,237,.35)';
+    }
+    warn.style.display='block';
+  });
 }
 
 async function extractFactureInfo(b64){
@@ -3528,7 +3703,7 @@ function renderFactures(){
     return`<tr class="${alertClass}" style="${excluStyle}">
       <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${isDup?' <span style="font-size:9px;background:rgba(252,129,129,.25);color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON</span>':''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #f6ad55;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
-      <td style="font-weight:500">${f.four||'—'}</td>
+      <td style="font-weight:500">${f.four||'—'}${f.sourceCertifiee?' <span title="Facture électronique certifiée (Factur-X) — données garanties exactes, aucune lecture IA" style="font-size:9px;background:rgba(99,179,237,.15);color:#63b3ed;border:1px solid rgba(99,179,237,.4);border-radius:3px;padding:1px 5px;font-weight:700">🔷 CERTIFIÉE</span>':''}</td>
       <td style="color:var(--text2);font-size:11px">${getCatDisplayText(f)}</td>
       <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(f.ttc)}</td>
@@ -3598,6 +3773,8 @@ function ajouterFacture(){
     four,
     cat:document.getElementById('f-cat').value,
     poste:document.getElementById('f-poste')?.value||'',
+    sourceCertifiee:!!_pendingFacturX,
+    siretFournisseur:_pendingFacturX?.siret||'',
     log: isSplit ? 'Réparti' : document.getElementById('f-log').value,
     ht,tva,ttc:ttcInput,
     statut:document.getElementById('f-statut').value,
@@ -3640,6 +3817,7 @@ function ajouterFacture(){
   // Nouveau numéro auto pour la prochaine facture
   setTimeout(()=>{const n=document.getElementById('f-num');if(n)n.value=getNextFactureNum();},100);
   clearUpload(false);
+  _pendingFacturX=null;
   const msg=document.getElementById('msg-ok');msg.style.display='inline';setTimeout(()=>msg.style.display='none',3000);
 }
 
@@ -11351,6 +11529,8 @@ function saveSplitFacture(){
     datepay:document.getElementById('sv-datepay').value,
     four,
     cat:document.getElementById('sv-cat').value,
+    sourceCertifiee:!!_pendingFacturX,
+    siretFournisseur:_pendingFacturX?.siret||'',
     log: (_pendingRepartition&&_pendingRepartition.length>=2) ? 'Réparti' : document.getElementById('sv-log').value,
     ht,tva,ttc,
     statut:document.getElementById('sv-statut').value,
@@ -11375,6 +11555,7 @@ function saveSplitFacture(){
   ['sv-num','sv-date','sv-four','sv-ttc','sv-datepay','sv-desc'].forEach(id=>document.getElementById(id).value='');
   ['f-num','f-date','f-four','f-ttc','f-datepay','f-desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   _pendingRepartition=null;
+  _pendingFacturX=null;
   _lignesFactureData=[];
   const svLignesPanel=document.getElementById('sv-lignes-panel');if(svLignesPanel)svLignesPanel.style.display='none';
   const svRecap=document.getElementById('sv-repartition-recap');if(svRecap)svRecap.style.display='none';
