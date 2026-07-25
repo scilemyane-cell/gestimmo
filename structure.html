@@ -5996,10 +5996,9 @@ async function validerPaiementModal(){
   renderLocataires();
 
   // Générer automatiquement la quittance — bouton mail dans la toolbar
-  const r=await buildQuittanceHTML(locId,mk,true,false);
+  const r=await genererEtArchiverQuittance(locId,mk,false);
   if(r){
     openPrintOverlay(r.html,'Quittance — '+r.moisNom+' — '+(r.locataire.nom||''),{locId,mk});
-    archiverQuittanceDrive(locId,mk,r.html); // Archivage automatique silencieux
   }
 }
 
@@ -8928,7 +8927,7 @@ function exportLoyersPDF(years, logKeys){
 // Construit le HTML de la quittance pour le locataire/mois donnés.
 // forPrint=true ajoute le script d'auto-impression (utilisé par l'aperçu) ; forPrint=false
 // produit un document "propre" destiné à être converti en PDF (pour l'envoi par mail).
-async function buildQuittanceHTML(locId,mk,forPrint,isDuplicate){
+async function buildQuittanceHTML(locId,mk,forPrint,isDuplicate,driveLink){
   const l=loadLocataires().find(x=>String(x.id)===String(locId));
   if(!l)return null;
   const cfg=getCTXConfig();
@@ -8968,10 +8967,14 @@ async function buildQuittanceHTML(locId,mk,forPrint,isDuplicate){
   // Intégré en base64 (pas juste une URL externe) pour que le document reste autonome : une
   // dépendance réseau au moment de l'impression/export PDF peut faire échouer tout le document.
   // Si la génération échoue pour une raison quelconque, on continue sans QR plutôt que de bloquer.
-  const qrData=`Quittance de loyer\nBailleur : ${nomBailleur}\nLocataire : ${l.nom||''}\nLogement : ${adresseLogement}\nPériode : ${moisNom}\nMontant : ${totalReel.toFixed(2)} €\nÉmise le : ${dateEmission}`;
+  // QR code en haut de la quittance. Si un lien Drive dédié à CE fichier a été préparé
+  // (prepareQuittanceDriveLink, partagé en lecture seule sur ce fichier uniquement — pas le
+  // dossier, pas le reste du Drive), le QR pointe directement dessus : le scanner ouvre le vrai
+  // document. Sinon (Drive non connecté), repli sur un résumé texte des infos essentielles.
+  const qrContent=driveLink||`Quittance de loyer\nBailleur : ${nomBailleur}\nLocataire : ${l.nom||''}\nLogement : ${adresseLogement}\nPériode : ${moisNom}\nMontant : ${totalReel.toFixed(2)} €\nÉmise le : ${dateEmission}`;
   let qrUrl='';
   try{
-    const qrResp=await fetch('https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data='+encodeURIComponent(qrData));
+    const qrResp=await fetch('https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data='+encodeURIComponent(qrContent));
     const qrBlob=await qrResp.blob();
     qrUrl=await new Promise(resolve=>{
       const reader=new FileReader();
@@ -9121,7 +9124,7 @@ async function validerModalQuittance(locId){
     return;
   }
   document.getElementById('modal-quittance')?.remove();
-  const r=await buildQuittanceHTML(locId,mk,true,isDuplicate);
+  const r=await genererEtArchiverQuittance(locId,mk,isDuplicate);
   if(!r)return;
   const titre='Quittance'+(isDuplicate?' (DUPLICATA)':'')+' — '+r.moisNom+' — '+(r.locataire.nom||'');
   openPrintOverlay(r.html,titre,isDuplicate?null:{locId,mk});
@@ -10187,38 +10190,86 @@ async function getDriveFolderId(name, parentId){
   return folder.id;
 }
 
-async function archiverQuittanceDrive(locId, mk, html){
-  if(!driveAccessToken){console.log('Drive non connecté — archivage ignoré');return;}
-  const locs=loadLocataires();
-  const loc=locs.find(l=>String(l.id)===String(locId));
-  if(!loc)return;
-  const cfg=getCTXConfig();
-  const[yy,mm]=mk.split('-');
-  const moisNom=new Date(+yy,+mm-1,1).toLocaleDateString('fr-FR',{month:'long'});
-
+// Prépare (crée si besoin, sinon retrouve) le fichier Drive PDF de cette quittance et le rend
+// consultable en lecture seule par toute personne ayant le lien — permission posée sur CE FICHIER
+// UNIQUEMENT, jamais sur le dossier parent ni sur le reste du Drive. Retourne {fileId,webViewLink},
+// ou null si Drive n'est pas connecté / la préparation échoue.
+// Appelée AVANT la génération finale de la quittance, car le lien doit être connu pour être encodé
+// dans le QR code — le fichier est donc d'abord vide (placeholder), puis rempli par
+// finaliserQuittanceDrive() une fois le PDF (contenant le QR) généré.
+async function prepareQuittanceDriveLink(locId, mk){
+  if(!driveAccessToken)return null;
   try{
+    const locs=loadLocataires();
+    const loc=locs.find(l=>String(l.id)===String(locId));
+    if(!loc)return null;
+    const cfg=getCTXConfig();
+    const[yy,mm]=mk.split('-');
+    const moisNom=new Date(+yy,+mm-1,1).toLocaleDateString('fr-FR',{month:'long'});
     const rootName=(cfg.driveFolderName||'Quittances').replace('Factures','Quittances');
     const rootId=await getDriveFolderId(rootName,null);
     const locFolder=await getDriveFolderId((loc.nom||'Locataire').replace(/[^\w\s]/g,''),rootId);
     const anneeFolder=await getDriveFolderId(String(yy),locFolder);
+    const filename=`Quittance_${yy}_${mm.padStart(2,'0')}_${moisNom}_${(loc.nom||'').replace(/\s/g,'_')}.pdf`;
 
-    const blob=new Blob([html],{type:'text/html'});
-    const filename=`Quittance_${yy}_${mm.padStart(2,'0')}_${moisNom}_${(loc.nom||'').replace(/\s/g,'_')}.html`;
-
-    const metadata={name:filename,parents:[anneeFolder]};
-    const form=new FormData();
-    form.append('metadata',new Blob([JSON.stringify(metadata)],{type:'application/json'}));
-    form.append('file',blob);
-
-    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
-      method:'POST',
-      headers:{Authorization:'Bearer '+driveAccessToken},
-      body:form
-    });
-    console.log('Quittance archivée dans Drive :',filename);
-  }catch(e){console.error('Archivage Drive erreur:',e);}
+    const qExist="name='"+filename.replace(/'/g,"\\'")+"' and '"+anneeFolder+"' in parents and trashed=false";
+    const existResp=await fetch("https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qExist)+"&fields=files(id,webViewLink)",{headers:{Authorization:'Bearer '+driveAccessToken}});
+    const existData=await existResp.json();
+    let fileId,webViewLink;
+    if(existData.files&&existData.files.length>0){
+      fileId=existData.files[0].id;webViewLink=existData.files[0].webViewLink;
+    } else {
+      const createResp=await fetch('https://www.googleapis.com/drive/v3/files?fields=id,webViewLink',{
+        method:'POST',
+        headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},
+        body:JSON.stringify({name:filename,parents:[anneeFolder]})
+      });
+      const createData=await createResp.json();
+      fileId=createData.id;webViewLink=createData.webViewLink;
+    }
+    // Lecture seule, ce fichier uniquement — n'ouvre l'accès à rien d'autre du Drive.
+    try{
+      await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'/permissions',{
+        method:'POST',
+        headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},
+        body:JSON.stringify({role:'reader',type:'anyone'})
+      });
+    }catch(ePerm){console.warn('Définition permission lecture Drive échouée (non bloquant) :',ePerm);}
+    return{fileId,webViewLink};
+  }catch(e){console.error('Préparation lien Drive quittance échouée:',e);return null;}
 }
-
+// Envoie le PDF final (contenant déjà le QR pointant vers ce même fichier) dans le fichier
+// préparé ci-dessus, en remplaçant son contenu (placeholder vide au départ).
+async function finaliserQuittanceDrive(fileId, pdfBlob){
+  if(!driveAccessToken||!fileId||!pdfBlob)return;
+  try{
+    await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media',{
+      method:'PATCH',
+      headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/pdf'},
+      body:pdfBlob
+    });
+    console.log('PDF de la quittance envoyé sur Drive.');
+  }catch(e){console.error('Envoi du PDF final de la quittance vers Drive échoué:',e);}
+}
+// Orchestre la génération complète d'une quittance : prépare le lien Drive dédié AVANT de
+// construire le HTML (pour pouvoir l'encoder dans le QR), retourne immédiatement le résultat pour
+// l'aperçu, puis génère et envoie le PDF final vers Drive en arrière-plan (silencieux, ne bloque
+// pas l'affichage). Si Drive n'est pas connecté, le QR retombe sur un résumé texte (voir buildQuittanceHTML).
+async function genererEtArchiverQuittance(locId, mk, isDuplicate){
+  const driveInfo=driveAccessToken?await prepareQuittanceDriveLink(locId,mk):null;
+  const r=await buildQuittanceHTML(locId,mk,true,isDuplicate,driveInfo?.webViewLink);
+  if(!r)return null;
+  if(driveInfo){
+    html2pdf().from(r.html,'string').set({
+      margin:0,
+      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+    }).toPdf().output('blob').then(pdfBlob=>{
+      finaliserQuittanceDrive(driveInfo.fileId,pdfBlob);
+    }).catch(e=>console.error('Génération du PDF final de la quittance (Drive) échouée:',e));
+  }
+  return r;
+}
 
 
 
