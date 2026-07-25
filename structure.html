@@ -5957,7 +5957,7 @@ async function validerPaiementModal(){
     // Effacer tout paiement existant pour ce mois
     logsLocs.forEach(l=>{
       if(l.paiements&&l.paiements[mk]){
-        if(l.paiements[mk].quittanceId)supprimerQuittancePublique(l.paiements[mk].quittanceId);
+        (l.paiements[mk].quittanceIds||[]).forEach(qid=>supprimerQuittancePublique(qid));
         delete l.paiements[mk];
       }
     });
@@ -5988,17 +5988,16 @@ async function validerPaiementModal(){
   if(logKey){
     locs.filter(l=>l.logement===logKey&&String(l.id)!==String(locId)).forEach(l=>{
       if(l.paiements&&l.paiements[mk]){
-        if(l.paiements[mk].quittanceId)supprimerQuittancePublique(l.paiements[mk].quittanceId);
+        (l.paiements[mk].quittanceIds||[]).forEach(qid=>supprimerQuittancePublique(qid));
         delete l.paiements[mk];
       }
     });
   }
 
   if(!loc.paiements)loc.paiements={};
-  // Si ce mois avait déjà une quittance publiée (paiement corrigé après coup), on la révoque —
-  // la nouvelle quittance générée plus bas ci-dessous la remplacera avec les bonnes données.
-  const ancienneQuittanceId=loc.paiements[mk]?.quittanceId;
-  if(ancienneQuittanceId)supprimerQuittancePublique(ancienneQuittanceId);
+  // Note : si ce mois avait déjà une ou plusieurs quittances publiées, elles sont révoquées plus
+  // bas dans genererEtArchiverQuittance (pas ici) — logique centralisée pour rester cohérente
+  // avec le cas "duplicata", qui lui NE doit PAS révoquer les précédentes.
   loc.paiements[mk]={paye:true,date,montant,note};
 
   // Mémoriser pour le mois suivant
@@ -6029,7 +6028,7 @@ function supprimerPaiementModal(){
   const logsLocs=logKey?locs.filter(l=>l.logement===logKey):[locs.find(l=>String(l.id)===String(locId))].filter(Boolean);
   logsLocs.forEach(l=>{
     if(l.paiements&&l.paiements[mk]){
-      if(l.paiements[mk].quittanceId)supprimerQuittancePublique(l.paiements[mk].quittanceId);
+      (l.paiements[mk].quittanceIds||[]).forEach(qid=>supprimerQuittancePublique(qid));
       delete l.paiements[mk];
     }
   });
@@ -6190,7 +6189,7 @@ function toggleLoyerPaiement(locId,mk){
   if(!l)return;
   if(!l.paiements)l.paiements={};
   const cur=l.paiements[mk]||{};
-  if(cur.paye&&cur.quittanceId)supprimerQuittancePublique(cur.quittanceId);
+  if(cur.paye&&cur.quittanceIds&&cur.quittanceIds.length)cur.quittanceIds.forEach(qid=>supprimerQuittancePublique(qid));
   l.paiements[mk]=cur.paye?{paye:false}:{paye:true,date:todayStr()};
   saveLocataires(locs);
   renderLocataires();
@@ -10282,10 +10281,22 @@ async function supprimerQuittancePublique(id){
 // Orchestre la génération complète d'une quittance : génère l'identifiant public AVANT de
 // construire le HTML (pour encoder son URL dans le QR), retourne immédiatement le résultat pour
 // l'aperçu, puis publie la version finale sur Firestore et archive une copie privée sur Drive en
-// arrière-plan (silencieux, ne bloque pas l'affichage). L'id publié est aussi mémorisé sur le
-// paiement du locataire (l.paiements[mk].quittanceId), pour pouvoir la révoquer plus tard si le
-// paiement est corrigé/supprimé.
+// arrière-plan (silencieux, ne bloque pas l'affichage).
+// RÈGLE duplicata vs génération normale : un "duplicata" (isDuplicate=true) ne révoque RIEN — c'est
+// une réédition du MÊME justificatif déjà valide (ex: le locataire a perdu son exemplaire), donc
+// l'original et le duplicata doivent tous les deux continuer de fonctionner. Une génération NORMALE
+// (première quittance du mois, ou re-génération après correction du paiement) révoque en revanche
+// TOUTES les quittances déjà émises pour ce mois (originale + éventuels duplicatas antérieurs),
+// puisqu'elles reflètent alors des données devenues incorrectes/obsolètes.
+// Tous les identifiants émis pour un mois donné sont mémorisés dans l.paiements[mk].quittanceIds
+// (liste, pas un seul id) pour pouvoir tous les révoquer d'un coup si le paiement est supprimé.
 async function genererEtArchiverQuittance(locId, mk, isDuplicate){
+  const locs0=loadLocataires();
+  const loc0=locs0.find(l=>String(l.id)===String(locId));
+  const idsExistants=(loc0&&loc0.paiements&&loc0.paiements[mk]&&loc0.paiements[mk].quittanceIds)||[];
+  if(!isDuplicate&&idsExistants.length){
+    idsExistants.forEach(idExistant=>supprimerQuittancePublique(idExistant));
+  }
   const id=genererIdQuittancePublique();
   const publicUrl=window.location.origin+window.location.pathname.replace(/structure\.html$/,'')+'quittance.html?id='+id;
   const r=await buildQuittanceHTML(locId,mk,true,isDuplicate,publicUrl);
@@ -10295,7 +10306,8 @@ async function genererEtArchiverQuittance(locId, mk, isDuplicate){
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   if(loc&&loc.paiements&&loc.paiements[mk]){
-    loc.paiements[mk].quittanceId=id;
+    const idsConserves=isDuplicate?(loc.paiements[mk].quittanceIds||[]):[];
+    loc.paiements[mk].quittanceIds=[...idsConserves,id];
     saveLocataires(locs);
   }
   return r;
