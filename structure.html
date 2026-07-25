@@ -882,6 +882,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <button class="btn-export" style="background:rgba(252,129,129,.1);border-color:rgba(252,129,129,.4);color:var(--red)" onclick="nettoyerDoublonsDrive()" id="btn-clean-drive" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
       <select class="filter-select" id="drive-year-select" title="Année du dossier Drive à ouvrir" style="font-weight:600"></select>
       <button class="btn-export" style="background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.4);color:var(--accent)" onclick="ouvrirDossierDriveAnnee()" id="btn-open-drive" title="Ouvrir le dossier Drive de l'année sélectionnée">📂 Ouvrir dossier Drive</button>
+      <button class="btn-export" style="display:none;background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.4);color:var(--green)" onclick="syncPennylaneFactures()" id="btn-sync-pennylane" title="Récupérer les nouvelles factures fournisseurs depuis Pennylane">🟢 Sync Pennylane</button>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div class="section-title" style="margin-bottom:0">Liste des factures</div>
@@ -1457,6 +1458,24 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div style="display:flex;gap:8px">
         <button class="btn" onclick="annulerChoixPages()" style="background:var(--bg3);border-color:var(--border)">Annuler</button>
         <button class="btn" onclick="confirmerChoixPages()" style="background:var(--accent);color:#0a0e1a;border-color:var(--accent);font-weight:700">✓ Valider la sélection</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pennylane-sync-overlay">
+  <div class="pdf-modal" style="max-width:900px">
+    <div class="pdf-modal-header">
+      <h3>Factures fournisseurs — Pennylane</h3>
+      <button class="pdf-modal-close" onclick="fermerSyncPennylane()">✕</button>
+    </div>
+    <div style="padding:6px 20px 0;font-size:11px;color:var(--text2)">Coche les factures à importer dans GestImmo. Tu pourras leur attribuer une catégorie et un logement une fois importées. Les factures déjà présentes ne réapparaissent pas ici.</div>
+    <div id="pennylane-sync-list" style="flex:1;overflow-y:auto;padding:16px 20px"></div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <span id="pennylane-sync-count" style="font-size:12px;color:var(--text2)"></span>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="fermerSyncPennylane()" style="background:var(--bg3);border-color:var(--border)">Annuler</button>
+        <button class="btn" onclick="importerSelectionPennylane()" style="background:var(--accent);color:#0a0e1a;border-color:var(--accent);font-weight:700">✓ Importer la sélection</button>
       </div>
     </div>
   </div>
@@ -3636,6 +3655,8 @@ function renderFactures(){
   const{factures}=loadData();
   renderReelGrid();
   populateDevisSelects();
+  const btnSyncPennylane=document.getElementById('btn-sync-pennylane');
+  if(btnSyncPennylane)btnSyncPennylane.style.display=getComptaToken('pennylane')?'inline-flex':'none';
   // Peupler le sélecteur d'année pour l'ouverture du dossier Drive (conserve la sélection en cours)
   const driveYearSel=document.getElementById('drive-year-select');
   if(driveYearSel){
@@ -6667,6 +6688,15 @@ function renderParametres(){
       <div id="gemini-key-status" style="font-size:11px;color:var(--green);margin-top:8px;display:none">✓ Clé ajoutée</div>
     </div>
 
+    <!-- Intégrations comptables (connecteurs par logiciel — Pennylane en premier, d'autres à venir) -->
+    <div class="table-wrap" style="padding:24px;margin-bottom:24px">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">🔗 Intégrations comptables</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px">
+        Connecte le logiciel de ton comptable pour récupérer automatiquement tes factures fournisseurs — plus besoin de les télécharger puis de les réimporter à la main. Ton jeton d'accès reste stocké uniquement sur cet appareil, jamais envoyé ailleurs qu'au logiciel concerné.
+      </div>
+      <div id="compta-connecteurs-list"></div>
+    </div>
+
     <!-- Danger zone -->
     <div class="table-wrap" style="padding:24px;border:1px solid rgba(252,129,129,.2)">
       <div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:12px">⚠ Zone dangereuse</div>
@@ -6708,6 +6738,7 @@ function renderParametres(){
   `;
   afficherApercuLogoTampon();
   renderGeminiKeysList();
+  renderComptaConnecteurs();
   if(window._canAdmin) renderCollaborateursEtInvitations();
 }
 
@@ -11634,6 +11665,225 @@ window.toggleGeminiKeyVisibility=function(){
   inp.type=showing?'password':'text';
   btn.textContent=showing?'👁 Afficher':'🙈 Masquer';
 };
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONNECTEURS COMPTABLES — architecture en briques, un connecteur par
+// logiciel. Pennylane est le premier construit ; d'autres (Tiime, Indy,
+// Sage...) pourront être ajoutés plus tard en suivant le même schéma
+// {nom, connecte(), lister(depuisISO)} sans toucher au reste de l'app.
+// Le jeton d'accès de chaque connecteur reste STRICTEMENT LOCAL (jamais
+// synchronisé vers le cloud, contrairement au reste des réglages) — un
+// jeton comptable est une donnée trop sensible pour transiter par notre
+// propre synchronisation.
+// ═══════════════════════════════════════════════════════════════════════
+
+const COMPTA_CONNECTEURS_DISPONIBLES=[
+  {
+    id:'pennylane',
+    nom:'Pennylane',
+    logo:'🟢',
+    description:'Récupère automatiquement tes factures fournisseurs reçues sur Pennylane (via ton comptable ou ton propre compte).',
+    aidePourObtenirJeton:'Dans Pennylane : roue crantée (Paramètres) → Connectivité → Développeurs → génère un jeton d\'accès. Coche au moins le droit "supplier_invoices:readonly". Si c\'est ton comptable qui gère Pennylane, demande-lui de t\'en générer un ou de te donner un accès pour le faire toi-même.'
+  }
+  // Prochain connecteur : ajouter un objet ici, puis les fonctions xxxTester/xxxLister ci-dessous.
+];
+
+function getComptaToken(connecteurId){
+  try{return localStorage.getItem(ctxKey('compta_token_'+connecteurId))||'';}catch(e){return '';}
+}
+function saveComptaToken(connecteurId,token){
+  try{
+    if(token)localStorage.setItem(ctxKey('compta_token_'+connecteurId),token);
+    else localStorage.removeItem(ctxKey('compta_token_'+connecteurId));
+  }catch(e){}
+}
+
+function renderComptaConnecteurs(){
+  const zone=document.getElementById('compta-connecteurs-list');
+  if(!zone)return;
+  zone.innerHTML=COMPTA_CONNECTEURS_DISPONIBLES.map(c=>{
+    const token=getComptaToken(c.id);
+    const connecte=!!token;
+    return`<div style="border:1px solid ${connecte?'rgba(104,211,145,.35)':'var(--border)'};border-radius:10px;padding:16px 18px;margin-bottom:12px;background:${connecte?'rgba(104,211,145,.05)':'transparent'}">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${c.logo} ${c.nom} ${connecte?'<span style="font-size:10px;background:rgba(104,211,145,.15);color:var(--green);border:1px solid rgba(104,211,145,.4);border-radius:5px;padding:2px 7px;font-weight:700;margin-left:4px">✓ Connecté</span>':''}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px;max-width:520px">${c.description}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          ${connecte?`<button class="btn btn-sm" onclick="testerConnecteurCompta('${c.id}')" style="background:var(--bg3);border-color:var(--border)">🔄 Tester</button>
+            <button class="btn btn-sm btn-danger" onclick="deconnecterConnecteurCompta('${c.id}')">Déconnecter</button>`
+            :`<button class="btn btn-sm" onclick="toggleFormConnecteurCompta('${c.id}')" style="background:var(--accent3);border-color:var(--accent2)">+ Connecter</button>`}
+        </div>
+      </div>
+      ${!connecte?`<div id="form-connecteur-${c.id}" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.6">${c.aidePourObtenirJeton}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input type="password" id="input-jeton-${c.id}" placeholder="Colle ton jeton d'accès ${c.nom} ici" style="flex:1;min-width:240px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none">
+          <button class="btn btn-sm" onclick="connecterConnecteurCompta('${c.id}')" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">Valider</button>
+        </div>
+        <div id="statut-connecteur-${c.id}" style="font-size:11px;margin-top:8px;display:none"></div>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+window.toggleFormConnecteurCompta=function(id){
+  const el=document.getElementById('form-connecteur-'+id);
+  if(el)el.style.display=el.style.display==='none'?'block':'none';
+};
+window.connecterConnecteurCompta=async function(id){
+  const input=document.getElementById('input-jeton-'+id);
+  const token=(input?.value||'').trim();
+  if(!token)return;
+  const statut=document.getElementById('statut-connecteur-'+id);
+  if(statut){statut.style.display='block';statut.style.color='var(--text2)';statut.textContent='⏳ Vérification du jeton…';}
+  saveComptaToken(id,token);
+  const res=await testerConnecteurComptaAvecStatut(id,statut);
+  if(!res.ok)saveComptaToken(id,''); // ne garde pas un jeton invalide
+  renderComptaConnecteurs();
+};
+window.deconnecterConnecteurCompta=function(id){
+  if(!confirm('Déconnecter ce logiciel comptable ? Tu pourras te reconnecter à tout moment avec un nouveau jeton.'))return;
+  saveComptaToken(id,'');
+  renderComptaConnecteurs();
+};
+window.testerConnecteurCompta=async function(id){
+  await testerConnecteurComptaAvecStatut(id,null);
+};
+async function testerConnecteurComptaAvecStatut(id,statutEl){
+  try{
+    const res=await COMPTA_CONNECTEURS_IMPL[id].tester();
+    if(statutEl){statutEl.style.color=res.ok?'#68d391':'#fc8181';statutEl.textContent=res.ok?'✓ Connexion réussie.':'✗ '+res.message;}
+    else alert(res.ok?'✓ Connexion à '+id+' toujours valide.':'✗ '+res.message);
+    return res;
+  }catch(e){
+    const msg='Erreur de connexion : '+e.message;
+    if(statutEl){statutEl.style.color='#fc8181';statutEl.textContent='✗ '+msg;}
+    else alert('✗ '+msg);
+    return{ok:false,message:msg};
+  }
+}
+
+// ── Implémentation Pennylane ────────────────────────────────────────────
+// API publique documentée : https://pennylane.readme.io — endpoints REST v2,
+// authentification par jeton Bearer (OAuth2). On ne lit QUE les factures
+// fournisseurs (scope supplier_invoices:readonly suffit), jamais d'écriture.
+async function pennylaneAppelApi(chemin){
+  const token=getComptaToken('pennylane');
+  if(!token)throw new Error('Pennylane non connecté.');
+  const resp=await fetch('https://app.pennylane.com/api/external/v2/'+chemin,{
+    headers:{'Authorization':'Bearer '+token,'Accept':'application/json'}
+  });
+  if(resp.status===401||resp.status===403)throw new Error('Jeton invalide ou droits insuffisants (vérifie le scope supplier_invoices:readonly).');
+  if(!resp.ok)throw new Error('Erreur API Pennylane ('+resp.status+').');
+  return await resp.json();
+}
+async function pennylaneTester(){
+  try{
+    await pennylaneAppelApi('supplier_invoices?per_page=1');
+    return{ok:true};
+  }catch(e){return{ok:false,message:e.message};}
+}
+// Récupère les factures fournisseurs Pennylane, converties au format attendu par
+// remplirDepuisFacturX/l'objet facture GestImmo. Ne télécharge PAS le fichier PDF (l'API
+// renvoie déjà toutes les données structurées nécessaires — montant, TVA, fournisseur, dates).
+async function pennylaneListerFactures(){
+  const data=await pennylaneAppelApi('supplier_invoices?per_page=50&sort=-date');
+  const items=data.items||data.supplier_invoices||data.data||[];
+  return items.map(inv=>({
+    _pennylaneId:String(inv.id),
+    numero:inv.invoice_number||'',
+    date:inv.date||'',
+    fournisseur:inv.supplier_name||'',
+    montant_ttc:+inv.amount||0,
+    montant_ht:+inv.amount_before_tax||0,
+    tva_pct:inv.amount_before_tax>0?Math.round(((inv.amount-inv.amount_before_tax)/inv.amount_before_tax)*100):20,
+    label:inv.label||'',
+    paye:!!inv.paid
+  }));
+}
+const COMPTA_CONNECTEURS_IMPL={
+  pennylane:{tester:pennylaneTester, lister:pennylaneListerFactures}
+};
+
+// ── Synchronisation Pennylane → GestImmo (revue avant import, jamais automatique/silencieux) ──
+let _pennylaneFacturesRecues=[];
+async function syncPennylaneFactures(){
+  const btn=document.getElementById('btn-sync-pennylane');
+  if(btn){btn.innerHTML='⏳ Récupération…';btn.disabled=true;}
+  try{
+    const recues=await COMPTA_CONNECTEURS_IMPL.pennylane.lister();
+    const{factures}=loadData();
+    const idsDejaImportes=new Set(factures.map(f=>f.pennylaneId).filter(Boolean));
+    _pennylaneFacturesRecues=recues.filter(inv=>!idsDejaImportes.has(inv._pennylaneId));
+    if(!_pennylaneFacturesRecues.length){
+      alert('Aucune nouvelle facture fournisseur trouvée sur Pennylane (tout est déjà importé, ou rien de récent).');
+      return;
+    }
+    renderPennylaneSyncList();
+    document.getElementById('pennylane-sync-overlay').classList.add('open');
+  }catch(e){
+    alert('⚠ '+e.message);
+  }finally{
+    if(btn){btn.innerHTML='🟢 Sync Pennylane';btn.disabled=false;}
+  }
+}
+function renderPennylaneSyncList(){
+  const zone=document.getElementById('pennylane-sync-list');
+  const{factures}=loadData();
+  zone.innerHTML=_pennylaneFacturesRecues.map((inv,i)=>{
+    const dup=factures.some(f=>Math.abs((+f.ttc||0)-inv.montant_ttc)<0.01 && f.date===inv.date);
+    return`<label style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid ${dup?'rgba(246,173,85,.35)':'var(--border)'};border-radius:8px;margin-bottom:8px;cursor:pointer;background:${dup?'rgba(246,173,85,.06)':'transparent'}">
+      <input type="checkbox" class="pennylane-sync-check" data-idx="${i}" ${dup?'':'checked'} style="width:16px;height:16px;flex-shrink:0">
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${inv.fournisseur||'Fournisseur inconnu'} ${dup?'<span style="font-size:10px;color:var(--orange);font-weight:700">⚠ doublon probable</span>':''}</div>
+        <div style="font-size:11px;color:var(--text2)">${inv.date||'Date inconnue'} · N° ${inv.numero||'—'} ${inv.label?'· '+inv.label:''}</div>
+      </div>
+      <div style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums">${fmt(inv.montant_ttc)}</div>
+    </label>`;
+  }).join('');
+  document.getElementById('pennylane-sync-count').textContent=_pennylaneFacturesRecues.length+' facture(s) trouvée(s)';
+}
+function fermerSyncPennylane(){
+  document.getElementById('pennylane-sync-overlay').classList.remove('open');
+  _pennylaneFacturesRecues=[];
+}
+function importerSelectionPennylane(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible d'importer des factures."); return; }
+  const cases=Array.from(document.querySelectorAll('.pennylane-sync-check:checked'));
+  if(!cases.length){alert('Coche au moins une facture à importer.');return;}
+  const d=loadData();
+  cases.forEach(c=>{
+    const inv=_pennylaneFacturesRecues[+c.dataset.idx];
+    if(!inv)return;
+    const num=getNextFactureNum();
+    d.factures.push({
+      num,
+      date:inv.date||'',
+      datepay:inv.paye?inv.date:'',
+      four:inv.fournisseur||'',
+      cat:'',
+      poste:'',
+      log:'Logement A',
+      ht:+(inv.montant_ttc/(1+(inv.tva_pct||20)/100)).toFixed(2),
+      tva:inv.tva_pct||20,
+      ttc:inv.montant_ttc,
+      statut:inv.paye?'Payée':'En attente',
+      regleby:'',
+      cmd:'',
+      desc:(inv.numero?`[Réf. Pennylane: ${inv.numero}] `:'')+(inv.label||'Facture importée depuis Pennylane'),
+      hasPdf:false,
+      inclus:true,
+      pennylaneId:inv._pennylaneId,
+      sourceCertifiee:true
+    });
+  });
+  saveFactures(d.factures);
+  fermerSyncPennylane();
+  renderFactures();
+  alert('✓ '+cases.length+' facture(s) importée(s). Pense à leur attribuer une catégorie et un logement.');
+}
+document.getElementById('pennylane-sync-overlay')?.addEventListener('click',function(e){if(e.target===this)fermerSyncPennylane();});
 
 // Appelle l'API Gemini en essayant chaque clé enregistrée l'une après l'autre :
 // si une clé est limitée (quota atteint), bascule automatiquement sur la suivante.
