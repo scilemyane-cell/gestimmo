@@ -2063,13 +2063,28 @@ async function onDevisFileChange(e){
 }
 
 // Lecture automatique du devis par IA (Gemini) — préremplit les champs vides du formulaire.
-// Ne bloque jamais l'enregistrement : en cas d'échec ou d'absence de clé API, on se contente
-// de laisser les champs à saisir manuellement (contrairement à la lecture facture, pas d'alerte).
+// Ne bloque jamais l'enregistrement : en cas d'échec ou d'absence de clé API, les champs restent
+// à saisir manuellement, mais un message reste affiché pour que l'échec ne passe pas inaperçu.
 async function extractDevisInfo(b64){
-  if(!getGeminiKeys().length)return;
   const prev=document.getElementById('devis-pdf-preview');
+  if(!getGeminiKeys().length){
+    if(prev){
+      prev.style.display='block';
+      prev.innerHTML='⚠ Aucune clé API Gemini configurée — ajoute-en une dans Paramètres pour activer la lecture automatique. Les champs restent à remplir manuellement.';
+      prev.style.color='#f6ad55';
+      prev.style.background='rgba(246,173,85,.08)';
+      prev.style.border='1px solid rgba(246,173,85,.25)';
+      prev.style.padding='8px 12px';
+      prev.style.borderRadius='8px';
+    }
+    return;
+  }
   const texteAvant=prev?prev.innerHTML:'';
-  if(prev)prev.innerHTML='⏳ Lecture automatique du devis en cours...';
+  if(prev){
+    prev.style.display='block';
+    prev.innerHTML='⏳ Lecture automatique du devis en cours...';
+    prev.style.color='';prev.style.background='';prev.style.border='';prev.style.padding='';prev.style.borderRadius='';
+  }
   try{
     const base64Data=b64.split(',')[1];
     const mimeType=b64.startsWith('data:image')?'image/jpeg':'application/pdf';
@@ -2096,10 +2111,24 @@ Règles : la date sur le devis est TOUJOURS écrite au format français JJ/MM/AA
     if(info.montant_ttc>0)setVal('devis-ttc',info.montant_ttc);
     if(info.numero)setVal('devis-num',info.numero);
     if(info.description)setVal('devis-desc',info.description);
+    if(prev){
+      prev.innerHTML='✅ Lecture automatique effectuée — vérifie et corrige si besoin. <br>'+texteAvant;
+      prev.style.color='#68d391';
+      prev.style.background='rgba(104,211,145,.08)';
+      prev.style.border='1px solid rgba(104,211,145,.25)';
+      prev.style.padding='8px 12px';
+      prev.style.borderRadius='8px';
+    }
   }catch(e){
     console.error('Lecture auto devis échouée:',e);
-  }finally{
-    if(prev)prev.innerHTML=texteAvant;
+    if(prev){
+      prev.innerHTML='⚠ Lecture automatique échouée : '+e.message+' — remplis les champs manuellement. <br>'+texteAvant;
+      prev.style.color='#f6ad55';
+      prev.style.background='rgba(246,173,85,.08)';
+      prev.style.border='1px solid rgba(246,173,85,.25)';
+      prev.style.padding='8px 12px';
+      prev.style.borderRadius='8px';
+    }
   }
 }
 
