@@ -1267,6 +1267,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   <div class="section-title">Virements que tu fais vers la structure</div>
   <div class="table-wrap" style="padding:20px 24px;margin-bottom:20px">
     <div class="form-grid">
+      <div class="form-group"><label>Qui a fait le virement</label>
+        <input type="text" id="cca-vir-qui" placeholder="ex: Toi, un associé..." list="cca-vir-qui-suggestions">
+        <datalist id="cca-vir-qui-suggestions"></datalist>
+      </div>
       <div class="form-group"><label>Date du virement</label><input type="date" id="cca-vir-date"></div>
       <div class="form-group"><label>Montant (€)</label><input type="number" id="cca-vir-montant" step="0.01" placeholder="0.00"></div>
       <div class="form-group"><label>Motif <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label><input type="text" id="cca-vir-motif" placeholder="ex: pour payer l'assurance PNO"></div>
@@ -1278,11 +1282,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <input type="checkbox" id="cca-show-rembourse-virements" onchange="renderCompteCourant()" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)">
       Afficher aussi les virements déjà remboursés
     </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">
+      <input type="checkbox" id="cca-show-autres-virements" onchange="renderCompteCourant()" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)">
+      Afficher aussi les virements faits par d'autres personnes
+    </label>
   </div>
   <div class="table-wrap">
     <table class="factures-table">
       <thead><tr>
-        <th>Date</th><th>Motif</th><th style="text-align:right">Montant</th>
+        <th>Date</th><th>Qui</th><th>Motif</th><th style="text-align:right">Montant</th>
         <th style="text-align:center">Remboursé</th><th style="text-align:center">Actions</th>
       </tr></thead>
       <tbody id="cca-virements-tbody"></tbody>
@@ -4158,14 +4166,16 @@ function toggleCCAFactureRembourse(num,checked){
 }
 function ajouterVirementCCA(){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible d'ajouter un virement."); return; }
+  const qui=document.getElementById('cca-vir-qui').value.trim();
   const date=document.getElementById('cca-vir-date').value;
   const montant=+document.getElementById('cca-vir-montant').value||0;
   const motif=document.getElementById('cca-vir-motif').value.trim();
-  if(!date||montant<=0){alert('Date et montant (supérieur à 0) sont obligatoires.');return;}
+  if(!qui||!date||montant<=0){alert('Qui a fait le virement, la date et le montant (supérieur à 0) sont obligatoires.');return;}
   const list=loadCCAVirements();
-  list.push({id:'vir_'+Date.now(),date,montant,motif,rembourse:false});
+  list.push({id:'vir_'+Date.now(),qui,date,montant,motif,rembourse:false});
   const ok=saveCCAVirements(list);
   if(!ok){alert('Erreur de stockage.');return;}
+  document.getElementById('cca-vir-qui').value='';
   document.getElementById('cca-vir-date').value='';
   document.getElementById('cca-vir-montant').value='';
   document.getElementById('cca-vir-motif').value='';
@@ -4210,6 +4220,13 @@ function renderCompteCourant(){
     }
   }
 
+  // Suggestions de noms pour le champ "Qui a fait le virement" — noms déjà vus sur factures + virements
+  const suggestionsEl=document.getElementById('cca-vir-qui-suggestions');
+  if(suggestionsEl){
+    const tousLesNoms=[...new Set([...distinctNoms,...virements.map(v=>(v.qui||'').trim()).filter(Boolean)])].sort();
+    suggestionsEl.innerHTML=tousLesNoms.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('');
+  }
+
   // Factures réglées par les noms cochés
   const facturesMoi=factures.map((f,i)=>({...f,_ri:i})).filter(f=>nomsMoi.includes((f.regleby||'').trim()));
   const facturesNonRemb=facturesMoi.filter(f=>!remboursMap[f.num]);
@@ -4217,11 +4234,14 @@ function renderCompteCourant(){
   const showRembFactures=document.getElementById('cca-show-rembourse-factures')?.checked||false;
   const facturesAffichees=(showRembFactures?facturesMoi:facturesNonRemb).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
-  // Virements personnels vers la structure
-  const virementsNonRemb=virements.filter(v=>!v.rembourse);
+  // Virements personnels vers la structure — seuls ceux faits par les noms cochés comptent dans le solde dû
+  const virementsMoi=virements.filter(v=>nomsMoi.includes((v.qui||'').trim()));
+  const virementsNonRemb=virementsMoi.filter(v=>!v.rembourse);
   const totalVirementsNonRemb=virementsNonRemb.reduce((s,v)=>s+(+v.montant||0),0);
   const showRembVirements=document.getElementById('cca-show-rembourse-virements')?.checked||false;
-  const virementsAffiches=(showRembVirements?virements:virementsNonRemb).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const showAutresVirements=document.getElementById('cca-show-autres-virements')?.checked||false;
+  const baseVirements=showAutresVirements?virements:virementsMoi;
+  const virementsAffiches=(showRembVirements?baseVirements:baseVirements.filter(v=>!v.rembourse)).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
   const totalDu=totalFacturesNonRemb+totalVirementsNonRemb;
 
@@ -4251,8 +4271,10 @@ function renderCompteCourant(){
   if(virEmpty)virEmpty.style.display=virementsAffiches.length?'none':'block';
   const virTbody=document.getElementById('cca-virements-tbody');
   if(virTbody)virTbody.innerHTML=virementsAffiches.map(v=>{
+    const estMoi=nomsMoi.includes((v.qui||'').trim());
     return `<tr style="${v.rembourse?'opacity:.5':''}">
       <td style="color:var(--text2)">${fmtDate(v.date)}</td>
+      <td style="${estMoi?'':'color:var(--text3);font-style:italic'}">${v.qui||'—'}</td>
       <td>${v.motif||'—'}</td>
       <td style="text-align:right;font-weight:600">${fmt(v.montant)}</td>
       <td style="text-align:center"><input type="checkbox" ${v.rembourse?'checked':''} onchange="toggleCCAVirementRembourse('${v.id}',this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--green)"></td>
