@@ -1,6 +1,6 @@
 {
   "appId": "com.gestimmo.app",
-  "appName": "GestImmo",
+  "appName": "Novimmo",
   "webDir": "www",
   "server": {
     "androidScheme": "https"
