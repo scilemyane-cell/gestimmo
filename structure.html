@@ -2088,7 +2088,7 @@ async function extractDevisInfo(b64){
   try{
     const base64Data=b64.split(',')[1];
     const mimeType=b64.startsWith('data:image')?'image/jpeg':'application/pdf';
-    const data=await callGeminiAPI('gemini-2.5-flash-lite',{
+    const data=await callGeminiAPI('gemini-3.1-flash-lite',{
       contents:[{parts:[
         {inline_data:{mime_type:mimeType,data:base64Data}},
         {text:`Analyse ce devis et extrais les informations. Réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour :
@@ -3037,7 +3037,7 @@ async function extractFactureInfo(b64){
     const base64Data=b64.split(',')[1];
     const mimeType=b64.startsWith('data:image')?'image/jpeg':'application/pdf';
     const lireLignes=document.getElementById('f-lignes-toggle')?.checked;
-    const data=await callGeminiAPI('gemini-2.5-flash-lite',{
+    const data=await callGeminiAPI('gemini-3.1-flash-lite',{
         contents:[{
           parts:[
             {inline_data:{mime_type:mimeType,data:base64Data}},
@@ -8640,7 +8640,7 @@ async function analyzeCreditPhoto(b64,logKey){
   try{
     const base64Data=b64.split(',')[1];
     const mimeType=b64.split(';')[0].replace('data:','')||'image/jpeg';
-    const data=await callGeminiAPI('gemini-2.5-flash-lite',{
+    const data=await callGeminiAPI('gemini-3.1-flash-lite',{
         contents:[{
           parts:[
             {inline_data:{mime_type:mimeType,data:base64Data}},
