@@ -1231,6 +1231,66 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   </div>
 </div>
 
+<!-- COMPTE COURANT ASSOCIÉ -->
+<div class="content" id="tab-compte-courant">
+  <div class="section-title">🤝 Compte courant associé — ce que te doit la structure</div>
+  <div style="background:rgba(99,179,237,.08);border:1px solid rgba(99,179,237,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
+    ℹ️ Regroupe deux choses qui augmentent ce que la structure te doit : les <b>factures que tu as réglées toi-même</b> (champ "Réglé par" sur la facture) et les <b>virements que tu fais vers le compte de la structure</b> pour qu'elle vive ou paye ses prélèvements. Coche "Remboursé" une fois que la structure te rembourse une ligne — le solde total se recalcule automatiquement.
+  </div>
+
+  <div class="table-wrap" style="padding:16px 20px;margin-bottom:20px">
+    <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Quel(s) nom(s) te représentent dans "Réglé par" ?</div>
+    <div id="cca-noms-checkboxes" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    <div style="font-size:10px;color:var(--text3);margin-top:8px">Coche tous les noms que tu utilises pour toi-même dans le champ "Réglé par" des factures (ex: variantes d'orthographe). Les factures réglées par les autres noms ne comptent pas ici.</div>
+  </div>
+
+  <div class="kpi-grid" id="cca-kpi-grid" style="margin-bottom:24px"></div>
+
+  <div class="section-title">Factures que tu as réglées toi-même</div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">
+      <input type="checkbox" id="cca-show-rembourse-factures" onchange="renderCompteCourant()" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)">
+      Afficher aussi les factures déjà remboursées
+    </label>
+  </div>
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table class="factures-table">
+      <thead><tr>
+        <th>N° Facture</th><th>Date</th><th>Fournisseur</th><th>Logement</th>
+        <th style="text-align:right">TTC</th><th style="text-align:center">Remboursé</th>
+      </tr></thead>
+      <tbody id="cca-factures-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="cca-factures-empty" style="display:none">Aucune facture réglée par toi pour l'instant.</div>
+  </div>
+
+  <div class="section-title">Virements que tu fais vers la structure</div>
+  <div class="table-wrap" style="padding:20px 24px;margin-bottom:20px">
+    <div class="form-grid">
+      <div class="form-group"><label>Date du virement</label><input type="date" id="cca-vir-date"></div>
+      <div class="form-group"><label>Montant (€)</label><input type="number" id="cca-vir-montant" step="0.01" placeholder="0.00"></div>
+      <div class="form-group"><label>Motif <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label><input type="text" id="cca-vir-motif" placeholder="ex: pour payer l'assurance PNO"></div>
+    </div>
+    <button class="btn" onclick="ajouterVirementCCA()" style="margin-top:10px">+ Ajouter le virement</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">
+      <input type="checkbox" id="cca-show-rembourse-virements" onchange="renderCompteCourant()" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)">
+      Afficher aussi les virements déjà remboursés
+    </label>
+  </div>
+  <div class="table-wrap">
+    <table class="factures-table">
+      <thead><tr>
+        <th>Date</th><th>Motif</th><th style="text-align:right">Montant</th>
+        <th style="text-align:center">Remboursé</th><th style="text-align:center">Actions</th>
+      </tr></thead>
+      <tbody id="cca-virements-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="cca-virements-empty" style="display:none">Aucun virement enregistré pour l'instant.</div>
+  </div>
+</div>
+
 <!-- PATRIMOINE — Vue consolidée, overlay plein écran indépendant du switch SCI/LMNP -->
 <div id="overlay-patrimoine" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:5000;overflow-y:auto;isolation:isolate">
   <div style="position:sticky;top:0;z-index:10;background:var(--bg2);border-bottom:1px solid var(--border2);padding:16px 24px;display:flex;justify-content:space-between;align-items:center">
@@ -3198,7 +3258,7 @@ function getTabGroups(){
   const mods = getModulesConfig();
   const groups = [];
   if(mods.construction) groups.push({id:'construction',label:'🏗️ Construction prévisionnelle',tabs:['synthese','logements','budget','dashboard']});
-  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['devis','factures','saisie','annuel','charges-recurrentes','banque']});
+  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['devis','factures','saisie','annuel','charges-recurrentes','banque','compte-courant']});
   if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']});
   if(mods.financement) groups.push({id:'financement',label:'💰 Financement',tabs:['projection','financement']});
   groups.push(paramGroup);
@@ -3206,7 +3266,7 @@ function getTabGroups(){
 }
 function getTabLabels(){return{
   synthese:'Synthèse',logements:'Par logement',budget:'Budget prévisionnel',dashboard:'📊 Dashboard Prév.',
-  devis:'📝 Devis',factures:'Factures réelles',saisie:'+ Saisir une facture',annuel:'📅 Par année','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque',
+  devis:'📝 Devis',factures:'Factures réelles',saisie:'+ Saisir une facture',annuel:'📅 Par année','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque','compte-courant':'🤝 Compte courant',
   locataires:'Fiches & loyers','gestion-locative':'📁 Gestion locative',rentabilite:'📈 Rentabilité',
   projection:'🔭 Projection 20 ans',financement:'💳 Crédit & charges',
   parametres:'⚙️ Paramètres'
@@ -3251,6 +3311,7 @@ function showTab(id){
   if(id==='annuel')renderAnnuel();
   if(id==='charges-recurrentes')renderChargesRecurrentes();
   if(id==='banque')renderBanque();
+  if(id==='compte-courant')renderCompteCourant();
   if(id==='devis')renderDevis();
   if(id==='saisie'){
     const numField=document.getElementById('f-num');
@@ -3904,7 +3965,17 @@ function getBanqueFiltered(factures){
     const matchSearch=!searchF||(f.four||'').toLowerCase().includes(searchF)||(f.num||'').toLowerCase().includes(searchF);
     const matchTransmis=showAll||!f.banque;
     return matchAnnee&&matchLog&&matchSearch&&matchTransmis;
-  }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  }).sort((a,b)=>{
+    const na=a.num||'';const nb=b.num||'';
+    const ma=na.match(/FAC-(\d{4})-(\d+)/i);
+    const mb=nb.match(/FAC-(\d{4})-(\d+)/i);
+    if(ma&&mb){
+      const ya=parseInt(ma[1]);const yb=parseInt(mb[1]);
+      if(ya!==yb)return yb-ya;
+      return parseInt(mb[2])-parseInt(ma[2]);
+    }
+    return nb.localeCompare(na);
+  });
 }
 function toggleBanqueSelectAll(checked){
   const{factures}=loadData();
@@ -4040,6 +4111,154 @@ function renderBanque(){
   if(selCountEl)selCountEl.textContent=banqueSelection.size+' sélectionnée'+(banqueSelection.size>1?'s':'');
   const bulkBar=document.getElementById('banque-bulk-bar');
   if(bulkBar)bulkBar.style.display=banqueSelection.size>0?'flex':'none';
+}
+
+// ── COMPTE COURANT ASSOCIÉ ──────────────────────────────────────────────
+// Suit ce que la structure doit à l'utilisateur : les factures qu'il a réglées lui-même
+// (champ "Réglé par") + les virements personnels qu'il fait vers le compte de la structure.
+// Chaque ligne (facture ou virement) peut être marquée "remboursée" une fois la structure
+// à jour, ce qui la sort du solde dû sans effacer l'historique.
+function loadCCANomsMoi(){
+  try{return JSON.parse(localStorage.getItem(ctxKey('cca_noms_moi'))||'[]');}catch(e){return[];}
+}
+function saveCCANomsMoi(list){
+  localStorage.setItem(ctxKey('cca_noms_moi'),JSON.stringify(list));
+  syncToCloud();
+}
+function loadCCARembourseFactures(){
+  try{return JSON.parse(localStorage.getItem(ctxKey('cca_rembourse_factures'))||'{}');}catch(e){return{};}
+}
+function saveCCARembourseFactures(map){
+  localStorage.setItem(ctxKey('cca_rembourse_factures'),JSON.stringify(map));
+  syncToCloud();
+}
+function loadCCAVirements(){
+  try{return JSON.parse(localStorage.getItem(ctxKey('cca_virements'))||'[]');}catch(e){return[];}
+}
+function saveCCAVirements(list){
+  if(!safeSetItem(ctxKey('cca_virements'),JSON.stringify(list)))return false;
+  syncToCloud();
+  return true;
+}
+
+function toggleCCANomMoi(nom){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
+  const noms=loadCCANomsMoi();
+  const idx=noms.indexOf(nom);
+  if(idx>=0)noms.splice(idx,1);else noms.push(nom);
+  saveCCANomsMoi(noms);
+  renderCompteCourant();
+}
+function toggleCCAFactureRembourse(num,checked){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
+  const map=loadCCARembourseFactures();
+  if(checked)map[num]=true;else delete map[num];
+  saveCCARembourseFactures(map);
+  renderCompteCourant();
+}
+function ajouterVirementCCA(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible d'ajouter un virement."); return; }
+  const date=document.getElementById('cca-vir-date').value;
+  const montant=+document.getElementById('cca-vir-montant').value||0;
+  const motif=document.getElementById('cca-vir-motif').value.trim();
+  if(!date||montant<=0){alert('Date et montant (supérieur à 0) sont obligatoires.');return;}
+  const list=loadCCAVirements();
+  list.push({id:'vir_'+Date.now(),date,montant,motif,rembourse:false});
+  const ok=saveCCAVirements(list);
+  if(!ok){alert('Erreur de stockage.');return;}
+  document.getElementById('cca-vir-date').value='';
+  document.getElementById('cca-vir-montant').value='';
+  document.getElementById('cca-vir-motif').value='';
+  renderCompteCourant();
+}
+function toggleCCAVirementRembourse(id,checked){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
+  const list=loadCCAVirements();
+  const v=list.find(x=>x.id===id);
+  if(v){v.rembourse=checked;saveCCAVirements(list);renderCompteCourant();}
+}
+function supprimerVirementCCA(id){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de supprimer un virement."); return; }
+  if(!confirm('Supprimer ce virement ?'))return;
+  let list=loadCCAVirements();
+  list=list.filter(x=>x.id!==id);
+  saveCCAVirements(list);
+  renderCompteCourant();
+}
+
+function renderCompteCourant(){
+  const{factures}=loadData();
+  const nomsMoi=loadCCANomsMoi();
+  const remboursMap=loadCCARembourseFactures();
+  const virements=loadCCAVirements();
+
+  // Sélecteur de noms — distinct valeurs "Réglé par" présentes dans les factures
+  const distinctNoms=[...new Set(factures.map(f=>(f.regleby||'').trim()).filter(Boolean))].sort();
+  const checkboxesEl=document.getElementById('cca-noms-checkboxes');
+  if(checkboxesEl){
+    if(!distinctNoms.length){
+      checkboxesEl.innerHTML='<span style="font-size:12px;color:var(--text3)">Aucun nom trouvé — renseigne le champ "Réglé par" sur au moins une facture.</span>';
+    } else {
+      checkboxesEl.innerHTML=distinctNoms.map(nom=>{
+        const checked=nomsMoi.includes(nom)?'checked':'';
+        const safe=nom.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+        return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px">
+          <input type="checkbox" ${checked} onchange="toggleCCANomMoi('${safe}')" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)">
+          <span>${nom}</span>
+        </label>`;
+      }).join('');
+    }
+  }
+
+  // Factures réglées par les noms cochés
+  const facturesMoi=factures.map((f,i)=>({...f,_ri:i})).filter(f=>nomsMoi.includes((f.regleby||'').trim()));
+  const facturesNonRemb=facturesMoi.filter(f=>!remboursMap[f.num]);
+  const totalFacturesNonRemb=facturesNonRemb.reduce((s,f)=>s+(+f.ttc||0),0);
+  const showRembFactures=document.getElementById('cca-show-rembourse-factures')?.checked||false;
+  const facturesAffichees=(showRembFactures?facturesMoi:facturesNonRemb).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+
+  // Virements personnels vers la structure
+  const virementsNonRemb=virements.filter(v=>!v.rembourse);
+  const totalVirementsNonRemb=virementsNonRemb.reduce((s,v)=>s+(+v.montant||0),0);
+  const showRembVirements=document.getElementById('cca-show-rembourse-virements')?.checked||false;
+  const virementsAffiches=(showRembVirements?virements:virementsNonRemb).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+
+  const totalDu=totalFacturesNonRemb+totalVirementsNonRemb;
+
+  const kpiEl=document.getElementById('cca-kpi-grid');
+  if(kpiEl)kpiEl.innerHTML=`
+    <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">Factures réglées non remboursées</div><div class="kpi-val">${fmt(totalFacturesNonRemb)}</div><div class="kpi-sub">${facturesNonRemb.length} facture(s)</div></div>
+    <div class="kpi" style="--kpi-color:var(--purple)"><div class="kpi-label">Virements non remboursés</div><div class="kpi-val">${fmt(totalVirementsNonRemb)}</div><div class="kpi-sub">${virementsNonRemb.length} virement(s)</div></div>
+    <div class="kpi" style="--kpi-color:var(--orange)"><div class="kpi-label">Total dû par la structure</div><div class="kpi-val">${fmt(totalDu)}</div><div class="kpi-sub">factures + virements</div></div>
+  `;
+
+  const facturesEmpty=document.getElementById('cca-factures-empty');
+  if(facturesEmpty)facturesEmpty.style.display=facturesAffichees.length?'none':'block';
+  const facturesTbody=document.getElementById('cca-factures-tbody');
+  if(facturesTbody)facturesTbody.innerHTML=facturesAffichees.map(f=>{
+    const remb=!!remboursMap[f.num];
+    return `<tr style="${remb?'opacity:.5':''}">
+      <td style="color:var(--accent);font-weight:500">${f.num||'—'}</td>
+      <td style="color:var(--text2)">${f.date||'—'}</td>
+      <td style="font-weight:500">${f.four||'—'}</td>
+      <td>${renderLogBadgeHTML(f)}</td>
+      <td style="text-align:right;font-weight:600">${fmt(f.ttc)}</td>
+      <td style="text-align:center"><input type="checkbox" ${remb?'checked':''} onchange="toggleCCAFactureRembourse('${(f.num||'').replace(/'/g,"\\'")}',this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--green)"></td>
+    </tr>`;
+  }).join('');
+
+  const virEmpty=document.getElementById('cca-virements-empty');
+  if(virEmpty)virEmpty.style.display=virementsAffiches.length?'none':'block';
+  const virTbody=document.getElementById('cca-virements-tbody');
+  if(virTbody)virTbody.innerHTML=virementsAffiches.map(v=>{
+    return `<tr style="${v.rembourse?'opacity:.5':''}">
+      <td style="color:var(--text2)">${fmtDate(v.date)}</td>
+      <td>${v.motif||'—'}</td>
+      <td style="text-align:right;font-weight:600">${fmt(v.montant)}</td>
+      <td style="text-align:center"><input type="checkbox" ${v.rembourse?'checked':''} onchange="toggleCCAVirementRembourse('${v.id}',this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--green)"></td>
+      <td style="text-align:center"><button class="btn btn-sm btn-danger" onclick="supprimerVirementCCA('${v.id}')">🗑</button></td>
+    </tr>`;
+  }).join('');
 }
 
 // Export groupé (impression PDF) de la sélection courante de l'onglet Banque.
@@ -5444,11 +5663,15 @@ async function syncToCloud(){
     const projection=loadProjection();
     const fcData=loadFC();
     const glDocs=loadGLDocs();
+    const ccaNomsMoi=loadCCANomsMoi();
+    const ccaRembourseFactures=loadCCARembourseFactures();
+    const ccaVirements=loadCCAVirements();
     const syncEl=document.getElementById('sync-status');
     if(syncEl){syncEl.textContent='⟳ Sync...';syncEl.style.color='#f6ad55';}
     const updatedAt=new Date().toISOString();
     await window._setDoc(window._appDataDoc(),{
       budget,factures,devis,fin,locataires,logements,projection,fc:fcData,glDocs,
+      ccaNomsMoi,ccaRembourseFactures,ccaVirements,
       updated:updatedAt
     });
     // Sync séparée des biens patrimoine — document indépendant, isolé dans son propre try/catch :
@@ -5509,6 +5732,9 @@ async function loadFromCloud(){
         if(d.projection)localStorage.setItem(ctxKey('projection'),JSON.stringify(d.projection));
         if(d.fc)localStorage.setItem(ctxKey('fc'),JSON.stringify(d.fc));
         if(d.glDocs)localStorage.setItem(ctxKey('gl_docs'),JSON.stringify(d.glDocs));
+        if(d.ccaNomsMoi)localStorage.setItem(ctxKey('cca_noms_moi'),JSON.stringify(d.ccaNomsMoi));
+        if(d.ccaRembourseFactures)localStorage.setItem(ctxKey('cca_rembourse_factures'),JSON.stringify(d.ccaRembourseFactures));
+        if(d.ccaVirements)localStorage.setItem(ctxKey('cca_virements'),JSON.stringify(d.ccaVirements));
         if(d.updated)localStorage.setItem(ctxKey('last_synced_at'),d.updated);
       }
     }
