@@ -41,6 +41,43 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:658875106145:android:eacc7e358d528dbfe6bb20",
+        "android_client_info": {
+          "package_name": "com.novimmo.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "658875106145-4tq2negrb22el8ngp6s91vllc60ncbsu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.novimmo.app",
+            "certificate_hash": "7f0591b41f380ec7bd719402f39d4af8f49b0686"
+          }
+        },
+        {
+          "client_id": "658875106145-p4kdljiditi857u6em82puo6qee23cht.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFQ6wZJPlIaHMDYv8Txceddxqv0Bahbss"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "658875106145-j8simu5rb93ko75hndipga72v29ohck9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"
