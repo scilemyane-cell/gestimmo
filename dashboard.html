@@ -5,7 +5,7 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Centre de contrôle — GestImmo</title>
+<title>Centre de contrôle — Novimmo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -188,11 +188,6 @@ body::after{
 <body>
 
 <script>
-// ── DÉTECTION APP ANDROID (CAPACITOR) ────────────────────────────────
-// Voir index.html pour l'explication complète. Sur Android, on masque
-// aussi le bouton de connexion Drive (OAuth bloqué en WebView) ; la
-// sauvegarde manuelle reste disponible mais tombe automatiquement en
-// téléchargement local, sans tenter Drive.
 window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 </script>
 
@@ -204,7 +199,7 @@ window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform &
 <div id="app">
   <div class="topbar">
     <div class="logo">
-      <div class="logo-icon"><svg width="30" height="30" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><polygon points="27.5,55 50,25 72.5,55" fill="#FFFFFF"/><rect x="31.5" y="53" width="37" height="32" rx="3" fill="#FFFFFF"/><rect x="46" y="68" width="8" height="17" fill="#0B1C30"/><polyline points="27,78 42,60 53,69 66,45 80,28" fill="none" stroke="#22D3B4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="80" cy="28" r="5" fill="#22D3B4"/></svg></div>GestImmo
+      <div class="logo-icon"><svg width="30" height="30" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><polygon points="27.5,55 50,25 72.5,55" fill="#FFFFFF"/><rect x="31.5" y="53" width="37" height="32" rx="3" fill="#FFFFFF"/><rect x="46" y="68" width="8" height="17" fill="#0B1C30"/><polyline points="27,78 42,60 53,69 66,45 80,28" fill="none" stroke="#22D3B4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="80" cy="28" r="5" fill="#22D3B4"/></svg></div>Novimmo
       <div class="logo-status"><span class="pulse-dot"></span>Système en ligne</div>
     </div>
     <div class="user-menu">
@@ -261,7 +256,6 @@ window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform &
   </div>
 </div>
 
-<!-- MODAL NOUVELLE STRUCTURE -->
 <div class="modal-overlay" id="modal-structure">
   <div class="modal-card">
     <button class="modal-close" onclick="fermerModalStructure()">×</button>
@@ -319,7 +313,6 @@ window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform &
   </div>
 </div>
 
-<!-- MODAL SUPPRESSION STRUCTURE -->
 <div class="modal-overlay" id="modal-suppression">
   <div class="modal-card" style="width:420px">
     <button class="modal-close" onclick="fermerModalSuppression()">×</button>
@@ -352,8 +345,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const functions = getFunctions(app, 'europe-west3');
 
-// ── TEST — bouton temporaire de validation du circuit de paiement Stripe ──
-// Le Price ID est celui de l'offre Essentiel (49€/an), créé sur le Dashboard Stripe.
 window.testerAbonnementEssentiel = async function () {
   const btn = document.getElementById('btn-test-abonnement');
   const texteInitial = btn.innerHTML;
@@ -398,9 +389,6 @@ onAuthStateChanged(auth, async user => {
   await chargerDashboard(user);
 });
 
-// ── ACCEPTATION AUTOMATIQUE DES INVITATIONS EN ATTENTE ──────────────────
-// Si quelqu'un a invité cette adresse email sur une de ses structures, on active
-// l'accès partagé dès la connexion (pas d'action manuelle nécessaire).
 async function accepterInvitationsEnAttente(user){
   if(!user.email) return;
   try{
@@ -422,8 +410,6 @@ async function accepterInvitationsEnAttente(user){
   }catch(e){ console.error('Erreur vérification invitations:', e); }
 }
 
-// Comptes autorisés à voir/utiliser les boutons de sauvegarde manuelle (fonction admin,
-// pas destinée aux clients finaux). Ajoute ici les emails qui doivent avoir accès.
 const ADMIN_BACKUP_EMAILS = ['valentin.giliane@gmail.com', 'gestimmo.solutions@gmail.com'];
 
 async function chargerDashboard(user){
@@ -459,18 +445,10 @@ async function chargerDashboard(user){
   document.getElementById('loader').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
-  // Sauvegarde automatique (silencieuse) — on tente d'abord de reconnecter Drive
-  // silencieusement (si déjà connecté auparavant), puis on vérifie si une nouvelle
-  // sauvegarde est due (au-delà de BACKUP_INTERVAL_DAYS).
   if(estAdminBackup) await initDashboardDrive();
   verifierEtLancerSauvegardeAuto(user.uid);
 }
 
-// ── SAUVEGARDE COMPLÈTE DES DONNÉES (structures, factures, locataires, budget...) ──
-// Exporte tout ce qui appartient à l'utilisateur en un fichier JSON téléchargé
-// localement. Pas de serveur, pas de coût, pas de carte bancaire requise —
-// en échange, ce n'est pas un vrai "cron" côté serveur : ça se déclenche à
-// l'ouverture de l'app, au maximum une fois tous les BACKUP_INTERVAL_DAYS jours.
 const BACKUP_INTERVAL_DAYS = 7;
 async function verifierEtLancerSauvegardeAuto(uid){
   try{
@@ -478,7 +456,7 @@ async function verifierEtLancerSauvegardeAuto(uid){
     const profile = snap.exists() ? snap.data() : {};
     const derniere = profile.lastBackupDate ? new Date(profile.lastBackupDate) : null;
     const joursDepuis = derniere ? (new Date() - derniere) / 86400000 : Infinity;
-    if(joursDepuis < BACKUP_INTERVAL_DAYS) return; // pas encore le moment
+    if(joursDepuis < BACKUP_INTERVAL_DAYS) return;
     await exporterSauvegardeComplete(uid, true);
   }catch(e){ console.error('Erreur vérification sauvegarde auto:', e); }
 }
@@ -489,7 +467,7 @@ async function exporterSauvegardeComplete(uid, silencieux){
     const profileSnap = await getDoc(doc(db, 'users', uid));
     if(profileSnap.exists()){
       const p = { ...profileSnap.data() };
-      delete p.geminiApiKeys; // ne jamais inclure de clés API dans un fichier téléchargé
+      delete p.geminiApiKeys;
       backup.profil = p;
     }
     const structuresSnap = await getDocs(collection(db, 'users', uid, 'structures'));
@@ -509,9 +487,8 @@ async function exporterSauvegardeComplete(uid, silencieux){
     const json = JSON.stringify(backup, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const dateStr = new Date().toISOString().slice(0,10);
-    const filename = `gestimmo-sauvegarde-${dateStr}.json`;
+    const filename = `novimmo-sauvegarde-${dateStr}.json`;
 
-    // Priorité à Google Drive si connecté ; sinon repli automatique sur un téléchargement local
     let driveLink = null;
     if(driveBackupToken) driveLink = await uploadBackupToDrive(blob, filename);
 
@@ -550,7 +527,6 @@ window.exporterSauvegardeManuelle = function(){
   if(currentUser) exporterSauvegardeComplete(currentUser.uid, false);
 };
 
-// ── GOOGLE DRIVE POUR LES SAUVEGARDES (même compte/mécanisme que structure.html) ──
 const GOOGLE_CLIENT_ID = '658875106145-j8simu5rb93ko75hndipga72v29ohck9.apps.googleusercontent.com';
 const DRIVE_BACKUP_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 let driveBackupToken = null;
@@ -565,13 +541,12 @@ function initDashboardDrive(){
       if(btn) btn.style.display = 'none';
       resolve();
     } else if(savedToken){
-      // Token expiré — tenter une reconnexion silencieuse, sans jamais bloquer l'app plus de 1,5s
       let done = false;
       const finir = ()=>{ if(!done){ done = true; resolve(); } };
       reconnectDriveBackupSilent(finir);
       setTimeout(finir, 1500);
     } else {
-      if(btn) btn.style.display = 'inline-block'; // jamais connecté → proposer l'activation
+      if(btn) btn.style.display = 'inline-block';
       resolve();
     }
   });
@@ -580,7 +555,6 @@ function initDashboardDrive(){
 function reconnectDriveBackupSilent(onDone){
   try{
     if(window.isAppAndroid){
-      // Pas de reconnexion silencieuse possible en natif : on propose juste le bouton.
       const btn = document.getElementById('btn-connect-drive-backup');
       if(btn) btn.style.display = 'inline-block';
       if(onDone) onDone();
@@ -617,13 +591,12 @@ window.connectDriveDashboard = async function(){
       if(!accessToken){ alert('Google Drive: aucune autorisation reçue, réessaie.'); return; }
       driveBackupToken = accessToken;
       localStorage.setItem('gestimmo_backup_drive_token', driveBackupToken);
-      // Le plugin natif ne renvoie pas de durée de vie explicite : on prend 55 min par défaut (durée standard d'un token Google).
       localStorage.setItem('gestimmo_backup_drive_token_expiry', Date.now() + (55 * 60 * 1000));
       const email = nativeResult?.user?.email;
       if(email) localStorage.setItem('gestimmo_backup_drive_email', email);
       const btn = document.getElementById('btn-connect-drive-backup');
       if(btn) btn.style.display = 'none';
-      alert('✓ Google Drive connecté ! Tes prochaines sauvegardes iront directement dans le dossier "GestImmo Sauvegardes" sur ton Drive.');
+      alert('✓ Google Drive connecté ! Tes prochaines sauvegardes iront directement dans le dossier "Novimmo Sauvegardes" sur ton Drive.');
       if(currentUser) exporterSauvegardeComplete(currentUser.uid, false);
     }catch(e){
       alert('Erreur de connexion à Google Drive: ' + (e.message || e));
@@ -646,7 +619,7 @@ window.connectDriveDashboard = async function(){
         }catch(e){}
         const btn = document.getElementById('btn-connect-drive-backup');
         if(btn) btn.style.display = 'none';
-        alert('✓ Google Drive connecté ! Tes prochaines sauvegardes iront directement dans le dossier "GestImmo Sauvegardes" sur ton Drive.');
+        alert('✓ Google Drive connecté ! Tes prochaines sauvegardes iront directement dans le dossier "Novimmo Sauvegardes" sur ton Drive.');
         if(currentUser) exporterSauvegardeComplete(currentUser.uid, false);
       }
     }
@@ -654,9 +627,6 @@ window.connectDriveDashboard = async function(){
   client.requestAccessToken({prompt: 'select_account'});
 };
 
-// Upload un fichier de sauvegarde JSON dans le dossier Drive "GestImmo Sauvegardes".
-// Retourne le lien du fichier si succès, ou null si Drive n'est pas connecté / erreur
-// (dans ce cas exporterSauvegardeComplete se rabat sur un téléchargement local).
 async function uploadBackupToDrive(blob, fileName){
   if(!driveBackupToken) return null;
   try{
@@ -675,7 +645,7 @@ async function uploadBackupToDrive(blob, fileName){
       const createData = await createResp.json();
       return createData.id;
     }
-    const folderId = await getOrCreateFolder('GestImmo Sauvegardes', null);
+    const folderId = await getOrCreateFolder('Novimmo Sauvegardes', null);
     const metadata = {name: fileName, parents: [folderId]};
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
@@ -696,7 +666,6 @@ const TYPE_LABELS = {
   LMP:'LMP', NU_IR:'Location nue', NOM_PROPRE:'Nom propre', HOLDING:'Holding'
 };
 
-// ── Helpers de calcul des stats réelles (répliqués depuis structure.html) ──
 function todayStrLocal(){
   const d = new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -797,7 +766,6 @@ async function chargerStructures(uid){
   const grid = document.getElementById('structures-grid');
   try {
     const snap = await getDocs(collection(db, 'users', uid, 'structures'));
-    // Récupère aussi les structures partagées par d'autres utilisateurs avec ce compte
     let structuresPartagees = [];
     try{
       const partageSnap = await getDocs(collection(db, 'partagesUtilisateur', uid, 'acces'));
@@ -902,7 +870,6 @@ async function chargerStructures(uid){
 
 window._editingStructureId = null;
 
-// ── RÉORGANISATION DES STRUCTURES (glisser-déposer) ─────────────────────
 let _draggedStructureId = null;
 window.onStructureDragStart = function(e, id){
   _draggedStructureId = id;
