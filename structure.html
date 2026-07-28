@@ -11303,7 +11303,7 @@ async function envoyerRelanceImpayes(locId, mks, btn){
   const ok=await createGmailDraft(loc.email,sujet,corps,null);
   if(btn){btn.disabled=false;btn.textContent='📧 Relance mail';}
   if(ok){
-    const gmailUrl='https://mail.google.com/mail/?authuser='+encodeURIComponent(cfg.gmail)+'#drafts';
+    const gmailUrl='https://mail.google.com/mail/u/'+encodeURIComponent(cfg.gmail)+'/#drafts';
     if(confirm('✓ Brouillon de relance créé dans Gmail.\n\nOuvrir Gmail pour envoyer ?')){
       window.open(gmailUrl,'_blank');
     }
@@ -11835,7 +11835,7 @@ async function glEnvoyerQuittanceMail(locId, mk, btn){
   if(btn){btn.disabled=false;btn.textContent='📧 Envoyer par mail';}
   if(ok){
     // Ouvrir Gmail directement sur les brouillons
-    const gmailUrl='https://mail.google.com/mail/?authuser='+encodeURIComponent(cfg.gmail)+'#drafts';
+    const gmailUrl='https://mail.google.com/mail/u/'+encodeURIComponent(cfg.gmail)+'/#drafts';
     if(confirm(`✓ Brouillon créé avec la quittance en pièce jointe.\n\nOuvrir Gmail pour envoyer ?`)){
       window.open(gmailUrl,'_blank');
     }
@@ -13711,7 +13711,7 @@ function initContexteUI(){
   // Raccourci boîte mail — simple lien, aucune autorisation Google nécessaire
   const m=document.getElementById('btn-boite-mail');
   if(m && window._currentUserEmail){
-    m.href='https://mail.google.com/mail/?authuser='+encodeURIComponent(window._currentUserEmail);
+    m.href='https://mail.google.com/mail/u/'+encodeURIComponent(window._currentUserEmail)+'/';
   }
   // Sélecteurs logements
   const logs=cfg.logements;
@@ -13762,11 +13762,11 @@ async function ouvrirDossierDrive(){
   }
 
   if(yearFolderId){
-    window.open('https://drive.google.com/drive/folders/'+yearFolderId+'?authuser='+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||''),'_blank');
+    window.open('https://drive.google.com/drive/u/'+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||'')+'/folders/'+yearFolderId,'_blank');
   } else {
     // Ouvrir le dossier racine si pas de dossier pour cette année
     if(confirm('Aucun dossier trouvé pour '+year+' sur Drive.\nOuvrir le dossier principal '+getCTXConfig().driveFolderName+' ?')){
-      window.open('https://drive.google.com/drive/search?authuser='+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||'')+'&q='+encodeURIComponent(getCTXConfig().driveFolderName),'_blank');
+      window.open('https://drive.google.com/drive/u/'+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||'')+'/search?q='+encodeURIComponent(getCTXConfig().driveFolderName),'_blank');
     }
   }
 }
@@ -14055,7 +14055,7 @@ async function ouvrirDossierDriveAnneeDevis(){
       alert(`Aucun dossier Drive pour l'année ${year} (pas encore de devis synchronisé pour cette année).`);
       return;
     }
-    window.open('https://drive.google.com/drive/folders/'+yearFolderId+'?authuser='+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||''),'_blank');
+    window.open('https://drive.google.com/drive/u/'+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||'')+'/folders/'+yearFolderId,'_blank');
   }catch(e){
     console.error('Ouverture dossier Drive devis error:',e);
     alert('Erreur lors de l\'ouverture du dossier : '+e.message);
@@ -14143,7 +14143,7 @@ async function ouvrirDossierDriveAnnee(){
     }
     // Ouvrir le dossier dans un nouvel onglet — Drive applique le tri choisi par l'utilisateur,
     // pense à cliquer sur l'en-tête "Nom" pour trier par numéro de facture si besoin.
-    window.open('https://drive.google.com/drive/folders/'+yearFolderId+'?authuser='+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||''),'_blank');
+    window.open('https://drive.google.com/drive/u/'+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||'')+'/folders/'+yearFolderId,'_blank');
   }catch(e){
     console.error('Ouverture dossier Drive error:',e);
     alert('Erreur lors de l\'ouverture du dossier : '+e.message);
