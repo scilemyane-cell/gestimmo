@@ -2850,7 +2850,10 @@ async function processImageFile(file,isEdit){
   // Compresser l'image avant stockage
   const compressed = await compressImage(file, 1200, 0.8);
   if(isEdit){editPdfB64=compressed;editPdfName=file.name;showUploadPreview(file.name,file.size,true);}
-  else{pendingPdfB64=compressed;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);openSplitViewPhoto(compressed);}
+  else{
+    pendingPdfB64=compressed;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);openSplitViewPhoto(compressed);
+    extractFactureInfo(compressed);
+  }
 }
 
 async function compressImage(file, maxWidth, quality){
