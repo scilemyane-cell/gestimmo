@@ -11303,7 +11303,7 @@ async function envoyerRelanceImpayes(locId, mks, btn){
   const ok=await createGmailDraft(loc.email,sujet,corps,null);
   if(btn){btn.disabled=false;btn.textContent='📧 Relance mail';}
   if(ok){
-    const gmailUrl='https://mail.google.com/mail/#drafts';
+    const gmailUrl='https://mail.google.com/mail/u/?authuser='+encodeURIComponent(cfg.gmail)+'#drafts';
     if(confirm('✓ Brouillon de relance créé dans Gmail.\n\nOuvrir Gmail pour envoyer ?')){
       window.open(gmailUrl,'_blank');
     }
@@ -11835,7 +11835,7 @@ async function glEnvoyerQuittanceMail(locId, mk, btn){
   if(btn){btn.disabled=false;btn.textContent='📧 Envoyer par mail';}
   if(ok){
     // Ouvrir Gmail directement sur les brouillons
-    const gmailUrl='https://mail.google.com/mail/#drafts';
+    const gmailUrl='https://mail.google.com/mail/u/?authuser='+encodeURIComponent(cfg.gmail)+'#drafts';
     if(confirm(`✓ Brouillon créé avec la quittance en pièce jointe.\n\nOuvrir Gmail pour envoyer ?`)){
       window.open(gmailUrl,'_blank');
     }
@@ -13711,7 +13711,7 @@ function initContexteUI(){
   // Raccourci boîte mail — simple lien, aucune autorisation Google nécessaire
   const m=document.getElementById('btn-boite-mail');
   if(m && window._currentUserEmail){
-    m.href='https://mail.google.com/mail/';
+    m.href='https://mail.google.com/mail/u/?authuser='+encodeURIComponent(window._currentUserEmail);
   }
   // Sélecteurs logements
   const logs=cfg.logements;
