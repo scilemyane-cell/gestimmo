@@ -1073,7 +1073,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   <div class="table-wrap" style="padding:24px 24px 20px">
     <div class="form-grid">
       <div class="form-group"><label>N° de document (interne)</label><input type="text" id="f-num" placeholder="FAC-2025-001"></div>
-      <div class="form-group"><label>Date de réception</label><input type="date" id="f-date"></div>
+      <div class="form-group"><label>Date de réception</label><input type="date" id="f-date" onchange="majNumeroFactureSelonDate('f-date','f-num')"></div>
       <div class="form-group"><label>Fournisseur</label>
         <div class="autocomplete-wrap">
           <input type="text" id="f-four" placeholder="Nom de l'entreprise" autocomplete="off" oninput="showSuggestions(this.value,'f-four','ac-four')" onblur="setTimeout(()=>hideSuggestions('ac-four'),200)">
@@ -3362,7 +3362,7 @@ function showTab(id){
   if(id==='devis')renderDevis();
   if(id==='saisie'){
     const numField=document.getElementById('f-num');
-    if(numField&&!numField.value) numField.value=getNextFactureNum();
+    if(numField&&!numField.value){ numField.value=getNextFactureNum(); _lastAutoFactureNum=numField.value; }
   }
 }
 
@@ -3895,7 +3895,7 @@ function renderFactures(){
   }).join('');
 }
 
-function ajouterFacture(){
+async function ajouterFacture(){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible d'ajouter une facture."); return; }
   const ttcInput=parseFloat(document.getElementById('f-ttc').value)||0;
   const four=document.getElementById('f-four').value.trim();
@@ -3968,7 +3968,10 @@ function ajouterFacture(){
     const ffour=(document.getElementById('f-four').value||'facture').replace(/[^a-zA-Z0-9]/g,'_');
     const fnum=d.factures[newIdx].num||'FAC-'+(newIdx+1);
     const fname=fnum+(baseCmd?'_BC'+baseCmd.replace(/[^a-zA-Z0-9]/g,'_'):'')+'_'+ffour+'.pdf';
-    savePdfWithDrive(newIdx, pendingPdfB64, fname);
+    const resUpload=await savePdfWithDrive(newIdx, pendingPdfB64, fname);
+    if(driveAccessToken && !resUpload.driveLink){
+      alert('⚠ La facture est enregistrée, mais l\'envoi du PDF sur Google Drive a échoué (problème réseau ou temporaire). Le PDF est resté en local pour l\'instant — pense à réessayer plus tard avec "☁ Sync Drive" ou "🔗 Lier Drive", sinon il pourrait finir par se perdre.');
+    }
   }
   if(isSplit){
     document.getElementById('f-split-toggle').checked=false;
@@ -3982,7 +3985,7 @@ function ajouterFacture(){
   document.getElementById('f-cmd').value='';
   if(document.getElementById('f-devis'))document.getElementById('f-devis').value='';
   // Nouveau numéro auto pour la prochaine facture
-  setTimeout(()=>{const n=document.getElementById('f-num');if(n)n.value=getNextFactureNum();},100);
+  setTimeout(()=>{const n=document.getElementById('f-num');if(n){n.value=getNextFactureNum();_lastAutoFactureNum=n.value;}},100);
   clearUpload(false);
   _pendingFacturX=null;
   const msg=document.getElementById('msg-ok');msg.style.display='inline';setTimeout(()=>msg.style.display='none',3000);
@@ -11990,7 +11993,7 @@ function closeSplitView(){
   const svLogField=document.getElementById('sv-log-field');if(svLogField)svLogField.style.display='block';
 }
 
-function saveSplitFacture(){
+async function saveSplitFacture(){
   // Garde-fou : des lignes ont été détectées (case "lire ligne par ligne" cochée) mais
   // l'utilisateur n'a pas cliqué sur "Valider la répartition" — on bloque plutôt que
   // d'enregistrer silencieusement sur un seul logement par défaut.
@@ -12063,7 +12066,10 @@ function saveSplitFacture(){
     const fcmd2=document.getElementById('sv-cmd').value;
     const ffour2=(document.getElementById('sv-four').value||'facture').replace(/[^a-zA-Z0-9]/g,'_');
     const fname=fnum2+(fcmd2?'_BC'+fcmd2.replace(/[^a-zA-Z0-9]/g,'_'):'')+'_'+ffour2+'.pdf';
-    savePdfWithDrive(newIdx, pendingPdfB64, fname);
+    const resUpload2=await savePdfWithDrive(newIdx, pendingPdfB64, fname);
+    if(driveAccessToken && !resUpload2.driveLink){
+      alert('⚠ La facture est enregistrée, mais l\'envoi du PDF sur Google Drive a échoué (problème réseau ou temporaire). Le PDF est resté en local pour l\'instant — pense à réessayer plus tard avec "☁ Sync Drive" ou "🔗 Lier Drive".');
+    }
   }
   // Reset
   ['sv-num','sv-date','sv-four','sv-ttc','sv-datepay','sv-desc'].forEach(id=>document.getElementById(id).value='');
@@ -13434,17 +13440,25 @@ async function savePdfWithDrive(idx, b64, fileName){
       }
     }catch(e){console.error('Upload Drive facture échoué:',e);}
   }
-  if(!localOk && driveLink){
-    removePdf(idx); // évite qu'une ancienne version locale périmée masque la nouvelle version (Drive)
+  if(driveLink){
+    // Le PDF est confirmé sur Drive : la copie locale devient redondante (fetchFacturePdfB64 ira
+    // la rechercher sur Drive au besoin). On la libère tout de suite pour ne jamais accumuler de
+    // doublons dans le stockage local du navigateur, qui finissait par se saturer.
+    removePdf(idx);
   }
   return{localOk,driveLink};
 }
 
 
-function getNextFactureNum(){
+let _lastAutoFactureNum=null; // dernier numéro auto-suggéré, pour ne jamais écraser une saisie manuelle
+function getNextFactureNum(dateStr){
   const{factures}=loadData();
-  const year=new Date().getFullYear();
-  // Chercher le plus grand numéro FAC-YYYY-XXX de l'année en cours
+  let year=new Date().getFullYear();
+  if(dateStr){
+    const y=+String(dateStr).slice(0,4);
+    if(y>=2000&&y<=2100)year=y;
+  }
+  // Chercher le plus grand numéro FAC-YYYY-XXX de cette année (celle de la facture, pas forcément l'année en cours)
   let max=0;
   factures.forEach(f=>{
     if(f.num){
@@ -13456,6 +13470,17 @@ function getNextFactureNum(){
   });
   const next=String(max+1).padStart(3,'0');
   return 'FAC-'+year+'-'+next;
+}
+// Recalcule le numéro suggéré quand la date change, pour une facture antidatée (ex: saisie en 2026
+// d'une facture datée de 2025) — sans jamais écraser un numéro que l'utilisateur a modifié à la main.
+function majNumeroFactureSelonDate(dateInputId,numInputId){
+  const dateEl=document.getElementById(dateInputId);
+  const numEl=document.getElementById(numInputId);
+  if(!dateEl||!numEl)return;
+  if(numEl.value && numEl.value!==_lastAutoFactureNum)return;
+  const suggestion=getNextFactureNum(dateEl.value);
+  numEl.value=suggestion;
+  _lastAutoFactureNum=suggestion;
 }
 
 // ── GMAIL SCANNER ─────────────────────────────────────────
@@ -14512,7 +14537,7 @@ window._authReady.then(async () => {
       <h4>Informations de la facture</h4>
       <div id="sv-warn" style="display:none;margin-bottom:14px;font-size:12px;border-radius:8px;padding:9px 12px"></div>
       <div class="split-field"><label>N° de document (interne)</label><input type="text" id="sv-num" placeholder="FAC-2025-001"></div>
-      <div class="split-field"><label>Date de réception</label><input type="date" id="sv-date"></div>
+      <div class="split-field"><label>Date de réception</label><input type="date" id="sv-date" onchange="majNumeroFactureSelonDate('sv-date','sv-num')"></div>
       <div class="split-field"><label>Fournisseur</label>
         <div class="autocomplete-wrap">
           <input type="text" id="sv-four" placeholder="Nom de l'entreprise" autocomplete="off" oninput="showSuggestions(this.value,'sv-four','ac-sv-four')" onblur="setTimeout(()=>hideSuggestions('ac-sv-four'),200)">
