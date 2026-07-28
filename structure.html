@@ -915,6 +915,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
     <!-- UPLOAD PDF/PHOTO — en premier, comme pour les factures : préremplit les champs ci-dessous -->
     <div style="margin-bottom:20px">
+      <div id="devis-drive-warning" style="display:none;background:rgba(246,173,85,.08);border:1px solid rgba(246,173,85,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--orange);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>⚠️ Google Drive n'est pas connecté — les documents importés resteront <b>uniquement sur cet appareil</b> et pourraient être perdus si tu changes de navigateur ou vides ton cache.</span>
+        <button class="btn btn-sm" onclick="connectDrive()" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">📁 Connecter Drive</button>
+      </div>
       <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Importer le devis (préremplit les champs automatiquement) <span style="text-transform:none;letter-spacing:0;color:var(--text3)">— optionnel, tu peux aussi tout saisir à la main plus bas</span></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
         <button type="button" onclick="document.getElementById('devis-pdf-input').click()" style="flex:1;min-width:150px;background:rgba(99,179,237,.1);border:1.5px dashed rgba(99,179,237,.4);border-radius:10px;padding:18px 14px;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
@@ -1130,6 +1134,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
     <!-- UPLOAD PDF -->
     <div style="margin-bottom:20px">
+      <div id="saisie-drive-warning" style="display:none;background:rgba(246,173,85,.08);border:1px solid rgba(246,173,85,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--orange);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>⚠️ Google Drive n'est pas connecté — les documents importés resteront <b>uniquement sur cet appareil</b> et pourraient être perdus si tu changes de navigateur ou vides ton cache.</span>
+        <button class="btn btn-sm" onclick="connectDrive()" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">📁 Connecter Drive</button>
+      </div>
       <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Pièce jointe (PDF facture)</div>
       <!-- Boutons mobile-friendly -->
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
@@ -7132,6 +7140,10 @@ function renderParametres(){
         <button class="btn btn-sm" onclick="ajouterGeminiKey()" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">+ Ajouter cette clé</button>
       </div>
       <div id="gemini-key-status" style="font-size:11px;color:var(--green);margin-top:8px;display:none">✓ Clé ajoutée</div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="testerLectureIA()" id="btn-tester-ia" style="background:var(--bg3);border-color:var(--border)">🧪 Tester la lecture IA</button>
+        <span id="test-ia-status" style="font-size:11px;display:none"></span>
+      </div>
     </div>
 
     <!-- Intégrations comptables (connecteurs par logiciel — Pennylane en premier, d'autres à venir) -->
@@ -11303,7 +11315,7 @@ async function envoyerRelanceImpayes(locId, mks, btn){
   const ok=await createGmailDraft(loc.email,sujet,corps,null);
   if(btn){btn.disabled=false;btn.textContent='📧 Relance mail';}
   if(ok){
-    const gmailUrl='https://mail.google.com/mail/u/?authuser='+encodeURIComponent(cfg.gmail)+'#drafts';
+    const gmailUrl='https://mail.google.com/mail/#drafts';
     if(confirm('✓ Brouillon de relance créé dans Gmail.\n\nOuvrir Gmail pour envoyer ?')){
       window.open(gmailUrl,'_blank');
     }
@@ -11835,7 +11847,7 @@ async function glEnvoyerQuittanceMail(locId, mk, btn){
   if(btn){btn.disabled=false;btn.textContent='📧 Envoyer par mail';}
   if(ok){
     // Ouvrir Gmail directement sur les brouillons
-    const gmailUrl='https://mail.google.com/mail/u/?authuser='+encodeURIComponent(cfg.gmail)+'#drafts';
+    const gmailUrl='https://mail.google.com/mail/#drafts';
     if(confirm(`✓ Brouillon créé avec la quittance en pièce jointe.\n\nOuvrir Gmail pour envoyer ?`)){
       window.open(gmailUrl,'_blank');
     }
@@ -12102,6 +12114,40 @@ function renderGeminiKeysList(){
       <button class="btn btn-sm" onclick="supprimerGeminiKey(${i})" style="background:transparent;border-color:var(--red);color:var(--red);padding:4px 10px">✕</button>
     </div>`;
   }).join('');
+}
+// Test rapide et visible de la lecture automatique IA (Gemini) — permet de détecter une panne
+// (clé invalide, quota dépassé, modèle retiré par Google...) sans attendre de tomber dessus par
+// hasard en important une vraie facture. Utilise le même modèle que la lecture réelle des
+// factures/devis, avec un prompt minimal texte (pas d'image, plus rapide et gratuit).
+async function testerLectureIA(){
+  const btn=document.getElementById('btn-tester-ia');
+  const statusEl=document.getElementById('test-ia-status');
+  if(!getGeminiKeys().length){
+    if(statusEl){statusEl.style.display='inline';statusEl.style.color='#f6ad55';statusEl.textContent='⚠ Aucune clé API configurée — ajoutes-en une ci-dessus avant de tester.';}
+    return;
+  }
+  if(btn){btn.disabled=true;btn.textContent='⏳ Test en cours...';}
+  if(statusEl){statusEl.style.display='inline';statusEl.style.color='var(--text2)';statusEl.textContent='';}
+  try{
+    const data=await callGeminiAPI('gemini-3.1-flash-lite',{
+      contents:[{parts:[{text:'Réponds uniquement par le mot OK.'}]}],
+      generationConfig:{temperature:0,maxOutputTokens:10}
+    });
+    const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+    if(!text)throw new Error('Réponse vide de l\'API');
+    if(statusEl){
+      statusEl.style.color='#68d391';
+      statusEl.textContent='✅ La lecture IA fonctionne (testé le '+fmtDate(todayStr())+' avec gemini-3.1-flash-lite).';
+    }
+  }catch(e){
+    console.error('Test lecture IA échoué:',e);
+    if(statusEl){
+      statusEl.style.color='#fc8181';
+      statusEl.textContent='❌ La lecture IA est en panne : '+e.message+' — la lecture automatique des factures/devis ne fonctionnera pas tant que ce n\'est pas résolu.';
+    }
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='🧪 Tester la lecture IA';}
+  }
 }
 window.toggleGeminiKeyVisibility=function(){
   const inp=document.getElementById('gemini-key-input');
@@ -12887,6 +12933,8 @@ function initGoogleDrive(){
   } else if(savedToken){
     // Token expiré — reconnecter silencieusement
     reconnectDriveSilent();
+  } else {
+    updateDriveUI(false);
   }
   // Renouvellement automatique en arrière-plan : tant que la page reste ouverte,
   // on rafraîchit le jeton un peu avant son expiration, sans jamais solliciter l'utilisateur.
@@ -13077,6 +13125,18 @@ function updateDriveUI(connected){
     const mailBtn=document.getElementById('btn-boite-mail');
     if(mailBtn) mailBtn.style.display='none';
   }
+  updateDriveWarnings(connected);
+}
+
+// Avertit sur les écrans de saisie facture/devis quand Drive n'est pas connecté — non bloquant,
+// juste pour éviter qu'un document n'existe qu'en local et se perde (cf. facture retrouvée
+// manquante alors qu'aucun lien Drive n'avait jamais été enregistré).
+function updateDriveWarnings(connected){
+  const isConnected=connected!==undefined?connected:!!driveAccessToken;
+  ['saisie-drive-warning','devis-drive-warning'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.style.display=isConnected?'none':'flex';
+  });
 }
 
 async function uploadToDrive(b64, fileName, anneeFacture){
@@ -13711,7 +13771,7 @@ function initContexteUI(){
   // Raccourci boîte mail — simple lien, aucune autorisation Google nécessaire
   const m=document.getElementById('btn-boite-mail');
   if(m && window._currentUserEmail){
-    m.href='https://mail.google.com/mail/u/?authuser='+encodeURIComponent(window._currentUserEmail);
+    m.href='https://mail.google.com/mail/';
   }
   // Sélecteurs logements
   const logs=cfg.logements;
