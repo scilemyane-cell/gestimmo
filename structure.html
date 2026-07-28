@@ -878,6 +878,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
       <button class="btn-export" style="background:rgba(246,173,85,.1);border-color:rgba(246,173,85,.4);color:var(--orange)" onclick="exportPDF()">Exporter PDF</button>
       <button class="btn-export" style="background:rgba(183,148,244,.1);border-color:rgba(183,148,244,.4);color:var(--purple)" onclick="renumeroterFactures()">🔢 Renuméroter</button>
+      <button class="btn-export" style="background:rgba(246,173,85,.1);border-color:rgba(246,173,85,.4);color:var(--orange)" onclick="corrigerNumerosMalAlignes()" title="Corrige uniquement les factures dont le numéro ne correspond pas à l'année de leur date">🔧 Corriger numéros/dates</button>
       <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllPdfsToDrive()" id="btn-sync-drive" title="Uploader tous les PDF locaux vers Google Drive">☁ Sync Drive</button>
       <button class="btn-export" style="background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.4);color:var(--green)" onclick="libererEspaceLocalPDF()" id="btn-liberer-espace" title="Supprime les copies locales des PDF déjà présents sur Drive (le fichier reste accessible via Drive)">🧹 Libérer l'espace local</button>
       <button class="btn-export" style="background:rgba(252,129,129,.1);border-color:rgba(252,129,129,.4);color:var(--red)" onclick="nettoyerDoublonsDrive()" id="btn-clean-drive" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
@@ -1116,7 +1117,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         </select>
       </div>
       <div class="form-group"><label>Réglé par</label>
-        <input type="text" id="f-regleby" placeholder="ex: Toi, un associé, la structure...">
+        <input type="text" id="f-regleby" placeholder="ex: TOI, UN ASSOCIÉ, LA STRUCTURE..." style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
       </div>
       <div class="form-group"><label>Date de paiement</label><input type="date" id="f-datepay"></div>
       <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="f-ttc" placeholder="0.00" step="0.01"></div>
@@ -1295,7 +1296,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   <div class="table-wrap" style="padding:20px 24px;margin-bottom:20px">
     <div class="form-grid">
       <div class="form-group"><label>Qui a fait le virement</label>
-        <input type="text" id="cca-vir-qui" placeholder="ex: Toi, un associé..." list="cca-vir-qui-suggestions">
+        <input type="text" id="cca-vir-qui" placeholder="ex: TOI, UN ASSOCIÉ..." list="cca-vir-qui-suggestions" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
         <datalist id="cca-vir-qui-suggestions"></datalist>
       </div>
       <div class="form-group"><label>Date du virement</label><input type="date" id="cca-vir-date"></div>
@@ -1425,7 +1426,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         </select>
       </div>
       <div class="form-group"><label>Réglé par</label>
-        <input type="text" id="e-regleby" placeholder="ex: Toi, un associé, la structure...">
+        <input type="text" id="e-regleby" placeholder="ex: TOI, UN ASSOCIÉ, LA STRUCTURE..." style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
       </div>
       <div class="form-group"><label>Date de paiement</label><input type="date" id="e-datepay"></div>
       <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="e-ttc" step="0.01"></div>
@@ -4202,9 +4203,16 @@ function saveCCAVirements(list){
 
 function toggleCCANomMoi(nom){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
-  const noms=loadCCANomsMoi();
-  const idx=noms.indexOf(nom);
-  if(idx>=0)noms.splice(idx,1);else noms.push(nom);
+  const norm=s=>(s||'').trim().toLowerCase();
+  let noms=loadCCANomsMoi();
+  const dejaCoche=noms.some(n=>norm(n)===norm(nom));
+  if(dejaCoche){
+    // Retire toutes les variantes de casse déjà enregistrées pour ce nom (évite qu'une ancienne
+    // variante oubliée dans le stockage ne garde le nom "coché" malgré le décochage visuel).
+    noms=noms.filter(n=>norm(n)!==norm(nom));
+  } else {
+    noms.push(nom);
+  }
   saveCCANomsMoi(noms);
   renderCompteCourant();
 }
@@ -4279,15 +4287,26 @@ function renderCompteCourant(){
   const remboursMap=loadCCARembourseFactures();
   const virements=loadCCAVirements();
 
-  // Sélecteur de noms — distinct valeurs "Réglé par" présentes dans les factures
-  const distinctNoms=[...new Set(factures.map(f=>(f.regleby||'').trim()).filter(Boolean))].sort();
+  // Sélecteur de noms — distinct valeurs "Réglé par" présentes dans les factures, en regroupant
+  // les variantes de casse (ex: "SCI Lémyane" et "SCI lémyane" comptent comme UN seul nom — on
+  // garde la première casse rencontrée pour l'affichage).
+  const normNom=s=>(s||'').trim().toLowerCase();
+  const nomsCanoniques={};
+  factures.forEach(f=>{
+    const raw=(f.regleby||'').trim();
+    if(!raw)return;
+    const key=normNom(raw);
+    if(!nomsCanoniques[key])nomsCanoniques[key]=raw;
+  });
+  const distinctNoms=Object.values(nomsCanoniques).sort();
+  const nomsMoiNorm=nomsMoi.map(normNom);
   const checkboxesEl=document.getElementById('cca-noms-checkboxes');
   if(checkboxesEl){
     if(!distinctNoms.length){
       checkboxesEl.innerHTML='<span style="font-size:12px;color:var(--text3)">Aucun nom trouvé — renseigne le champ "Réglé par" sur au moins une facture.</span>';
     } else {
       checkboxesEl.innerHTML=distinctNoms.map(nom=>{
-        const checked=nomsMoi.includes(nom)?'checked':'';
+        const checked=nomsMoiNorm.includes(normNom(nom))?'checked':'';
         const safe=nom.replace(/'/g,"\\'").replace(/"/g,'&quot;');
         return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px">
           <input type="checkbox" ${checked} onchange="toggleCCANomMoi('${safe}')" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)">
@@ -4305,14 +4324,14 @@ function renderCompteCourant(){
   }
 
   // Factures réglées par les noms cochés
-  const facturesMoi=factures.map((f,i)=>({...f,_ri:i})).filter(f=>nomsMoi.includes((f.regleby||'').trim()));
+  const facturesMoi=factures.map((f,i)=>({...f,_ri:i})).filter(f=>nomsMoiNorm.includes(normNom(f.regleby)));
   const facturesNonRemb=facturesMoi.filter(f=>!remboursMap[f.num]);
   const totalFacturesNonRemb=facturesNonRemb.reduce((s,f)=>s+(+f.ttc||0),0);
   const showRembFactures=document.getElementById('cca-show-rembourse-factures')?.checked||false;
   const facturesAffichees=(showRembFactures?facturesMoi:facturesNonRemb).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
   // Virements personnels vers la structure — seuls ceux faits par les noms cochés comptent dans le solde dû
-  const virementsMoi=virements.filter(v=>nomsMoi.includes((v.qui||'').trim()));
+  const virementsMoi=virements.filter(v=>nomsMoiNorm.includes(normNom(v.qui)));
   const virementsNonRemb=virementsMoi.filter(v=>!v.rembourse);
   const totalVirementsNonRemb=virementsNonRemb.reduce((s,v)=>s+(+v.montant||0),0);
   const showRembVirements=document.getElementById('cca-show-rembourse-virements')?.checked||false;
@@ -4348,7 +4367,7 @@ function renderCompteCourant(){
   if(virEmpty)virEmpty.style.display=virementsAffiches.length?'none':'block';
   const virTbody=document.getElementById('cca-virements-tbody');
   if(virTbody)virTbody.innerHTML=virementsAffiches.map(v=>{
-    const estMoi=nomsMoi.includes((v.qui||'').trim());
+    const estMoi=nomsMoiNorm.includes(normNom(v.qui));
     return `<tr style="${v.rembourse?'opacity:.5':''}">
       <td style="color:var(--text2)">${fmtDate(v.date)}</td>
       <td style="${estMoi?'':'color:var(--text3);font-style:italic'}">${v.qui||'—'}</td>
@@ -4373,9 +4392,11 @@ function exportCompteCourantPDF(){
   const remboursMap=loadCCARembourseFactures();
   const virements=loadCCAVirements();
   const cfg=getCTXConfig();
+  const normNom=s=>(s||'').trim().toLowerCase();
+  const nomsMoiNorm=nomsMoi.map(normNom);
 
-  const facturesMoi=factures.filter(f=>nomsMoi.includes((f.regleby||'').trim())).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  const virementsMoi=virements.filter(v=>nomsMoi.includes((v.qui||'').trim())).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const facturesMoi=factures.filter(f=>nomsMoiNorm.includes(normNom(f.regleby))).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const virementsMoi=virements.filter(v=>nomsMoiNorm.includes(normNom(v.qui))).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
 
   const totalFacturesTout=facturesMoi.reduce((s,f)=>s+(+f.ttc||0),0);
   const totalFacturesNonRemb=facturesMoi.filter(f=>!remboursMap[f.num]).reduce((s,f)=>s+(+f.ttc||0),0);
@@ -14393,6 +14414,72 @@ async function syncAllPdfsToDrive(){
   }
 }
 
+// Corrige uniquement les factures dont le N° (ex: "FAC-2026-032") ne correspond PAS à l'année de
+// leur date réelle (ex: 2025-03-31) — cas typique d'une facture antidatée saisie plus tard. Ne
+// touche à rien d'autre, contrairement à "Renuméroter" qui traite tout le classeur.
+async function corrigerNumerosMalAlignes(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
+  const d=loadData();
+  const malAlignees=[];
+  d.factures.forEach((f,idx)=>{
+    if(!f.date)return;
+    const m=(f.num||'').match(/FAC-?(\d{4})-?(\d+)/i);
+    if(!m)return;
+    const anneeNum=m[1];
+    const anneeDate=f.date.slice(0,4);
+    if(anneeNum!==anneeDate)malAlignees.push({idx,ancienNum:f.num,date:f.date,anneeCorrecte:anneeDate,four:f.four});
+  });
+  if(!malAlignees.length){
+    alert('✓ Aucune facture mal numérotée trouvée — tous les numéros correspondent déjà à leur année de date.');
+    return;
+  }
+  const liste=malAlignees.map(x=>`${x.ancienNum} (${x.four||'?'}, datée du ${x.date}) → passera en FAC-${x.anneeCorrecte}-XXX`).join('\n');
+  if(!confirm(`${malAlignees.length} facture(s) ont un numéro qui ne correspond pas à l'année de leur date :\n\n${liste}\n\nLes renuméroter pour qu'elles correspondent à leur vraie année ?\n(Seules ces factures-là seront modifiées, aucune autre.)`))return;
+
+  // Pour chaque année concernée, on repart du plus grand numéro déjà utilisé dans cette année
+  // (parmi les factures qui restent correctement alignées), puis on numérote les fautives par ordre de date.
+  const compteurs={};
+  malAlignees.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(x=>{
+    const annee=x.anneeCorrecte;
+    if(compteurs[annee]===undefined){
+      let max=0;
+      d.factures.forEach(f=>{
+        const m=(f.num||'').match(/FAC-?(\d{4})-?(\d+)/i);
+        if(m&&m[1]===annee)max=Math.max(max,parseInt(m[2]));
+      });
+      compteurs[annee]=max;
+    }
+    compteurs[annee]++;
+    const nouveauNum='FAC-'+annee+'-'+String(compteurs[annee]).padStart(3,'0');
+    x.nouveauNum=nouveauNum;
+    d.factures[x.idx].num=nouveauNum;
+  });
+  saveFactures(d.factures);
+
+  // Renommage sur Drive si connecté
+  const aRenommer=malAlignees.filter(x=>{
+    const f=d.factures[x.idx];
+    return f.driveLink;
+  });
+  if(aRenommer.length>0&&driveAccessToken){
+    if(confirm(malAlignees.length+' numéro(s) corrigé(s) !\n\n'+aRenommer.length+' fichier(s) à renommer sur Google Drive pour correspondre. Le faire maintenant ?')){
+      let renamed=0;const echecs=[];
+      for(const x of aRenommer){
+        const f=d.factures[x.idx];
+        const ffour=(f.four||'facture').replace(/[^a-zA-Z0-9]/g,'_');
+        const newName=x.nouveauNum+(f.cmd?'_BC'+f.cmd.replace(/[^a-zA-Z0-9]/g,'_'):'')+'_'+ffour+'.pdf';
+        const ok=await renameDriveFile(f.driveLink,newName);
+        if(ok)renamed++;else echecs.push(x.nouveauNum);
+      }
+      let msg='✓ '+renamed+'/'+aRenommer.length+' fichiers renommés sur Drive !';
+      if(echecs.length)msg+='\n⚠ Échec pour : '+echecs.join(', ');
+      alert(msg);
+    }
+  } else {
+    alert('✓ '+malAlignees.length+' facture(s) renumérotée(s) avec succès !');
+  }
+  renderFactures();
+}
 async function renumeroterFactures(){
   const mode=confirm('Cliquez OK pour renuméroter TOUTES les factures (recommandé).\nCliquez Annuler pour numéroter uniquement celles sans numéro.');
   const d=loadData();
@@ -14571,7 +14658,7 @@ window._authReady.then(async () => {
         </select>
       </div>
       <div class="split-field"><label>Réglé par</label>
-        <input type="text" id="sv-regleby" placeholder="ex: Toi, un associé, la structure...">
+        <input type="text" id="sv-regleby" placeholder="ex: TOI, UN ASSOCIÉ, LA STRUCTURE..." style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
       </div>
       <div class="split-field"><label>N° de commande</label><input type="text" id="sv-cmd" placeholder="BC-2026-001"></div>
       <div class="split-field"><label>Description</label><input type="text" id="sv-desc" placeholder="Détail"></div>
