@@ -912,6 +912,26 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
   <div class="table-wrap" style="padding:24px 24px 20px;margin-bottom:20px">
     <div class="section-title" style="margin:0 0 14px" id="devis-form-title">+ Ajouter un devis</div>
+
+    <!-- UPLOAD PDF/PHOTO — en premier, comme pour les factures : préremplit les champs ci-dessous -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Importer le devis (préremplit les champs automatiquement) <span style="text-transform:none;letter-spacing:0;color:var(--text3)">— optionnel, tu peux aussi tout saisir à la main plus bas</span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <button type="button" onclick="document.getElementById('devis-pdf-input').click()" style="flex:1;min-width:150px;background:rgba(99,179,237,.1);border:1.5px dashed rgba(99,179,237,.4);border-radius:10px;padding:18px 14px;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+          📎 Sélectionner un fichier<br><small style="font-size:10px;color:var(--text3);font-weight:400">PDF ou image</small>
+        </button>
+        <button type="button" onclick="document.getElementById('devis-camera-input').click()" style="flex:1;min-width:150px;background:rgba(104,211,145,.1);border:1.5px dashed rgba(104,211,145,.4);border-radius:10px;padding:18px 14px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+          📷 Prendre une photo<br><small style="font-size:10px;color:var(--text3);font-weight:400">Appareil photo</small>
+        </button>
+        <button type="button" onclick="openDrivePicker('devis')" style="flex:1;min-width:150px;background:rgba(246,173,85,.1);border:1.5px dashed rgba(246,173,85,.4);border-radius:10px;padding:18px 14px;color:var(--orange);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+          📂 Depuis Google Drive<br><small style="font-size:10px;color:var(--text3);font-weight:400">Fichier déjà existant</small>
+        </button>
+      </div>
+      <input type="file" accept="application/pdf,image/*" id="devis-pdf-input" onchange="onDevisFileChange(event)" style="display:none">
+      <input type="file" accept="image/*" capture="environment" id="devis-camera-input" onchange="onDevisCameraChange(event)" style="display:none">
+      <div id="devis-pdf-preview" style="display:none;margin-top:8px;font-size:11px;color:var(--text2)"></div>
+    </div>
+
     <div class="form-grid">
       <div class="form-group"><label>N° de devis</label><input type="text" id="devis-num" placeholder="DEV-2026-001"></div>
       <div class="form-group"><label>Date</label><input type="date" id="devis-date"></div>
@@ -943,11 +963,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         </select>
       </div>
       <div class="form-group" style="grid-column:1/-1"><label>Description</label><input type="text" id="devis-desc" placeholder="Détail du devis"></div>
-      <div class="form-group" style="grid-column:1/-1">
-        <label>Scan / PDF du devis <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label>
-        <input type="file" id="devis-pdf-input" accept="application/pdf,image/*" onchange="onDevisFileChange(event)" style="font-size:12px;color:var(--text2)">
-        <div id="devis-pdf-preview" style="display:none;margin-top:6px;font-size:11px;color:var(--text2)"></div>
-      </div>
     </div>
     <div style="display:flex;gap:10px;margin-top:14px">
       <button class="btn" onclick="ajouterOuModifierDevis()" id="devis-submit-btn">+ Ajouter le devis</button>
@@ -1244,6 +1259,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div style="font-size:10px;color:var(--text3);margin-top:8px">Coche tous les noms que tu utilises pour toi-même dans le champ "Réglé par" des factures (ex: variantes d'orthographe). Les factures réglées par les autres noms ne comptent pas ici.</div>
   </div>
 
+  <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+    <button class="btn-export" onclick="exportCompteCourantPDF()" style="background:rgba(246,173,85,.1);border-color:rgba(246,173,85,.4);color:var(--orange);font-size:12px;padding:9px 18px">📄 Export comptable PDF</button>
+  </div>
   <div class="kpi-grid" id="cca-kpi-grid" style="margin-bottom:24px"></div>
 
   <div class="section-title">Factures que tu as réglées toi-même</div>
@@ -1275,7 +1293,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>Montant (€)</label><input type="number" id="cca-vir-montant" step="0.01" placeholder="0.00"></div>
       <div class="form-group"><label>Motif <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label><input type="text" id="cca-vir-motif" placeholder="ex: pour payer l'assurance PNO"></div>
     </div>
-    <button class="btn" onclick="ajouterVirementCCA()" style="margin-top:10px">+ Ajouter le virement</button>
+    <button class="btn" onclick="ajouterOuModifierVirementCCA()" id="cca-vir-submit-btn" style="margin-top:10px">+ Ajouter le virement</button>
+    <button class="btn btn-sm" onclick="annulerEditVirementCCA()" id="cca-vir-cancel-btn" style="display:none;margin-top:10px;margin-left:8px;background:rgba(100,116,139,.1);border-color:rgba(100,116,139,.3);color:var(--text2)">Annuler la modification</button>
   </div>
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">
@@ -2110,9 +2129,7 @@ function appliquerDevisSurFacture(){
 let editDevisIdx=null;
 let pendingDevisPdfB64=null,pendingDevisPdfName=null;
 
-async function onDevisFileChange(e){
-  const file=e.target.files[0];
-  if(!file)return;
+async function processDevisFile(file){
   if(file.type.startsWith('image/')){
     pendingDevisPdfB64=await compressImage(file,1200,0.8);
   } else if(file.type==='application/pdf'){
@@ -2121,13 +2138,23 @@ async function onDevisFileChange(e){
     pendingDevisPdfB64=b64;
   } else {
     alert('Seuls les fichiers PDF ou images sont acceptés.');
-    e.target.value='';
     return;
   }
   pendingDevisPdfName=file.name;
   const prev=document.getElementById('devis-pdf-preview');
   if(prev){prev.style.display='block';prev.textContent='📎 '+file.name+' — sera enregistré avec le devis';}
   extractDevisInfo(pendingDevisPdfB64);
+}
+async function onDevisFileChange(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  await processDevisFile(file);
+}
+async function onDevisCameraChange(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  await processDevisFile(file);
+  e.target.value='';
 }
 
 // Lecture automatique du devis par IA (Gemini) — préremplit les champs vides du formulaire.
@@ -4164,22 +4191,47 @@ function toggleCCAFactureRembourse(num,checked){
   saveCCARembourseFactures(map);
   renderCompteCourant();
 }
-function ajouterVirementCCA(){
-  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible d'ajouter un virement."); return; }
+let editVirementCCAId=null;
+function ajouterOuModifierVirementCCA(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const qui=document.getElementById('cca-vir-qui').value.trim();
   const date=document.getElementById('cca-vir-date').value;
   const montant=+document.getElementById('cca-vir-montant').value||0;
   const motif=document.getElementById('cca-vir-motif').value.trim();
   if(!qui||!date||montant<=0){alert('Qui a fait le virement, la date et le montant (supérieur à 0) sont obligatoires.');return;}
   const list=loadCCAVirements();
-  list.push({id:'vir_'+Date.now(),qui,date,montant,motif,rembourse:false});
+  if(editVirementCCAId){
+    const v=list.find(x=>x.id===editVirementCCAId);
+    if(v){v.qui=qui;v.date=date;v.montant=montant;v.motif=motif;}
+  }else{
+    list.push({id:'vir_'+Date.now(),qui,date,montant,motif,rembourse:false});
+  }
   const ok=saveCCAVirements(list);
   if(!ok){alert('Erreur de stockage.');return;}
+  annulerEditVirementCCA();
+  renderCompteCourant();
+}
+function ouvrirEditVirementCCA(id){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
+  const v=loadCCAVirements().find(x=>x.id===id);
+  if(!v)return;
+  editVirementCCAId=id;
+  document.getElementById('cca-vir-qui').value=v.qui||'';
+  document.getElementById('cca-vir-date').value=v.date||'';
+  document.getElementById('cca-vir-montant').value=v.montant||'';
+  document.getElementById('cca-vir-motif').value=v.motif||'';
+  document.getElementById('cca-vir-submit-btn').textContent='Enregistrer les modifications';
+  document.getElementById('cca-vir-cancel-btn').style.display='inline-block';
+  document.getElementById('cca-vir-qui').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function annulerEditVirementCCA(){
+  editVirementCCAId=null;
   document.getElementById('cca-vir-qui').value='';
   document.getElementById('cca-vir-date').value='';
   document.getElementById('cca-vir-montant').value='';
   document.getElementById('cca-vir-motif').value='';
-  renderCompteCourant();
+  document.getElementById('cca-vir-submit-btn').textContent='+ Ajouter le virement';
+  document.getElementById('cca-vir-cancel-btn').style.display='none';
 }
 function toggleCCAVirementRembourse(id,checked){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
@@ -4193,6 +4245,7 @@ function supprimerVirementCCA(id){
   let list=loadCCAVirements();
   list=list.filter(x=>x.id!==id);
   saveCCAVirements(list);
+  if(editVirementCCAId===id)annulerEditVirementCCA();
   renderCompteCourant();
 }
 
@@ -4278,9 +4331,122 @@ function renderCompteCourant(){
       <td>${v.motif||'—'}</td>
       <td style="text-align:right;font-weight:600">${fmt(v.montant)}</td>
       <td style="text-align:center"><input type="checkbox" ${v.rembourse?'checked':''} onchange="toggleCCAVirementRembourse('${v.id}',this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--green)"></td>
-      <td style="text-align:center"><button class="btn btn-sm btn-danger" onclick="supprimerVirementCCA('${v.id}')">🗑</button></td>
+      <td style="text-align:center">
+        <button class="btn btn-sm btn-edit" onclick="ouvrirEditVirementCCA('${v.id}')">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="supprimerVirementCCA('${v.id}')">🗑</button>
+      </td>
     </tr>`;
   }).join('');
+}
+
+// Extraction comptable du compte courant associé — document imprimable listant toutes les
+// factures réglées personnellement et tous les virements faits vers la structure, avec leur
+// statut de remboursement, à transmettre au comptable pour justifier le compte courant.
+function exportCompteCourantPDF(){
+  const{factures}=loadData();
+  const nomsMoi=loadCCANomsMoi();
+  if(!nomsMoi.length){alert('Coche d\'abord au moins un nom dans "Quel(s) nom(s) te représentent" avant d\'exporter.');return;}
+  const remboursMap=loadCCARembourseFactures();
+  const virements=loadCCAVirements();
+  const cfg=getCTXConfig();
+
+  const facturesMoi=factures.filter(f=>nomsMoi.includes((f.regleby||'').trim())).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const virementsMoi=virements.filter(v=>nomsMoi.includes((v.qui||'').trim())).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+
+  const totalFacturesTout=facturesMoi.reduce((s,f)=>s+(+f.ttc||0),0);
+  const totalFacturesNonRemb=facturesMoi.filter(f=>!remboursMap[f.num]).reduce((s,f)=>s+(+f.ttc||0),0);
+  const totalVirementsTout=virementsMoi.reduce((s,v)=>s+(+v.montant||0),0);
+  const totalVirementsNonRemb=virementsMoi.filter(v=>!v.rembourse).reduce((s,v)=>s+(+v.montant||0),0);
+  const totalDu=totalFacturesNonRemb+totalVirementsNonRemb;
+
+  const facturesRows=facturesMoi.map(f=>{
+    const remb=!!remboursMap[f.num];
+    return `<tr>
+      <td>${f.num||'—'}</td><td>${f.date||'—'}</td><td>${f.four||'—'}</td>
+      <td>${getLogDisplayText(f)}</td>
+      <td style="text-align:right">${fmt(f.ttc)}</td>
+      <td style="color:${remb?'#276749':'#c05621'}">${remb?'Remboursée':'Non remboursée'}</td>
+    </tr>`;
+  }).join('');
+
+  const virementsRows=virementsMoi.map(v=>`<tr>
+    <td>${fmtDate(v.date)}</td><td>${v.qui||'—'}</td><td>${v.motif||'—'}</td>
+    <td style="text-align:right">${fmt(v.montant)}</td>
+    <td style="color:${v.rembourse?'#276749':'#c05621'}">${v.rembourse?'Remboursé':'Non remboursé'}</td>
+  </tr>`).join('');
+
+  const html=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+  <title>Compte courant associé — ${cfg.nom}</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a202c;font-size:12px;padding:20mm 25mm;max-width:210mm;margin:0 auto}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2b6cb0;padding-bottom:14px;margin-bottom:20px}
+    h1{font-size:20px;font-weight:800;color:#2b6cb0;margin:0 0 4px}
+    .section-title{font-size:13px;font-weight:700;color:#2b6cb0;border-left:4px solid #2b6cb0;padding-left:10px;margin:18px 0 10px;text-transform:uppercase}
+    table{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:11px}
+    th{background:#ebf8ff;color:#2b6cb0;padding:6px 10px;text-align:left;font-size:10px;text-transform:uppercase}
+    td{padding:6px 10px;border-bottom:1px solid #e2e8f0}
+    .total-row{font-weight:700;background:#f7fafc}
+    .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+    .kpi{background:#f7fafc;border-radius:8px;padding:12px 16px;border:1px solid #e2e8f0}
+    .kpi-val{font-size:20px;font-weight:700;color:#2b6cb0}
+    .kpi-label{font-size:10px;color:#718096;text-transform:uppercase;margin-top:4px}
+    .result-box{background:#ebf8ff;border:2px solid #bee3f8;border-radius:10px;padding:16px;margin:16px 0}
+    @media print{@page{size:A4 portrait;margin:15mm 20mm}body{padding:0}}
+  </style></head><body>
+
+    <div class="header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="${getLogoB64()}" alt="Logo" style="height:60px;width:auto;object-fit:contain">
+        <div>
+          <h1>${cfg.nom}</h1>
+          <div style="font-size:11px;color:#718096">Compte courant associé — ${nomsMoi.join(', ')}</div>
+          <div style="font-size:11px;color:#718096">Établi le ${fmtDate(todayStr())}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-val">${fmt(totalFacturesNonRemb)}</div><div class="kpi-label">Factures non remboursées</div></div>
+      <div class="kpi"><div class="kpi-val">${fmt(totalVirementsNonRemb)}</div><div class="kpi-label">Virements non remboursés</div></div>
+      <div class="kpi"><div class="kpi-val" style="color:#c05621">${fmt(totalDu)}</div><div class="kpi-label">Total dû par la structure</div></div>
+    </div>
+
+    <div class="section-title">Factures réglées personnellement (${facturesMoi.length})</div>
+    <table>
+      <thead><tr><th>N° Facture</th><th>Date</th><th>Fournisseur</th><th>Logement</th><th style="text-align:right">TTC</th><th>Statut</th></tr></thead>
+      <tbody>${facturesRows||'<tr><td colspan="6" style="text-align:center;color:#718096">Aucune facture</td></tr>'}</tbody>
+      <tfoot><tr class="total-row"><td colspan="4">TOTAL</td><td style="text-align:right">${fmt(totalFacturesTout)}</td><td></td></tr></tfoot>
+    </table>
+
+    <div class="section-title">Virements vers la structure (${virementsMoi.length})</div>
+    <table>
+      <thead><tr><th>Date</th><th>Qui</th><th>Motif</th><th style="text-align:right">Montant</th><th>Statut</th></tr></thead>
+      <tbody>${virementsRows||'<tr><td colspan="5" style="text-align:center;color:#718096">Aucun virement</td></tr>'}</tbody>
+      <tfoot><tr class="total-row"><td colspan="3">TOTAL</td><td style="text-align:right">${fmt(totalVirementsTout)}</td><td></td></tr></tfoot>
+    </table>
+
+    <div class="result-box">
+      <div style="font-size:13px;font-weight:700;color:#2b6cb0;margin-bottom:10px">SOLDE DU COMPTE COURANT</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:6px;font-size:12px">
+        <div>Factures réglées non remboursées</div><div style="font-weight:600;text-align:right">${fmt(totalFacturesNonRemb)}</div>
+        <div>Virements non remboursés</div><div style="font-weight:600;text-align:right">${fmt(totalVirementsNonRemb)}</div>
+        <div style="font-weight:700;color:#2b6cb0;padding-top:8px;border-top:2px solid #bee3f8">= Total dû par la structure</div>
+        <div style="font-weight:700;font-size:15px;text-align:right;padding-top:8px;border-top:2px solid #bee3f8;color:#c05621">${fmt(totalDu)}</div>
+      </div>
+    </div>
+
+    <div style="font-size:9px;color:#718096;margin-top:20px;padding-top:10px;border-top:1px solid #e2e8f0">
+      Document établi à partir des factures dont le champ "Réglé par" correspond à ${nomsMoi.join(', ')}, et des virements personnels déclarés dans l'application.
+      Les lignes marquées "Remboursée"/"Remboursé" n'entrent pas dans le total dû ci-dessus. Généré le ${fmtDate(todayStr())} par ${cfg.nom}.
+    </div>
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec Novimmo — gestion locative simplifiée</span>
+    </div>
+  </body></html>`;
+
+  openPrintOverlay(html,`Compte courant associé — ${cfg.nom}`);
 }
 
 // Export groupé (impression PDF) de la sélection courante de l'onglet Banque.
@@ -12880,6 +13046,7 @@ async function onDrivePickerResult(data, cible){
     const file = new File([blob], doc.name, { type: doc.mimeType || blob.type });
     // Réutilise exactement le même traitement qu'un fichier choisi localement
     if(cible === 'facture') await processFile(file, false);
+    if(cible === 'devis') await processDevisFile(file);
   }catch(e){
     alert('Erreur lors de l\'import depuis Drive : '+e.message);
   }
