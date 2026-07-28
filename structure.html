@@ -879,6 +879,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <button class="btn-export" style="background:rgba(246,173,85,.1);border-color:rgba(246,173,85,.4);color:var(--orange)" onclick="exportPDF()">Exporter PDF</button>
       <button class="btn-export" style="background:rgba(183,148,244,.1);border-color:rgba(183,148,244,.4);color:var(--purple)" onclick="renumeroterFactures()">🔢 Renuméroter</button>
       <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllPdfsToDrive()" id="btn-sync-drive" title="Uploader tous les PDF locaux vers Google Drive">☁ Sync Drive</button>
+      <button class="btn-export" style="background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.4);color:var(--green)" onclick="libererEspaceLocalPDF()" id="btn-liberer-espace" title="Supprime les copies locales des PDF déjà présents sur Drive (le fichier reste accessible via Drive)">🧹 Libérer l'espace local</button>
       <button class="btn-export" style="background:rgba(252,129,129,.1);border-color:rgba(252,129,129,.4);color:var(--red)" onclick="nettoyerDoublonsDrive()" id="btn-clean-drive" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
       <select class="filter-select" id="drive-year-select" title="Année du dossier Drive à ouvrir" style="font-weight:600"></select>
       <button class="btn-export" style="background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.4);color:var(--accent)" onclick="ouvrirDossierDriveAnnee()" id="btn-open-drive" title="Ouvrir le dossier Drive de l'année sélectionnée">📂 Ouvrir dossier Drive</button>
@@ -14175,7 +14176,7 @@ async function syncAllDevisPdfsToDrive(){
         const link=await uploadToDriveDevis(b64,dfname,anneeDevis);
         if(link){
           const devis2=loadDevis();
-          if(devis2[i]){devis2[i].driveLink=link;saveDevis(devis2);uploaded++;}
+          if(devis2[i]){devis2[i].driveLink=link;saveDevis(devis2);removeDevisPdf(i);uploaded++;}
         } else {errors++;}
       }catch(e){errors++;console.error('Sync Drive error devis',i,e);}
     }
@@ -14240,6 +14241,26 @@ async function ouvrirDossierDriveAnnee(){
 // Modifier renumeroterFactures pour aussi renommer sur Drive
 // ── SYNC TOUS PDF LOCAUX → DRIVE ─────────────────────────────────────────
 let _syncDriveEnCours=false;
+// Supprime les copies locales des PDF déjà confirmés sur Drive (driveLink présent) — ces copies
+// sont redondantes une fois sur Drive (fetchFacturePdfB64 va rechercher sur Drive automatiquement
+// si le local est absent), et leur accumulation dans localStorage finit par saturer le stockage
+// du navigateur (message "Erreur de stockage — données trop volumineuses" lors d'une saisie).
+function libererEspaceLocalPDF(){
+  const{factures}=loadData();
+  let liberes=0;
+  factures.forEach((f,i)=>{
+    if(f.driveLink && loadPdf(i)){
+      removePdf(i);
+      liberes++;
+    }
+  });
+  if(liberes===0){
+    alert("Rien à libérer — aucun PDF local redondant avec Drive n'a été trouvé. Si tu es bloqué par une erreur de stockage, essaie d'abord \"☁ Sync Drive\" pour envoyer tes PDF locaux sur Drive, puis relance cette action.");
+  } else {
+    alert('✓ '+liberes+' copie(s) locale(s) de PDF déjà sur Drive ont été supprimées. Les fichiers restent accessibles normalement (l\'app va les rechercher sur Drive).');
+  }
+  renderFactures();
+}
 async function syncAllPdfsToDrive(){
   if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
   if(_syncDriveEnCours){alert('Une synchronisation est déjà en cours, patiente qu\'elle se termine.');return;}
@@ -14270,6 +14291,7 @@ async function syncAllPdfsToDrive(){
           const dNow=loadData();
           dNow.factures[i].driveLink=link;
           saveFactures(dNow.factures);
+          removePdf(i); // le fichier est désormais sur Drive : la copie locale est redondante, on la libère
           uploaded++;
         } else {errors++;}
       }catch(e){errors++;console.error('Sync Drive error facture',i,e);}
