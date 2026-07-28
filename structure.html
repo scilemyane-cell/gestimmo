@@ -3774,10 +3774,10 @@ function getDuplicateIndices(factures){
   for(let i=0;i<factures.length;i++){
     if(dups.has(i))continue;
     const a=factures[i];
-    if(!a.four||!(+a.ttc>0))continue;
+    if(!a.four||!(+a.ttc>0)||a.doublonConfirme)continue;
     for(let j=i+1;j<factures.length;j++){
       const b=factures[j];
-      if(!b.four||!(+b.ttc>0))continue;
+      if(!b.four||!(+b.ttc>0)||b.doublonConfirme)continue;
       const sameAmount=Math.abs((+a.ttc||0)-(+b.ttc||0))<0.01;
       if(!sameAmount)continue;
       const sameFour=normFourName(a.four)===normFourName(b.four);
@@ -3786,6 +3786,15 @@ function getDuplicateIndices(factures){
     }
   }
   return dups;
+}
+function confirmerPasDoublon(idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier cette facture."); return; }
+  const d=loadData();
+  if(!d.factures[idx])return;
+  if(!confirm('Confirmer que cette facture n\'est PAS un doublon ?\nLe signalement ne réapparaîtra plus pour elle.'))return;
+  d.factures[idx].doublonConfirme=true;
+  saveFactures(d.factures);
+  renderFactures();
 }
 function renderFactures(){
   const{factures}=loadData();
@@ -3858,7 +3867,7 @@ function renderFactures(){
     const isDup=dupIndices.has(ri);
     if(isDup){alertClass='row-alert-duplicate';}
     return`<tr class="${alertClass}" style="${excluStyle}">
-      <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${isDup?' <span style="font-size:9px;background:rgba(252,129,129,.25);color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON</span>':''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #f6ad55;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
+      <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${isDup?` <span onclick="confirmerPasDoublon(${ri})" title="Cliquer pour confirmer que ce n'est PAS un doublon" style="cursor:pointer;font-size:9px;background:rgba(252,129,129,.25);color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON — ✓ Confirmer que non</span>`:''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #f6ad55;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}${f.sourceCertifiee?' <span title="Facture électronique certifiée (Factur-X) — données garanties exactes, aucune lecture IA" style="font-size:9px;background:rgba(99,179,237,.15);color:#63b3ed;border:1px solid rgba(99,179,237,.4);border-radius:3px;padding:1px 5px;font-weight:700">🔷 CERTIFIÉE</span>':''}</td>
       <td style="color:var(--text2);font-size:11px">${getCatDisplayText(f)}</td>
@@ -6894,6 +6903,10 @@ function getReelTotalsByYearTyped(factures,year,type){
       result['Commun']=(result['Commun']||0)+ttc;
     }else if(result[f.log]!==undefined){
       result[f.log]+=ttc;
+    }else{
+      // Logement inconnu du contexte actuel (ex: "Frais SCI") — compté quand même dans le total
+      // global, sous sa propre clé, plutôt que d'être silencieusement ignoré.
+      result[f.log]=(result[f.log]||0)+ttc;
     }
   });
   return result;
@@ -8590,25 +8603,33 @@ function genererRapportRentabiliteNette(years, logKeys){
       totalLoyers+=loyers;totalFonct+=fonct;totalRecur+=recur;totalTravaux+=trav;totalInterets+=interets;totalCapitalRembo+=capitalRembo;
       return{lg,loyers,fonct,recur,trav,interets,capitalRembo,net,cashflow};
     });
+    // Frais de SCI (logement "Frais SCI", non attribué à un logement précis) — comptés dans le
+    // total global de fonctionnement/travaux, mais pas répartis sur une ligne de logement.
+    const logLabels=logs.map(lg=>lg.label);
+    const fraisSCIFonct=Object.entries(fonctionnement).filter(([k])=>!logLabels.includes(k)&&k!=='Commun').reduce((s,[,v])=>s+v,0);
+    const fraisSCITravaux=Object.entries(travaux).filter(([k])=>!logLabels.includes(k)&&k!=='Commun').reduce((s,[,v])=>s+v,0);
+    totalFonct+=fraisSCIFonct;
+    totalTravaux+=fraisSCITravaux;
     const totalChargesTous=totalFonct+totalRecur;
     const totalNet=totalLoyers-totalChargesTous-totalInterets;
     const totalCashflow=totalNet-totalCapitalRembo;
     const totalRendement=totalLoyers>0?Math.round(totalNet/totalLoyers*1000)/10:0;
     const totalCashflowPct=totalLoyers>0?Math.round(totalCashflow/totalLoyers*1000)/10:0;
 
-    return{annee,rows,parCatFonct,totalLoyers,totalFonct,totalRecur,totalChargesTous,totalTravaux,totalInterets,totalCapitalRembo,totalNet,totalCashflow,totalRendement,totalCashflowPct,totalHorsRentabilite};
+    return{annee,rows,parCatFonct,totalLoyers,totalFonct,totalRecur,totalChargesTous,totalTravaux,totalInterets,totalCapitalRembo,totalNet,totalCashflow,totalRendement,totalCashflowPct,totalHorsRentabilite,fraisSCIFonct,fraisSCITravaux};
   }
 
   const dataParAnnee=years.map(calculerAnnee);
 
   // Cumul sur la période sélectionnée
   const cumul={
-    totalLoyers:0,totalFonct:0,totalRecur:0,totalTravaux:0,totalInterets:0,totalCapitalRembo:0,totalHorsRentabilite:0
+    totalLoyers:0,totalFonct:0,totalRecur:0,totalTravaux:0,totalInterets:0,totalCapitalRembo:0,totalHorsRentabilite:0,fraisSCIFonct:0,fraisSCITravaux:0
   };
   dataParAnnee.forEach(d=>{
     cumul.totalLoyers+=d.totalLoyers;cumul.totalFonct+=d.totalFonct;cumul.totalRecur+=d.totalRecur;
     cumul.totalTravaux+=d.totalTravaux;cumul.totalInterets+=d.totalInterets;cumul.totalCapitalRembo+=d.totalCapitalRembo;
     cumul.totalHorsRentabilite+=d.totalHorsRentabilite;
+    cumul.fraisSCIFonct+=d.fraisSCIFonct||0;cumul.fraisSCITravaux+=d.fraisSCITravaux||0;
   });
   cumul.totalChargesTous=cumul.totalFonct+cumul.totalRecur;
   cumul.totalNet=cumul.totalLoyers-cumul.totalChargesTous-cumul.totalInterets;
@@ -8725,6 +8746,9 @@ function genererRapportRentabiliteNette(years, logKeys){
     </div>
     ${cumul.totalHorsRentabilite>0?`<div style="background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:11px;color:#c53030">
       ⛔ <b>${fmt(cumul.totalHorsRentabilite)} exclus du calcul</b> sur la période (catégorie "Hors rentabilité" — prêts mal classés ou virements personnels).
+    </div>`:''}
+    ${(cumul.fraisSCIFonct>0||cumul.fraisSCITravaux>0)?`<div style="background:#faf5ff;border:1px solid #e9d8fd;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:11px;color:#6b46c1">
+      🏛️ <b>Dont ${fmt(cumul.fraisSCIFonct+cumul.fraisSCITravaux)} de frais de structure</b> (logement "Frais SCI") sur la période — inclus dans les totaux ci-dessous mais non attribués à un logement précis, donc absents des lignes par logement.
     </div>`:''}
 
     <!-- ═══ CUMUL SUR LA PÉRIODE ═══ -->
@@ -13778,9 +13802,10 @@ function initContexteUI(){
   [['filter-log','label',true],['f-log','label',true],['e-log','label',true],['sv-log','label',true],['banque-filter-log','label',true],['devis-log','label',true],['devis-filter-log','label',true]].forEach(([id,prop,commun])=>{
     const el=document.getElementById(id);
     if(!el)return;
-    el.innerHTML=(id==='filter-log'||id==='banque-filter-log'||id==='devis-filter-log'?'<option value="">Tous logements</option>':'')+
+    const isFilter=id==='filter-log'||id==='banque-filter-log'||id==='devis-filter-log';
+    el.innerHTML=(isFilter?'<option value="">Tous logements</option>':'')+
       logs.map(l=>`<option value="${l[prop]}">${l.label}</option>`).join('')+
-      (commun&&id!=='filter-log'&&id!=='banque-filter-log'&&id!=='devis-filter-log'?'<option value="Commun">Commun / Global</option>':'');
+      (isFilter?'<option value="Frais SCI">🏛️ Frais de SCI</option>':(commun?'<option value="Commun">Commun / Global</option><option value="Frais SCI">🏛️ Frais de SCI (non lié à un logement)</option>':''));
   });
   const locLog=document.getElementById('loc-logement');
   if(locLog)locLog.innerHTML=logs.map(l=>`<option value="${l.key}">${l.label}</option>`).join('');
