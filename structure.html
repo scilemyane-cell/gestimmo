@@ -182,21 +182,24 @@ onAuthStateChanged(auth, async (user) => {
 });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0a0e1a;--bg2:#111827;--bg3:#1a2235;
-  --border:rgba(99,179,237,0.13);--border2:rgba(99,179,237,0.32);
-  --accent:#63b3ed;--accent2:#4299e1;--accent3:#2b6cb0;
-  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
-  --green:#68d391;--orange:#f6ad55;--red:#fc8181;--purple:#b794f4;--teal:#4fd1c5;
-  --cat1:#63b3ed;--cat2:#68d391;--cat3:#f6ad55;--cat4:#b794f4;
-  --cat5:#fc8181;--cat6:#4fd1c5;--cat7:#f687b3;--cat8:#fbd38d;
-  --font:'Segoe UI',system-ui,sans-serif;
+  --bg:#081527;--bg2:#0B1E3D;--bg3:#163259;
+  --border:rgba(90,200,216,0.13);--border2:rgba(90,200,216,0.32);
+  --accent:#5AC8D8;--accent2:#3FA8B8;--accent3:#B98D3E;
+  --text:#EAF3FA;--text2:#8CA3BD;--text3:#5A7291;
+  --green:#7FBF9E;--orange:#E0A15E;--red:#E0716B;--purple:#B98ED4;--teal:#4fd1c5;
+  --cat1:#5AC8D8;--cat2:#7FBF9E;--cat3:#E0A15E;--cat4:#B98ED4;
+  --cat5:#E0716B;--cat6:#4fd1c5;--cat7:#f687b3;--cat8:#fbd38d;
+  --font:'Segoe UI',system-ui,sans-serif;--font-display:'Fraunces',serif;--font-mono:'IBM Plex Mono',monospace;
 }
 html.theme-light{
-  --bg:#eef1f5;--bg2:#f9fafb;--bg3:#eef1f5;
+  --bg:#EEF3F8;--bg2:#FAFCFE;--bg3:#EEF3F8;
   --border:rgba(43,108,176,0.14);--border2:rgba(43,108,176,0.3);
-  --accent:#2b6cb0;--accent2:#2c5282;--accent3:#2b6cb0;
+  --accent:#2b6cb0;--accent2:#2c5282;--accent3:#B98D3E;
   --text:#1a202c;--text2:#4a5568;--text3:#718096;
   --green:#2f855a;--orange:#c05621;--red:#c53030;--purple:#6b46c1;--teal:#2c7a7b;
   --cat1:#2b6cb0;--cat2:#2f855a;--cat3:#c05621;--cat4:#6b46c1;
@@ -208,6 +211,8 @@ html.theme-light{box-shadow:none}
 *{box-sizing:border-box;margin:0;padding:0}
 html{overscroll-behavior:none}
 body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh;overflow-x:hidden;overscroll-behavior:none}
+.header-left h1{font-family:var(--font-display)}
+.kpi-val,.amount{font-family:var(--font-mono)}
 .header{background:linear-gradient(135deg,#0f1d35 0%,#0a0e1a 100%);border-bottom:1px solid var(--border2);padding:18px 28px;display:flex;align-items:center;justify-content:space-between}
 .header-left h1{font-size:19px;font-weight:600;color:var(--accent);letter-spacing:.4px}
 .header-left p{font-size:11px;color:var(--text2);margin-top:3px}
