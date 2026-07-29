@@ -11611,12 +11611,15 @@ async function rafraichirIRLDepuisINSEE(){
   }
 }
 
+function irlCacheEstPerime(){
+  const derniereMaj=localStorage.getItem(IRL_CACHE_DATE_KEY);
+  return !derniereMaj||(Date.now()-new Date(derniereMaj).getTime())>7*24*60*60*1000;
+}
+
 // Rafraîchissement silencieux en arrière-plan si le cache a plus de 7 jours (ou n'existe pas) —
 // n'affecte jamais l'affichage immédiat, qui utilise déjà la table statique/le cache existant.
 (function rafraichirIRLSiPerime(){
-  const derniereMaj=localStorage.getItem(IRL_CACHE_DATE_KEY);
-  const perime=!derniereMaj||(Date.now()-new Date(derniereMaj).getTime())>7*24*60*60*1000;
-  if(perime){
+  if(irlCacheEstPerime()){
     setTimeout(()=>{ rafraichirIRLDepuisINSEE().catch(()=>{}); },3000);
   }
 })();
@@ -11670,6 +11673,12 @@ async function ouvrirModalIRL(locId){
   const loc=locs.find(l=>String(l.id)===String(locId));
   if(!loc)return;
   if(!loc.dateEntree){alert('Date d\'entrée manquante dans la fiche du locataire.');return;}
+
+  // Garantit des indices IRL à jour au moment précis où l'utilisateur consulte une révision —
+  // sans attendre le prochain passage du rafraîchissement périodique en arrière-plan.
+  if(irlCacheEstPerime()){
+    await rafraichirIRLDepuisINSEE().catch(()=>{}); // échec silencieux : la table de secours prend le relais
+  }
 
   const mInfo=getMontantPeriode(loc,monthKey(new Date().getFullYear(),new Date().getMonth()+1));
   const loyerActuel=mInfo.loyerHC;
