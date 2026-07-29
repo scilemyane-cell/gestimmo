@@ -12,7 +12,7 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#63b3ed">
+<meta name="theme-color" content="#5AC8D8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Novimmo">
@@ -230,7 +230,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .header-left h1{font-size:19px;font-weight:600;color:var(--accent);letter-spacing:.4px}
 .header-left p{font-size:11px;color:var(--text2);margin-top:3px}
 .header-right{display:flex;gap:8px}
-.badge{background:rgba(99,179,237,0.1);border:1px solid var(--border2);border-radius:6px;padding:4px 11px;font-size:11px;color:var(--accent)}
+.badge{background:rgba(90,200,216,0.1);border:1px solid var(--border2);border-radius:6px;padding:4px 11px;font-size:11px;color:var(--accent)}
 .tabs{display:flex;gap:2px;padding:14px 28px 0;border-bottom:1px solid var(--border);background:var(--bg)}
 .tabs-sub{padding:0 28px;border-bottom:1px solid var(--border2);background:var(--bg2)}
 .tabs-sub .tab{font-size:11px;padding:8px 16px;border-radius:0;color:var(--text2)}
@@ -253,7 +253,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .th{padding:11px 14px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.7px}
 .cat-row{display:grid;grid-template-columns:200px 1fr 110px 110px 100px 80px;border-bottom:1px solid var(--border);transition:background .15s}
 .cat-row:last-child{border-bottom:none}
-.cat-row:hover{background:rgba(99,179,237,0.04)}
+.cat-row:hover{background:rgba(90,200,216,0.04)}
 .td{padding:12px 14px;display:flex;align-items:center}
 .cat-name{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:500;color:var(--text)}
 .cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -267,11 +267,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .ecart{font-size:11px;font-weight:600}
 .ecart.ok{color:var(--green)}.ecart.over{color:var(--red)}
 .status-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:500}
-.status-pill.ok{background:rgba(104,211,145,.1);color:var(--green);border:1px solid rgba(104,211,145,.25)}
-.status-pill.warn{background:rgba(246,173,85,.1);color:var(--orange);border:1px solid rgba(246,173,85,.25)}
-.status-pill.over{background:rgba(252,129,129,.1);color:var(--red);border:1px solid rgba(252,129,129,.25)}
+.status-pill.ok{background:rgba(127,191,158,.1);color:var(--green);border:1px solid rgba(127,191,158,.25)}
+.status-pill.warn{background:rgba(224,161,94,.1);color:var(--orange);border:1px solid rgba(224,161,94,.25)}
+.status-pill.over{background:rgba(224,113,107,.1);color:var(--red);border:1px solid rgba(224,113,107,.25)}
 .status-pill.none{background:rgba(100,116,139,.1);color:var(--text3);border:1px solid rgba(100,116,139,.2)}
-.total-row{display:grid;grid-template-columns:200px 1fr 110px 110px 100px 80px;background:rgba(99,179,237,0.08);border-top:2px solid var(--border2)}
+.total-row{display:grid;grid-template-columns:200px 1fr 110px 110px 100px 80px;background:rgba(90,200,216,0.08);border-top:2px solid var(--border2)}
 .total-row .td{font-weight:600;color:var(--accent);font-size:12px}
 .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
 .chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px}
@@ -293,14 +293,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .form-group select option{background:var(--bg3)}
 
 /* Zone upload PDF */
-.upload-zone{border:1.5px dashed var(--border2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:rgba(99,179,237,0.03)}
-.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(99,179,237,0.08)}
+.upload-zone{border:1.5px dashed var(--border2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:rgba(90,200,216,0.03)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(90,200,216,0.08)}
 .upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .upload-zone-icon{font-size:24px;margin-bottom:8px;color:var(--accent)}
 .upload-zone p{font-size:12px;color:var(--text2)}
 .upload-zone p span{color:var(--accent);font-weight:600}
 .upload-zone small{font-size:10px;color:var(--text3)}
-.upload-preview{display:flex;align-items:center;gap:10px;background:rgba(104,211,145,0.08);border:1px solid rgba(104,211,145,0.25);border-radius:8px;padding:10px 14px;margin-top:8px}
+.upload-preview{display:flex;align-items:center;gap:10px;background:rgba(127,191,158,0.08);border:1px solid rgba(127,191,158,0.25);border-radius:8px;padding:10px 14px;margin-top:8px}
 .upload-preview svg{flex-shrink:0;color:var(--red)}
 .upload-preview-name{flex:1;font-size:12px;color:var(--green);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .upload-preview-size{font-size:10px;color:var(--text3)}
@@ -310,14 +310,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .btn{background:var(--accent3);border:1px solid var(--accent2);border-radius:8px;padding:10px 22px;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
 .btn:hover{background:var(--accent2)}
 .btn-sm{padding:5px 11px;font-size:10px;border-radius:6px}
-.btn-danger{background:rgba(252,129,129,.1);border-color:rgba(252,129,129,.4);color:var(--red)}
-.btn-danger:hover{background:rgba(252,129,129,.2)}
-.btn-edit{background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.4);color:var(--accent)}
-.btn-edit:hover{background:rgba(99,179,237,.2)}
-.btn-pdf-view{background:rgba(252,129,129,.1);border-color:rgba(252,129,129,.35);color:var(--red);padding:5px 11px;font-size:10px;border-radius:6px;cursor:pointer;border-width:1px;border-style:solid;font-weight:600;transition:all .2s}
-.btn-pdf-view:hover{background:rgba(252,129,129,.2)}
-.btn-export{background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.4);border-radius:8px;padding:8px 16px;color:var(--green);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s}
-.btn-export:hover{background:rgba(104,211,145,.2)}
+.btn-danger{background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)}
+.btn-danger:hover{background:rgba(224,113,107,.2)}
+.btn-edit{background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.4);color:var(--accent)}
+.btn-edit:hover{background:rgba(90,200,216,.2)}
+.btn-pdf-view{background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.35);color:var(--red);padding:5px 11px;font-size:10px;border-radius:6px;cursor:pointer;border-width:1px;border-style:solid;font-weight:600;transition:all .2s}
+.btn-pdf-view:hover{background:rgba(224,113,107,.2)}
+.btn-export{background:rgba(127,191,158,.1);border:1px solid rgba(127,191,158,.4);border-radius:8px;padding:8px 16px;color:var(--green);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-export:hover{background:rgba(127,191,158,.2)}
 .filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
 .filter-select{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text2);font-size:11px;font-family:var(--font);outline:none;cursor:pointer}
 .filter-select:focus{border-color:var(--accent2)}
@@ -325,27 +325,27 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .factures-table th{text-align:left;padding:9px 12px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border2)}
 .factures-table td{padding:10px 12px;font-size:12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
 .factures-table tr:last-child td{border-bottom:none}
-.factures-table tr:hover td{background:rgba(99,179,237,0.04)}
+.factures-table tr:hover td{background:rgba(90,200,216,0.04)}
 .log-badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:10px;font-weight:600}
-.log-a{background:rgba(99,179,237,.15);color:var(--cat1)}
-.log-b{background:rgba(104,211,145,.15);color:var(--cat2)}
-.log-c{background:rgba(246,173,85,.15);color:var(--cat3)}
-.log-g{background:rgba(183,148,244,.15);color:var(--purple)}
+.log-a{background:rgba(90,200,216,.15);color:var(--cat1)}
+.log-b{background:rgba(127,191,158,.15);color:var(--cat2)}
+.log-c{background:rgba(224,161,94,.15);color:var(--cat3)}
+.log-g{background:rgba(185,142,212,.15);color:var(--purple)}
 .bg-th{padding:10px 12px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;background:var(--bg3);border-bottom:1px solid var(--border2);border-right:1px solid var(--border)}
 .bg-th:last-child{border-right:none}
 .budget-grid{display:grid;grid-template-columns:210px repeat(4,1fr) 110px}
-.bg-cat-hdr{grid-column:1/-1;padding:7px 12px;background:rgba(99,179,237,0.06);border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:7px}
+.bg-cat-hdr{grid-column:1/-1;padding:7px 12px;background:rgba(90,200,216,0.06);border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:7px}
 .bg-td{padding:8px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-size:12px}
 .bg-td:last-child{border-right:none}
 .bg-td input{background:transparent;border:none;border-bottom:1px solid var(--border2);color:var(--accent);font-size:12px;font-family:var(--font);width:100%;outline:none;padding:2px 0;text-align:right}
 .bg-td input:focus{border-bottom-color:var(--accent)}
 .bg-td.desc input{text-align:left;color:var(--text2)}
-.bg-subtotal{grid-column:1/-1;display:grid;grid-template-columns:210px repeat(4,1fr) 110px;background:rgba(99,179,237,0.08);border-top:1px solid var(--border2);border-bottom:2px solid var(--border2)}
+.bg-subtotal{grid-column:1/-1;display:grid;grid-template-columns:210px repeat(4,1fr) 110px;background:rgba(90,200,216,0.08);border-top:1px solid var(--border2);border-bottom:2px solid var(--border2)}
 .bg-subtotal .bg-td{font-weight:600;color:var(--accent);font-size:11px}
 .empty-state{text-align:center;padding:40px;color:var(--text3);font-size:13px}
-.row-alert-warn{background:rgba(246,173,85,0.06)!important;border-left:3px solid var(--orange)}
-.row-alert-danger{background:rgba(252,129,129,0.06)!important;border-left:3px solid var(--red)}
-.row-alert-duplicate{background:rgba(252,129,129,0.12)!important;border-left:3px solid var(--red)}
+.row-alert-warn{background:rgba(224,161,94,0.06)!important;border-left:3px solid var(--orange)}
+.row-alert-danger{background:rgba(224,113,107,0.06)!important;border-left:3px solid var(--red)}
+.row-alert-duplicate{background:rgba(224,113,107,0.12)!important;border-left:3px solid var(--red)}
 .msg-ok{margin-left:12px;font-size:11px;color:var(--green);display:none}
 
 /* MODAL */
@@ -375,7 +375,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .login-btn:hover{background:var(--accent2)}
 .autocomplete-list{position:absolute;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;z-index:50;width:100%;max-height:160px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 .autocomplete-item{padding:9px 14px;font-size:12px;color:var(--text);cursor:pointer}
-.autocomplete-item:hover{background:rgba(99,179,237,.12);color:var(--accent)}
+.autocomplete-item:hover{background:rgba(90,200,216,.12);color:var(--accent)}
 .autocomplete-wrap{position:relative}
 .login-error{font-size:11px;color:var(--red);margin-top:10px;display:none}
 .split-view{display:none;position:fixed;inset:0;background:var(--bg);z-index:150;flex-direction:column}
@@ -392,7 +392,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .split-field input:focus,.split-field select:focus{border-color:var(--accent2)}
 .print-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;flex-direction:column}
 .print-overlay.open{display:flex}
-.print-toolbar{background:#1a2235;border-bottom:1px solid rgba(99,179,237,.3);padding:12px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.print-toolbar{background:#1a2235;border-bottom:1px solid rgba(90,200,216,.3);padding:12px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
 .print-toolbar h3{font-size:14px;font-weight:600;color:var(--accent);flex:1}
 .print-frame{flex:1;border:none;background:#fff}
 
@@ -518,9 +518,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div class="badge" onclick="connectDrive()" id="drive-connect" style="color:var(--orange);cursor:pointer" title="Connecter Google Drive pour stocker les PDF">📁 Connecter Drive</div>
     <div class="badge" onclick="scanGmail()" id="btn-gmail" style="color:#f687b3;cursor:pointer;display:none" title="Scanner Gmail pour importer les factures">📧 Scanner Gmail</div>
     <div class="badge" onclick="trierTouteBoite()" id="btn-trier-boite" style="color:var(--orange);cursor:pointer;display:none" title="Trier tous les emails par expéditeur">📂 Trier Gmail</div>
-    <a href="#" target="_blank" id="btn-boite-mail" style="display:flex;align-items:center;gap:6px;background:rgba(246,173,85,.1);border:1px solid rgba(246,173,85,.3);border-radius:6px;padding:4px 11px;font-size:11px;color:var(--orange);text-decoration:none;cursor:pointer" title="Ouvrir ma boîte mail dans un nouvel onglet">✉ Boîte mail</a>
-    <div id="trier-status" style="display:none;align-items:center;gap:6px;background:rgba(246,173,85,.1);border:1px solid rgba(246,173,85,.3);border-radius:6px;padding:4px 11px;font-size:11px;color:var(--orange)">
-      <div style="width:10px;height:10px;border:2px solid rgba(246,173,85,.3);border-top-color:var(--orange);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
+    <a href="#" target="_blank" id="btn-boite-mail" style="display:flex;align-items:center;gap:6px;background:rgba(224,161,94,.1);border:1px solid rgba(224,161,94,.3);border-radius:6px;padding:4px 11px;font-size:11px;color:var(--orange);text-decoration:none;cursor:pointer" title="Ouvrir ma boîte mail dans un nouvel onglet">✉ Boîte mail</a>
+    <div id="trier-status" style="display:none;align-items:center;gap:6px;background:rgba(224,161,94,.1);border:1px solid rgba(224,161,94,.3);border-radius:6px;padding:4px 11px;font-size:11px;color:var(--orange)">
+      <div style="width:10px;height:10px;border:2px solid rgba(224,161,94,.3);border-top-color:var(--orange);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
       <span>Tri en cours...</span>
     </div>
     <div class="badge" onclick="logout()" style="color:var(--text3);cursor:pointer;font-size:10px" title="Se déconnecter">🔒 Déconnexion</div>
@@ -549,15 +549,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <span style="font-size:13px;font-weight:700;color:var(--accent)" id="synth-pct-label">0%</span>
     </div>
     <div style="height:14px;background:rgba(255,255,255,0.06);border-radius:7px;overflow:hidden;position:relative">
-      <div id="synth-jauge-bar-engage" style="position:absolute;inset:0;height:100%;border-radius:7px;width:0%;background:repeating-linear-gradient(45deg,rgba(183,148,244,.4),rgba(183,148,244,.4) 6px,rgba(183,148,244,.15) 6px,rgba(183,148,244,.15) 12px);transition:width .8s cubic-bezier(.4,0,.2,1)"></div>
-      <div id="synth-jauge-bar" style="position:relative;height:100%;border-radius:7px;background:linear-gradient(90deg,#63b3ed,#4fd1c5);transition:width .8s cubic-bezier(.4,0,.2,1);width:0%"></div>
+      <div id="synth-jauge-bar-engage" style="position:absolute;inset:0;height:100%;border-radius:7px;width:0%;background:repeating-linear-gradient(45deg,rgba(185,142,212,.4),rgba(185,142,212,.4) 6px,rgba(185,142,212,.15) 6px,rgba(185,142,212,.15) 12px);transition:width .8s cubic-bezier(.4,0,.2,1)"></div>
+      <div id="synth-jauge-bar" style="position:relative;height:100%;border-radius:7px;background:linear-gradient(90deg,#5AC8D8,#4fd1c5);transition:width .8s cubic-bezier(.4,0,.2,1);width:0%"></div>
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text3)">
       <span>0 €</span><span id="synth-jauge-max">—</span>
     </div>
     <div id="synth-jauge-legend" style="display:none;gap:16px;margin-top:10px;font-size:10px;color:var(--text3)">
-      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:linear-gradient(90deg,#63b3ed,#4fd1c5);display:inline-block"></span>Dépensé (factures)</span>
-      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:repeating-linear-gradient(45deg,rgba(183,148,244,.9),rgba(183,148,244,.9) 2px,rgba(183,148,244,.4) 2px,rgba(183,148,244,.4) 4px);display:inline-block"></span>Engagé (devis validés, pas encore facturés)</span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:linear-gradient(90deg,#5AC8D8,#4fd1c5);display:inline-block"></span>Dépensé (factures)</span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:repeating-linear-gradient(45deg,rgba(185,142,212,.9),rgba(185,142,212,.9) 2px,rgba(185,142,212,.4) 2px,rgba(185,142,212,.4) 4px);display:inline-block"></span>Engagé (devis validés, pas encore facturés)</span>
     </div>
   </div>
 
@@ -659,8 +659,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <button class="btn btn-sm" onclick="rentFiltresReset()" style="font-size:11px">↺ Réinitialiser</button>
       <div style="flex:1"></div>
       <button class="btn-export" onclick="ouvrirModalExport()">📤 Exporter loyers...</button>
-      <button class="btn-export" onclick="exportComptableAnnuel()" style="background:rgba(183,148,244,.1);border-color:rgba(183,148,244,.4);color:var(--purple)">📊 Récap fiscal</button>
-      <button class="btn-export" onclick="ouvrirModalRentabiliteNette()" style="background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.4);color:var(--green)">📈 Rentabilité nette</button>
+      <button class="btn-export" onclick="exportComptableAnnuel()" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple)">📊 Récap fiscal</button>
+      <button class="btn-export" onclick="ouvrirModalRentabiliteNette()" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)">📈 Rentabilité nette</button>
     </div>
   </div>
 
@@ -740,7 +740,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   <div class="table-wrap" style="padding:20px 24px;margin-bottom:24px">
     <div class="filters" style="margin-bottom:14px">
       <span style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px">Scénario :</span>
-      <button class="btn btn-sm" style="background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.4);color:var(--green)" onclick="applyProjScenario('optimiste')">Optimiste</button>
+      <button class="btn btn-sm" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="applyProjScenario('optimiste')">Optimiste</button>
       <button class="btn btn-sm" onclick="applyProjScenario('realiste')">Réaliste</button>
       <button class="btn btn-sm btn-danger" onclick="applyProjScenario('pessimiste')">Pessimiste</button>
     </div>
@@ -795,7 +795,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <span style="font-size:20px;font-weight:700;color:var(--accent)" id="dash-jauge-val">—</span>
     </div>
     <div style="height:12px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;position:relative">
-      <div id="dash-jauge-bar" style="height:100%;border-radius:6px;background:linear-gradient(90deg,#63b3ed,#4fd1c5);transition:width .8s cubic-bezier(.4,0,.2,1);width:0%"></div>
+      <div id="dash-jauge-bar" style="height:100%;border-radius:6px;background:linear-gradient(90deg,#5AC8D8,#4fd1c5);transition:width .8s cubic-bezier(.4,0,.2,1);width:0%"></div>
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text3)">
       <span>0 €</span><span id="dash-jauge-max">—</span>
@@ -894,15 +894,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       </select>
       <div style="flex:1"></div>
       <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
-      <button class="btn-export" style="background:rgba(246,173,85,.1);border-color:rgba(246,173,85,.4);color:var(--orange)" onclick="exportPDF()">Exporter PDF</button>
-      <button class="btn-export" style="background:rgba(183,148,244,.1);border-color:rgba(183,148,244,.4);color:var(--purple)" onclick="renumeroterFactures()">🔢 Renuméroter</button>
-      <button class="btn-export" style="background:rgba(246,173,85,.1);border-color:rgba(246,173,85,.4);color:var(--orange)" onclick="corrigerNumerosMalAlignes()" title="Corrige uniquement les factures dont le numéro ne correspond pas à l'année de leur date">🔧 Corriger numéros/dates</button>
+      <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="exportPDF()">Exporter PDF</button>
+      <button class="btn-export" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="renumeroterFactures()">🔢 Renuméroter</button>
+      <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="corrigerNumerosMalAlignes()" title="Corrige uniquement les factures dont le numéro ne correspond pas à l'année de leur date">🔧 Corriger numéros/dates</button>
       <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllPdfsToDrive()" id="btn-sync-drive" title="Uploader tous les PDF locaux vers Google Drive">☁ Sync Drive</button>
-      <button class="btn-export" style="background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.4);color:var(--green)" onclick="libererEspaceLocalPDF()" id="btn-liberer-espace" title="Supprime les copies locales des PDF déjà présents sur Drive (le fichier reste accessible via Drive)">🧹 Libérer l'espace local</button>
-      <button class="btn-export" style="background:rgba(252,129,129,.1);border-color:rgba(252,129,129,.4);color:var(--red)" onclick="nettoyerDoublonsDrive()" id="btn-clean-drive" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
+      <button class="btn-export" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="libererEspaceLocalPDF()" id="btn-liberer-espace" title="Supprime les copies locales des PDF déjà présents sur Drive (le fichier reste accessible via Drive)">🧹 Libérer l'espace local</button>
+      <button class="btn-export" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)" onclick="nettoyerDoublonsDrive()" id="btn-clean-drive" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
       <select class="filter-select" id="drive-year-select" title="Année du dossier Drive à ouvrir" style="font-weight:600"></select>
-      <button class="btn-export" style="background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.4);color:var(--accent)" onclick="ouvrirDossierDriveAnnee()" id="btn-open-drive" title="Ouvrir le dossier Drive de l'année sélectionnée">📂 Ouvrir dossier Drive</button>
-      <button class="btn-export" style="display:none;background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.4);color:var(--green)" onclick="syncPennylaneFactures()" id="btn-sync-pennylane" title="Récupérer les nouvelles factures fournisseurs depuis Pennylane">🟢 Sync Pennylane</button>
+      <button class="btn-export" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.4);color:var(--accent)" onclick="ouvrirDossierDriveAnnee()" id="btn-open-drive" title="Ouvrir le dossier Drive de l'année sélectionnée">📂 Ouvrir dossier Drive</button>
+      <button class="btn-export" style="display:none;background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="syncPennylaneFactures()" id="btn-sync-pennylane" title="Récupérer les nouvelles factures fournisseurs depuis Pennylane">🟢 Sync Pennylane</button>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div class="section-title" style="margin-bottom:0">Liste des factures</div>
@@ -926,7 +926,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 <!-- DEVIS -->
 <div class="content" id="tab-devis">
   <div class="section-title">📝 Devis</div>
-  <div style="background:rgba(99,179,237,.08);border:1px solid rgba(99,179,237,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
+  <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
     ℹ️ Enregistre ici les devis reçus, avant même de recevoir la facture — ça permet de suivre l'engagement de dépense en amont. Une fois la facture reçue, saisis-la dans l'onglet Factures en la liant à ce devis (champ "Devis associé") : le devis passera automatiquement au statut "Facturé".
   </div>
 
@@ -935,19 +935,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
     <!-- UPLOAD PDF/PHOTO — en premier, comme pour les factures : préremplit les champs ci-dessous -->
     <div style="margin-bottom:20px">
-      <div id="devis-drive-warning" style="display:none;background:rgba(246,173,85,.08);border:1px solid rgba(246,173,85,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--orange);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div id="devis-drive-warning" style="display:none;background:rgba(224,161,94,.08);border:1px solid rgba(224,161,94,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--orange);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span>⚠️ Google Drive n'est pas connecté — les documents importés resteront <b>uniquement sur cet appareil</b> et pourraient être perdus si tu changes de navigateur ou vides ton cache.</span>
         <button class="btn btn-sm" onclick="connectDrive()" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">📁 Connecter Drive</button>
       </div>
       <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Importer le devis (préremplit les champs automatiquement) <span style="text-transform:none;letter-spacing:0;color:var(--text3)">— optionnel, tu peux aussi tout saisir à la main plus bas</span></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-        <button type="button" onclick="document.getElementById('devis-pdf-input').click()" style="flex:1;min-width:150px;background:rgba(99,179,237,.1);border:1.5px dashed rgba(99,179,237,.4);border-radius:10px;padding:18px 14px;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+        <button type="button" onclick="document.getElementById('devis-pdf-input').click()" style="flex:1;min-width:150px;background:rgba(90,200,216,.1);border:1.5px dashed rgba(90,200,216,.4);border-radius:10px;padding:18px 14px;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
           📎 Sélectionner un fichier<br><small style="font-size:10px;color:var(--text3);font-weight:400">PDF ou image</small>
         </button>
-        <button type="button" onclick="document.getElementById('devis-camera-input').click()" style="flex:1;min-width:150px;background:rgba(104,211,145,.1);border:1.5px dashed rgba(104,211,145,.4);border-radius:10px;padding:18px 14px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+        <button type="button" onclick="document.getElementById('devis-camera-input').click()" style="flex:1;min-width:150px;background:rgba(127,191,158,.1);border:1.5px dashed rgba(127,191,158,.4);border-radius:10px;padding:18px 14px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
           📷 Prendre une photo<br><small style="font-size:10px;color:var(--text3);font-weight:400">Appareil photo</small>
         </button>
-        <button type="button" onclick="openDrivePicker('devis')" style="flex:1;min-width:150px;background:rgba(246,173,85,.1);border:1.5px dashed rgba(246,173,85,.4);border-radius:10px;padding:18px 14px;color:var(--orange);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+        <button type="button" onclick="openDrivePicker('devis')" style="flex:1;min-width:150px;background:rgba(224,161,94,.1);border:1.5px dashed rgba(224,161,94,.4);border-radius:10px;padding:18px 14px;color:var(--orange);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
           📂 Depuis Google Drive<br><small style="font-size:10px;color:var(--text3);font-weight:400">Fichier déjà existant</small>
         </button>
       </div>
@@ -1012,9 +1012,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <select class="filter-select" id="devis-filter-cat" onchange="renderDevis()"><option value="">Toutes catégories</option></select>
     <div style="flex:1"></div>
     <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllDevisPdfsToDrive()" id="btn-sync-drive-devis" title="Uploader tous les PDF de devis locaux vers Google Drive">☁ Sync Drive</button>
-    <button class="btn-export" style="background:rgba(252,129,129,.1);border-color:rgba(252,129,129,.4);color:var(--red)" onclick="nettoyerDoublonsDriveDevis()" id="btn-clean-drive-devis" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
+    <button class="btn-export" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)" onclick="nettoyerDoublonsDriveDevis()" id="btn-clean-drive-devis" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
     <select class="filter-select" id="drive-year-select-devis" title="Année du dossier Drive à ouvrir" style="font-weight:600"></select>
-    <button class="btn-export" style="background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.4);color:var(--accent)" onclick="ouvrirDossierDriveAnneeDevis()" id="btn-open-drive-devis" title="Ouvrir le dossier Drive de l'année sélectionnée">📂 Ouvrir dossier Drive</button>
+    <button class="btn-export" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.4);color:var(--accent)" onclick="ouvrirDossierDriveAnneeDevis()" id="btn-open-drive-devis" title="Ouvrir le dossier Drive de l'année sélectionnée">📂 Ouvrir dossier Drive</button>
   </div>
   <div class="kpi-grid" id="devis-kpi-grid" style="margin-bottom:20px"></div>
   <div class="table-wrap">
@@ -1040,18 +1040,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <option value="paiement">Par date de paiement</option>
     </select>
     <div style="flex:1"></div>
-    <button class="btn-export" onclick="exportComptablePDF()" style="background:rgba(246,173,85,.1);border-color:rgba(246,173,85,.4);color:var(--orange);font-size:12px;padding:9px 18px">
+    <button class="btn-export" onclick="exportComptablePDF()" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange);font-size:12px;padding:9px 18px">
       📄 Export comptable PDF
     </button>
-    <button class="btn-export" onclick="ouvrirDossierDrive()" style="background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.4);color:var(--green);font-size:12px;padding:9px 18px" title="Ouvrir le dossier Google Drive de l'année sélectionnée">
+    <button class="btn-export" onclick="ouvrirDossierDrive()" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green);font-size:12px;padding:9px 18px" title="Ouvrir le dossier Google Drive de l'année sélectionnée">
       📁 Dossier Drive de l'année
     </button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-      <button class="btn-export" id="btn-zip" onclick="exportZipFactures()" style="background:rgba(183,148,244,.1);border-color:rgba(183,148,244,.4);color:var(--purple);font-size:12px;padding:9px 18px">
+      <button class="btn-export" id="btn-zip" onclick="exportZipFactures()" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple);font-size:12px;padding:9px 18px">
         🖨 Imprimer toutes les factures
       </button>
       <div id="zip-status" style="display:none;font-size:10px;color:var(--purple);align-items:center;gap:6px">
-        <div style="width:10px;height:10px;border:2px solid rgba(183,148,244,.3);border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite"></div>
+        <div style="width:10px;height:10px;border:2px solid rgba(185,142,212,.3);border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite"></div>
         <span id="zip-status-text">Préparation en cours…</span>
       </div>
     </div>
@@ -1154,20 +1154,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
     <!-- UPLOAD PDF -->
     <div style="margin-bottom:20px">
-      <div id="saisie-drive-warning" style="display:none;background:rgba(246,173,85,.08);border:1px solid rgba(246,173,85,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--orange);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div id="saisie-drive-warning" style="display:none;background:rgba(224,161,94,.08);border:1px solid rgba(224,161,94,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--orange);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span>⚠️ Google Drive n'est pas connecté — les documents importés resteront <b>uniquement sur cet appareil</b> et pourraient être perdus si tu changes de navigateur ou vides ton cache.</span>
         <button class="btn btn-sm" onclick="connectDrive()" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">📁 Connecter Drive</button>
       </div>
       <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Pièce jointe (PDF facture)</div>
       <!-- Boutons mobile-friendly -->
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-        <button type="button" onclick="document.getElementById('f-pdf').click()" style="flex:1;min-width:150px;background:rgba(99,179,237,.1);border:1.5px dashed rgba(99,179,237,.4);border-radius:10px;padding:18px 14px;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+        <button type="button" onclick="document.getElementById('f-pdf').click()" style="flex:1;min-width:150px;background:rgba(90,200,216,.1);border:1.5px dashed rgba(90,200,216,.4);border-radius:10px;padding:18px 14px;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
           📎 Sélectionner un fichier<br><small style="font-size:10px;color:var(--text3);font-weight:400">PDF ou image</small>
         </button>
-        <button type="button" onclick="document.getElementById('f-camera').click()" style="flex:1;min-width:150px;background:rgba(104,211,145,.1);border:1.5px dashed rgba(104,211,145,.4);border-radius:10px;padding:18px 14px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+        <button type="button" onclick="document.getElementById('f-camera').click()" style="flex:1;min-width:150px;background:rgba(127,191,158,.1);border:1.5px dashed rgba(127,191,158,.4);border-radius:10px;padding:18px 14px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
           📷 Prendre une photo<br><small style="font-size:10px;color:var(--text3);font-weight:400">Appareil photo</small>
         </button>
-        <button type="button" onclick="openDrivePicker('facture')" style="flex:1;min-width:150px;background:rgba(246,173,85,.1);border:1.5px dashed rgba(246,173,85,.4);border-radius:10px;padding:18px 14px;color:var(--orange);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+        <button type="button" onclick="openDrivePicker('facture')" style="flex:1;min-width:150px;background:rgba(224,161,94,.1);border:1.5px dashed rgba(224,161,94,.4);border-radius:10px;padding:18px 14px;color:var(--orange);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
           📂 Depuis Google Drive<br><small style="font-size:10px;color:var(--text3);font-weight:400">Fichier déjà existant</small>
         </button>
       </div>
@@ -1175,10 +1175,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <input type="file" accept="image/*" capture="environment" id="f-camera" onchange="onCameraChange(event)" style="display:none">
       <div id="upload-zone" style="display:none"></div>
       <div class="upload-preview" id="upload-preview" style="display:none">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fc8181" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E0716B" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <span class="upload-preview-name" id="upload-name"></span>
         <span class="upload-preview-size" id="upload-size"></span>
-        <button id="btn-sync" onclick="syncFacture()" title="Relire le PDF et resynchroniser les champs" style="background:rgba(99,179,237,.12);border:1px solid rgba(99,179,237,.45);border-radius:6px;color:var(--accent);cursor:pointer;font-size:11px;font-weight:600;padding:4px 12px;display:flex;align-items:center;gap:5px;white-space:nowrap">
+        <button id="btn-sync" onclick="syncFacture()" title="Relire le PDF et resynchroniser les champs" style="background:rgba(90,200,216,.12);border:1px solid rgba(90,200,216,.45);border-radius:6px;color:var(--accent);cursor:pointer;font-size:11px;font-weight:600;padding:4px 12px;display:flex;align-items:center;gap:5px;white-space:nowrap">
           <span id="sync-icon" style="display:inline-block">↻</span> Synchroniser
         </button>
         <button class="upload-clear" onclick="clearUpload()" title="Retirer">✕</button>
@@ -1199,10 +1199,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 <!-- CHARGES RÉCURRENTES -->
 <div class="content" id="tab-charges-recurrentes">
   <div class="section-title">🔁 Charges récurrentes</div>
-  <div style="background:rgba(99,179,237,.08);border:1px solid rgba(99,179,237,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
+  <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
     ℹ️ Pour les charges sans facture papier (assurance annuelle, frais bancaires mensuels, abonnements...), définissez-les une fois ici. Elles seront automatiquement comptées chaque mois ou chaque année dans le calcul de rentabilité — sans avoir à ressaisir une facture.
   </div>
-  <div style="background:rgba(252,129,129,.08);border:1px solid rgba(252,129,129,.3);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--red)">
+  <div style="background:rgba(224,113,107,.08);border:1px solid rgba(224,113,107,.3);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--red)">
     ⚠️ <b>Ne jamais saisir ici les mensualités de prêt immobilier.</b> Les intérêts d'emprunt sont calculés automatiquement depuis l'onglet 💰 Financement (à partir du capital, taux et durée du crédit) et apparaissent déjà séparément dans la rentabilité nette. Le capital remboursé n'est jamais une charge déductible. Si vous avez des virements personnels entre associés (rééquilibrage, apport...), utilisez la catégorie <b>"Virement interne / rééquilibrage personnel"</b> ci-dessous — elle est exclue du calcul.
   </div>
 
@@ -1238,7 +1238,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 <!-- BANQUE — Factures à transmettre pour appel de fonds / justificatifs bancaires -->
 <div class="content" id="tab-banque">
   <div class="section-title">🏦 Factures à transmettre à la banque</div>
-  <div style="background:rgba(99,179,237,.08);border:1px solid rgba(99,179,237,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
+  <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
     ℹ️ Coche les factures pour les marquer transmises en une fois, ou ouvre/télécharge chaque facture individuellement pour l'envoyer avec son bon à la banque.
   </div>
   <div class="section-title" style="font-size:13px">Suivi par crédit</div>
@@ -1254,10 +1254,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div id="banque-count" style="font-size:11px;color:var(--text3);margin-left:auto"></div>
   </div>
 
-  <div id="banque-bulk-bar" style="display:none;align-items:center;gap:12px;background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.3);border-radius:10px;padding:10px 16px;margin-bottom:14px;flex-wrap:wrap">
+  <div id="banque-bulk-bar" style="display:none;align-items:center;gap:12px;background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.3);border-radius:10px;padding:10px 16px;margin-bottom:14px;flex-wrap:wrap">
     <span id="banque-sel-count" style="font-size:12px;color:var(--accent);font-weight:600"></span>
-    <button class="btn btn-sm" onclick="marquerSelectionBanqueTransmise()" style="background:rgba(104,211,145,.15);border-color:rgba(104,211,145,.4);color:var(--green)">✅ Marquer la sélection comme transmise</button>
-    <button class="btn btn-sm" id="banque-export-btn" onclick="exporterSelectionBanque()" style="background:rgba(183,148,244,.15);border-color:rgba(183,148,244,.4);color:var(--purple)">🖨 Exporter la sélection (PDF groupé)</button>
+    <button class="btn btn-sm" onclick="marquerSelectionBanqueTransmise()" style="background:rgba(127,191,158,.15);border-color:rgba(127,191,158,.4);color:var(--green)">✅ Marquer la sélection comme transmise</button>
+    <button class="btn btn-sm" id="banque-export-btn" onclick="exporterSelectionBanque()" style="background:rgba(185,142,212,.15);border-color:rgba(185,142,212,.4);color:var(--purple)">🖨 Exporter la sélection (PDF groupé)</button>
     <span id="banque-export-status" style="display:none;font-size:10px;color:var(--purple)"></span>
   </div>
 
@@ -1277,7 +1277,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 <!-- COMPTE COURANT ASSOCIÉ -->
 <div class="content" id="tab-compte-courant">
   <div class="section-title">🤝 Compte courant associé — ce que te doit la structure</div>
-  <div style="background:rgba(99,179,237,.08);border:1px solid rgba(99,179,237,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
+  <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
     ℹ️ Regroupe deux choses qui augmentent ce que la structure te doit : les <b>factures que tu as réglées toi-même</b> (champ "Réglé par" sur la facture) et les <b>virements que tu fais vers le compte de la structure</b> pour qu'elle vive ou paye ses prélèvements. Coche "Remboursé" une fois que la structure te rembourse une ligne — le solde total se recalcule automatiquement.
   </div>
 
@@ -1288,7 +1288,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   </div>
 
   <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
-    <button class="btn-export" onclick="exportCompteCourantPDF()" style="background:rgba(246,173,85,.1);border-color:rgba(246,173,85,.4);color:var(--orange);font-size:12px;padding:9px 18px">📄 Export comptable PDF</button>
+    <button class="btn-export" onclick="exportCompteCourantPDF()" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange);font-size:12px;padding:9px 18px">📄 Export comptable PDF</button>
   </div>
   <div class="kpi-grid" id="cca-kpi-grid" style="margin-bottom:24px"></div>
 
@@ -1350,7 +1350,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 <div id="overlay-patrimoine" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:5000;overflow-y:auto;isolation:isolate">
   <div style="position:sticky;top:0;z-index:10;background:var(--bg2);border-bottom:1px solid var(--border2);padding:16px 24px;display:flex;justify-content:space-between;align-items:center">
     <div style="display:flex;align-items:center;gap:12px">
-      <div style="width:40px;height:40px;border-radius:10px;background:rgba(183,148,244,.15);display:flex;align-items:center;justify-content:center;font-size:20px">🏛️</div>
+      <div style="width:40px;height:40px;border-radius:10px;background:rgba(185,142,212,.15);display:flex;align-items:center;justify-content:center;font-size:20px">🏛️</div>
       <div>
         <div style="font-size:16px;font-weight:700;color:var(--text)">Patrimoine — Vue consolidée</div>
         <div style="font-size:11px;color:var(--text3)">Indépendant du contexte SCI / LMNP</div>
@@ -1360,7 +1360,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   </div>
 
   <div style="max-width:1100px;margin:0 auto;padding:24px">
-    <div style="background:rgba(99,179,237,.08);border:1px solid rgba(99,179,237,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
+    <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
       ℹ️ Cette vue regroupe automatiquement les logements de vos différentes structures (avec leurs crédits déjà saisis dans Financement), ainsi que vos biens personnels ajoutés manuellement (résidence principale, nue-propriété...).
     </div>
 
@@ -1399,7 +1399,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div id="patr-biens-liste" style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px"></div>
 
     <div style="display:flex;justify-content:flex-end;margin-bottom:24px">
-      <button class="btn-export" onclick="exporterPatrimoinePDF()" style="background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.4);color:var(--green)">📄 Export PDF du patrimoine</button>
+      <button class="btn-export" onclick="exporterPatrimoinePDF()" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)">📄 Export PDF du patrimoine</button>
     </div>
   </div>
 </div>
@@ -1468,7 +1468,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         <p style="font-size:11px"><span>Remplacer le PDF</span> ou glisser-déposer</p>
       </div>
       <div class="upload-preview" id="e-upload-preview" style="display:none">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fc8181" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E0716B" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <span class="upload-preview-name" id="e-upload-name"></span>
         <span class="upload-preview-size" id="e-upload-size"></span>
         <button class="upload-clear" onclick="clearUpload(true)" title="Retirer">✕</button>
@@ -1476,7 +1476,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     </div>
     <!-- Lien PDF -->
     <div id="edit-pdf-preview-section" style="display:none;margin-top:12px">
-      <a id="edit-pdf-link" href="#" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.35);border-radius:8px;padding:10px 16px;color:var(--accent);font-size:12px;font-weight:600;text-decoration:none">
+      <a id="edit-pdf-link" href="#" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.35);border-radius:8px;padding:10px 16px;color:var(--accent);font-size:12px;font-weight:600;text-decoration:none">
         📄 Ouvrir la facture
       </a>
     </div>
@@ -1606,7 +1606,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div id="tampon-position-stage" style="position:relative;margin:16px 20px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;background:#000;border-radius:8px;touch-action:pan-y;user-select:none">
       <img id="tampon-position-doc" src="" style="width:100%;display:block;pointer-events:none">
       <div id="tampon-position-stamp" style="position:absolute;cursor:move;touch-action:none">
-        <img id="tampon-position-stamp-img" src="" style="width:100%;height:100%;display:block;pointer-events:none;opacity:.95;border:1px dashed rgba(99,179,237,.7)">
+        <img id="tampon-position-stamp-img" src="" style="width:100%;height:100%;display:block;pointer-events:none;opacity:.95;border:1px dashed rgba(90,200,216,.7)">
         <div id="tampon-position-handle" style="position:absolute;right:-7px;bottom:-7px;width:16px;height:16px;background:var(--accent);border-radius:50%;cursor:nwse-resize;border:2px solid #0a0e1a;touch-action:none"></div>
       </div>
     </div>
@@ -1644,7 +1644,7 @@ const CTX_CONFIG={};
 // (remplacée par les vraies infos dès que startApp() a chargé la structure — évite
 // tout crash si du code s'exécute avant, comme LOC_LOGEMENTS ci-dessous).
 CTX_CONFIG[CTX] = {
-  nom:'Chargement…', sousTitre:'', couleur:'#63b3ed', gmail:'', driveFolderName:'',
+  nom:'Chargement…', sousTitre:'', couleur:'#5AC8D8', gmail:'', driveFolderName:'',
   hasBudgetTravaux:true, defaultLogements:[]
 };
 
@@ -2194,9 +2194,9 @@ async function extractDevisInfo(b64){
     if(prev){
       prev.style.display='block';
       prev.innerHTML='⚠ Aucune clé API Gemini configurée — ajoute-en une dans Paramètres pour activer la lecture automatique. Les champs restent à remplir manuellement.';
-      prev.style.color='#f6ad55';
-      prev.style.background='rgba(246,173,85,.08)';
-      prev.style.border='1px solid rgba(246,173,85,.25)';
+      prev.style.color='#E0A15E';
+      prev.style.background='rgba(224,161,94,.08)';
+      prev.style.border='1px solid rgba(224,161,94,.25)';
       prev.style.padding='8px 12px';
       prev.style.borderRadius='8px';
     }
@@ -2236,9 +2236,9 @@ Règles : la date sur le devis est TOUJOURS écrite au format français JJ/MM/AA
     if(info.description)setVal('devis-desc',info.description);
     if(prev){
       prev.innerHTML='✅ Lecture automatique effectuée — vérifie et corrige si besoin. <br>'+texteAvant;
-      prev.style.color='#68d391';
-      prev.style.background='rgba(104,211,145,.08)';
-      prev.style.border='1px solid rgba(104,211,145,.25)';
+      prev.style.color='#7FBF9E';
+      prev.style.background='rgba(127,191,158,.08)';
+      prev.style.border='1px solid rgba(127,191,158,.25)';
       prev.style.padding='8px 12px';
       prev.style.borderRadius='8px';
     }
@@ -2246,9 +2246,9 @@ Règles : la date sur le devis est TOUJOURS écrite au format français JJ/MM/AA
     console.error('Lecture auto devis échouée:',e);
     if(prev){
       prev.innerHTML='⚠ Lecture automatique échouée : '+e.message+' — remplis les champs manuellement. <br>'+texteAvant;
-      prev.style.color='#f6ad55';
-      prev.style.background='rgba(246,173,85,.08)';
-      prev.style.border='1px solid rgba(246,173,85,.25)';
+      prev.style.color='#E0A15E';
+      prev.style.background='rgba(224,161,94,.08)';
+      prev.style.border='1px solid rgba(224,161,94,.25)';
       prev.style.padding='8px 12px';
       prev.style.borderRadius='8px';
     }
@@ -2291,15 +2291,15 @@ function renderDevis(){
   const totEngage=totAccepte+totFacture;
   const kpiEl=document.getElementById('devis-kpi-grid');
   if(kpiEl)kpiEl.innerHTML=`
-    <div class="kpi" style="--kpi-color:#f6ad55"><div class="kpi-label">En attente de réponse</div><div class="kpi-val">${fmt(totEnAttente)}</div><div class="kpi-sub">${devis.filter(d=>d.statut==='En attente').length} devis</div></div>
-    <div class="kpi" style="--kpi-color:#63b3ed"><div class="kpi-label">Accepté, non facturé</div><div class="kpi-val">${fmt(totAccepte)}</div><div class="kpi-sub">${devis.filter(d=>d.statut==='Accepté').length} devis</div></div>
-    <div class="kpi" style="--kpi-color:#68d391"><div class="kpi-label">Déjà facturé</div><div class="kpi-val">${fmt(totFacture)}</div><div class="kpi-sub">${devis.filter(d=>d.statut==='Facturé').length} devis</div></div>
-    <div class="kpi" style="--kpi-color:#b794f4"><div class="kpi-label">Engagement total</div><div class="kpi-val">${fmt(totEngage)}</div><div class="kpi-sub">accepté + facturé</div></div>
+    <div class="kpi" style="--kpi-color:#E0A15E"><div class="kpi-label">En attente de réponse</div><div class="kpi-val">${fmt(totEnAttente)}</div><div class="kpi-sub">${devis.filter(d=>d.statut==='En attente').length} devis</div></div>
+    <div class="kpi" style="--kpi-color:#5AC8D8"><div class="kpi-label">Accepté, non facturé</div><div class="kpi-val">${fmt(totAccepte)}</div><div class="kpi-sub">${devis.filter(d=>d.statut==='Accepté').length} devis</div></div>
+    <div class="kpi" style="--kpi-color:#7FBF9E"><div class="kpi-label">Déjà facturé</div><div class="kpi-val">${fmt(totFacture)}</div><div class="kpi-sub">${devis.filter(d=>d.statut==='Facturé').length} devis</div></div>
+    <div class="kpi" style="--kpi-color:#B98ED4"><div class="kpi-label">Engagement total</div><div class="kpi-val">${fmt(totEngage)}</div><div class="kpi-sub">accepté + facturé</div></div>
   `;
 
   const tbody=document.getElementById('devis-tbody');
   if(tbody)tbody.innerHTML=filtered.map(d=>{
-    const sc=d.statut==='Facturé'?'#68d391':d.statut==='Accepté'?'#63b3ed':d.statut==='Refusé'?'#fc8181':'#f6ad55';
+    const sc=d.statut==='Facturé'?'#7FBF9E':d.statut==='Accepté'?'#5AC8D8':d.statut==='Refusé'?'#E0716B':'#E0A15E';
     return`<tr>
       <td style="color:var(--accent);font-weight:500">${d.num||'—'}</td>
       <td style="color:var(--text2)">${d.date||'—'}</td>
@@ -2309,10 +2309,10 @@ function renderDevis(){
       <td style="text-align:right;font-weight:600">${fmt(d.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:600">${d.statut||'—'}${d.dateValidation?`<div style="font-size:9px;color:var(--text3);font-weight:400">le ${fmtDate(d.dateValidation)}</div>`:''}</td>
       <td style="font-size:11px;color:var(--text2)">${d.factureNum?('📄 '+d.factureNum):'—'}</td>
-      <td style="text-align:center">${(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:''}${d.driveLink?`<a href="${d.driveLink}" target="_blank" style="background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}${!loadDevisPdf(d._ri)&&!d.driveLink?'<span style="font-size:10px;color:var(--text3)">—</span>':''}</td>
+      <td style="text-align:center">${(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:''}${d.driveLink?`<a href="${d.driveLink}" target="_blank" style="background:rgba(127,191,158,.1);border:1px solid rgba(127,191,158,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}${!loadDevisPdf(d._ri)&&!d.driveLink?'<span style="font-size:10px;color:var(--text3)">—</span>':''}</td>
       <td style="text-align:center;white-space:nowrap">
-        ${d.statut==='En attente'?`<button class="btn btn-sm" style="background:rgba(104,211,145,.15);border-color:rgba(104,211,145,.4);color:var(--green)" onclick="validerDevis(${d._ri})" title="Valider ce devis (passe en Accepté)">✓ Valider</button>`:''}
-        ${(d.statut==='Accepté'||d.statut==='Facturé')&&(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn btn-sm" style="background:rgba(183,148,244,.15);border-color:rgba(183,148,244,.4);color:var(--purple)" onclick="reappliquerTamponDevis(${d._ri})" title="Réappliquer le tampon (ex: après changement du tampon dans Paramètres, ou remplacement du document)">🖋</button>`:''}
+        ${d.statut==='En attente'?`<button class="btn btn-sm" style="background:rgba(127,191,158,.15);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="validerDevis(${d._ri})" title="Valider ce devis (passe en Accepté)">✓ Valider</button>`:''}
+        ${(d.statut==='Accepté'||d.statut==='Facturé')&&(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn btn-sm" style="background:rgba(185,142,212,.15);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="reappliquerTamponDevis(${d._ri})" title="Réappliquer le tampon (ex: après changement du tampon dans Paramètres, ou remplacement du document)">🖋</button>`:''}
         <button class="btn btn-sm btn-edit" onclick="openEditDevis(${d._ri})">✎</button>
         <button class="btn btn-sm btn-danger" onclick="supprimerDevis(${d._ri})">🗑</button>
       </td>
@@ -2713,10 +2713,10 @@ function getCatDisplayText(f){
 function renderLogBadgeHTML(f){
   if(f.repartition && f.repartition.length){
     const detail=f.repartition.map(r=>r.log+(r.cat?' / '+r.cat:'')+' : '+fmt(r.montant)).join('  ·  ');
-    return `<span class="log-badge" style="background:#b794f426;color:#b794f4" title="${detail.replace(/"/g,'&quot;')}">🔀 ${f.repartition.length} lignes</span>`;
+    return `<span class="log-badge" style="background:#B98ED426;color:#B98ED4" title="${detail.replace(/"/g,'&quot;')}">🔀 ${f.repartition.length} lignes</span>`;
   }
   const lcObj=LOGS.find(l=>l.key===f.log);
-  const lc=lcObj?lcObj.color:'#b794f4';
+  const lc=lcObj?lcObj.color:'#B98ED4';
   return `<span class="log-badge" style="background:${lc}26;color:${lc}">${f.log||'—'}</span>`;
 }
 function getReelTotals(factures){
@@ -3137,16 +3137,16 @@ function remplirDepuisFacturX(info){
   const warnEls=[document.getElementById('upload-warn'),document.getElementById('sv-warn')].filter(Boolean);
   warnEls.forEach(warn=>{
     if(dupMsg){
-      warn.innerHTML=dupMsg+' <button onclick="resetSaisieFields()" style="margin-left:8px;background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.4);border-radius:6px;color:var(--red);cursor:pointer;font-size:11px;font-weight:600;padding:3px 10px">✕ Réinitialiser</button>';
-      warn.style.color='#fc8181';warn.style.fontWeight='700';
-      warn.style.background='rgba(252,129,129,.08)';warn.style.border='1px solid rgba(252,129,129,.3)';
+      warn.innerHTML=dupMsg+' <button onclick="resetSaisieFields()" style="margin-left:8px;background:rgba(224,113,107,.15);border:1px solid rgba(224,113,107,.4);border-radius:6px;color:var(--red);cursor:pointer;font-size:11px;font-weight:600;padding:3px 10px">✕ Réinitialiser</button>';
+      warn.style.color='#E0716B';warn.style.fontWeight='700';
+      warn.style.background='rgba(224,113,107,.08)';warn.style.border='1px solid rgba(224,113,107,.3)';
     } else {
       warn.innerHTML='🔷 <strong>Facture électronique certifiée (Factur-X)</strong> — données lues directement dans le fichier, garanties exactes, aucune vérification IA nécessaire.'
         +(info.siret?' SIRET fournisseur : '+info.siret+'.':'')
         +(info.iban?' IBAN détecté (non stocké).':'')
         +' <button onclick="resetSaisieFields()" style="margin-left:8px;background:rgba(100,116,139,.15);border:1px solid rgba(100,116,139,.3);border-radius:6px;color:var(--text2);cursor:pointer;font-size:11px;font-weight:600;padding:3px 10px">✕ Réinitialiser</button>';
-      warn.style.color='#63b3ed';warn.style.fontWeight='600';
-      warn.style.background='rgba(99,179,237,.1)';warn.style.border='1px solid rgba(99,179,237,.35)';
+      warn.style.color='#5AC8D8';warn.style.fontWeight='600';
+      warn.style.background='rgba(90,200,216,.1)';warn.style.border='1px solid rgba(90,200,216,.35)';
     }
     warn.style.display='block';
   });
@@ -3265,17 +3265,17 @@ Pour "lignes" : liste CHAQUE ligne ou bloc de lignes distinct de la facture (reg
     const warnEls=[document.getElementById('upload-warn'),document.getElementById('sv-warn')].filter(Boolean);
     warnEls.forEach(warn=>{
       if(dupMsg){
-        warn.innerHTML=dupMsg+' <button onclick="resetSaisieFields()" style="margin-left:8px;background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.4);border-radius:6px;color:var(--red);cursor:pointer;font-size:11px;font-weight:600;padding:3px 10px">✕ Réinitialiser</button>';
-        warn.style.color='#fc8181';
+        warn.innerHTML=dupMsg+' <button onclick="resetSaisieFields()" style="margin-left:8px;background:rgba(224,113,107,.15);border:1px solid rgba(224,113,107,.4);border-radius:6px;color:var(--red);cursor:pointer;font-size:11px;font-weight:600;padding:3px 10px">✕ Réinitialiser</button>';
+        warn.style.color='#E0716B';
         warn.style.fontWeight='700';
-        warn.style.background='rgba(252,129,129,.08)';
-        warn.style.border='1px solid rgba(252,129,129,.3)';
+        warn.style.background='rgba(224,113,107,.08)';
+        warn.style.border='1px solid rgba(224,113,107,.3)';
       } else {
         warn.innerHTML='✅ IA : champs remplis automatiquement — vérifiez et corrigez si besoin'+repartitionMsg+' <button onclick="resetSaisieFields()" style="margin-left:8px;background:rgba(100,116,139,.15);border:1px solid rgba(100,116,139,.3);border-radius:6px;color:var(--text2);cursor:pointer;font-size:11px;font-weight:600;padding:3px 10px">✕ Réinitialiser</button>';
-        warn.style.color='#68d391';
+        warn.style.color='#7FBF9E';
         warn.style.fontWeight='400';
-        warn.style.background='rgba(104,211,145,.08)';
-        warn.style.border='1px solid rgba(104,211,145,.25)';
+        warn.style.background='rgba(127,191,158,.08)';
+        warn.style.border='1px solid rgba(127,191,158,.25)';
       }
       warn.style.display='block';
     });
@@ -3284,9 +3284,9 @@ Pour "lignes" : liste CHAQUE ligne ou bloc de lignes distinct de la facture (reg
     const warnEls=[document.getElementById('upload-warn'),document.getElementById('sv-warn')].filter(Boolean);
     warnEls.forEach(warn=>{
       warn.textContent='⚠ Extraction IA échouée : '+e.message+' — remplissez manuellement';
-      warn.style.color='#f6ad55';
-      warn.style.background='rgba(246,173,85,.08)';
-      warn.style.border='1px solid rgba(246,173,85,.25)';
+      warn.style.color='#E0A15E';
+      warn.style.background='rgba(224,161,94,.08)';
+      warn.style.border='1px solid rgba(224,161,94,.25)';
       warn.style.display='block';
     });
   }finally{loader.style.display='none';}
@@ -3407,7 +3407,7 @@ function renderSynthese(){
   document.getElementById('kpi-grid').innerHTML=`
     <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">Budget total prévu TTC</div><div class="kpi-val">${fmt(tPrev)}</div><div class="kpi-sub">${CATEGORIES.filter(c=>(prev[c.name]||0)>0).length} catégories budgétées</div></div>
     <div class="kpi" style="--kpi-color:#4fd1c5"><div class="kpi-label">Dépenses réelles TTC</div><div class="kpi-val">${fmt(tReel)}</div><div class="kpi-sub">${factures.filter(f=>f.inclus!==false).length} factures · ${Math.round(pct)}% du budget${tEngage>0?` · <span style="color:var(--purple)">+${fmt(tEngage)} engagés</span>`:''}</div></div>
-    <div class="kpi" style="--kpi-color:${ecart>=0?'#68d391':'#fc8181'}"><div class="kpi-label">Reste disponible</div><div class="kpi-val" style="color:${ecart>=0?'#68d391':'#fc8181'}">${fmt(ecart)}</div><div class="kpi-sub">${ecart>=0?'✓ Sous budget':'⚠ Dépassement'}${tEngage>0?` · <span style="color:${ecartApresEngagement>=0?'var(--text3)':'#f6ad55'}">${fmt(ecartApresEngagement)} après engagements</span>`:''}</div></div>
+    <div class="kpi" style="--kpi-color:${ecart>=0?'#7FBF9E':'#E0716B'}"><div class="kpi-label">Reste disponible</div><div class="kpi-val" style="color:${ecart>=0?'#7FBF9E':'#E0716B'}">${fmt(ecart)}</div><div class="kpi-sub">${ecart>=0?'✓ Sous budget':'⚠ Dépassement'}${tEngage>0?` · <span style="color:${ecartApresEngagement>=0?'var(--text3)':'#E0A15E'}">${fmt(ecartApresEngagement)} après engagements</span>`:''}</div></div>
     <div class="kpi" style="--kpi-color:var(--purple)"><div class="kpi-label">En attente paiement</div><div class="kpi-val">${fmt(attente)}</div><div class="kpi-sub">Payées : ${fmt(payees)}</div></div>`;
 
   // Jauge globale — couche pleine = dépensé (factures), couche hachurée = engagé (devis validés non facturés)
@@ -3454,9 +3454,9 @@ function renderSynthese(){
       </div>
       <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:10px">
         <span style="color:var(--text3)">${Math.round(lPct)}% consommé</span>
-        <span style="color:${reste>=0?'#68d391':'#fc8181'};font-weight:600">${reste>=0?'Reste : '+fmt(reste):'Dépassement : '+fmt(Math.abs(reste))}</span>
+        <span style="color:${reste>=0?'#7FBF9E':'#E0716B'};font-weight:600">${reste>=0?'Reste : '+fmt(reste):'Dépassement : '+fmt(Math.abs(reste))}</span>
       </div>
-      ${catAlertes>0?`<div style="font-size:10px;color:var(--orange);background:rgba(246,173,85,.1);border:1px solid rgba(246,173,85,.25);border-radius:6px;padding:5px 10px">⚠ ${catAlertes} catégorie${catAlertes>1?'s':''} à surveiller</div>`:'<div style="font-size:10px;color:var(--green);background:rgba(104,211,145,.08);border:1px solid rgba(104,211,145,.2);border-radius:6px;padding:5px 10px">✓ Dans les clous</div>'}
+      ${catAlertes>0?`<div style="font-size:10px;color:var(--orange);background:rgba(224,161,94,.1);border:1px solid rgba(224,161,94,.25);border-radius:6px;padding:5px 10px">⚠ ${catAlertes} catégorie${catAlertes>1?'s':''} à surveiller</div>`:'<div style="font-size:10px;color:var(--green);background:rgba(127,191,158,.08);border:1px solid rgba(127,191,158,.2);border-radius:6px;padding:5px 10px">✓ Dans les clous</div>'}
     </div>`;
   }).join('');
 
@@ -3471,9 +3471,9 @@ function renderSynthese(){
     return null;
   }).filter(Boolean);
   const styleParNiveau={
-    depasse:{icon:'🔴',bg:'rgba(252,129,129,.08)',border:'rgba(252,129,129,.3)',tag:'DÉPASSEMENT',tagColor:'#fc8181'},
-    attention:{icon:'🟠',bg:'rgba(246,173,85,.08)',border:'rgba(246,173,85,.3)',tag:'ATTENTION',tagColor:'#f6ad55'},
-    previsible:{icon:'🟣',bg:'rgba(183,148,244,.08)',border:'rgba(183,148,244,.3)',tag:'À PRÉVOIR',tagColor:'#b794f4'}
+    depasse:{icon:'🔴',bg:'rgba(224,113,107,.08)',border:'rgba(224,113,107,.3)',tag:'DÉPASSEMENT',tagColor:'#E0716B'},
+    attention:{icon:'🟠',bg:'rgba(224,161,94,.08)',border:'rgba(224,161,94,.3)',tag:'ATTENTION',tagColor:'#E0A15E'},
+    previsible:{icon:'🟣',bg:'rgba(185,142,212,.08)',border:'rgba(185,142,212,.3)',tag:'À PRÉVOIR',tagColor:'#B98ED4'}
   };
   const alertesHtml=alertes.length?`<div style="display:flex;flex-direction:column;gap:8px">
     ${alertes.map(a=>{
@@ -3490,7 +3490,7 @@ function renderSynthese(){
         <span style="font-size:12px;font-weight:700;color:${st.tagColor}">${st.tag}</span>
       </div>`;
     }).join('')}
-  </div>`:'<div style="background:rgba(104,211,145,.08);border:1px solid rgba(104,211,145,.2);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--green)">✅ Toutes les catégories sont dans les limites budgétaires</div>';
+  </div>`:'<div style="background:rgba(127,191,158,.08);border:1px solid rgba(127,191,158,.2);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--green)">✅ Toutes les catégories sont dans les limites budgétaires</div>';
   document.getElementById('synth-alertes').innerHTML=`<div class="section-title">Alertes budget</div>${alertesHtml}`;
 
   // Courbe mensuelle
@@ -3508,7 +3508,7 @@ function renderSynthese(){
     data:{
       labels:moisKeys.map(m=>{const[y,mo]=m.split('-');return ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][parseInt(mo)-1]+' '+y.slice(2);}),
       datasets:[
-        {label:'Cumulé TTC',data:cumulData,borderColor:'#63b3ed',backgroundColor:'rgba(99,179,237,0.1)',borderWidth:2.5,fill:true,tension:0.3,pointRadius:5,pointBackgroundColor:'#63b3ed'},
+        {label:'Cumulé TTC',data:cumulData,borderColor:'#5AC8D8',backgroundColor:'rgba(90,200,216,0.1)',borderWidth:2.5,fill:true,tension:0.3,pointRadius:5,pointBackgroundColor:'#5AC8D8'},
         {label:'Mensuel',data:moisKeys.map(m=>moisMap[m]),borderColor:'#4fd1c5',backgroundColor:'rgba(79,209,197,0.08)',borderWidth:1.5,fill:false,tension:0.3,pointRadius:4,pointBackgroundColor:'#4fd1c5',borderDash:[4,4]}
       ]
     },
@@ -3523,9 +3523,9 @@ function renderSynthese(){
   // 5 dernières factures
   const last5=[...factures].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
   document.getElementById('synth-last-factures').innerHTML=last5.map(f=>{
-    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':'#b794f4';
+    const sc=f.statut==='Payée'?'#7FBF9E':f.statut==='En attente'?'#E0A15E':'#B98ED4';
     return`<tr>
-      <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}</td>
+      <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px">EXCLU</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${getCatDisplayText(f)}</td>
@@ -3560,7 +3560,7 @@ function renderSynthese(){
     <div class="td bar-cell"><div class="bar-track"><div class="bar-prev" style="background:var(--accent);width:100%"></div><div class="bar-reel" style="background:var(--accent);width:${tp.toFixed(1)}%"></div></div><div class="bar-labels"><span>${Math.round(tp)}% consommé</span></div></div>
     <div class="td" style="justify-content:flex-end">${fmt(tPrev)}</div>
     <div class="td" style="justify-content:flex-end">${fmt(tReel)}</div>
-    <div class="td" style="justify-content:flex-end;color:${te>=0?'#68d391':'#fc8181'};font-weight:700">${fmtE(te)}</div>
+    <div class="td" style="justify-content:flex-end;color:${te>=0?'#7FBF9E':'#E0716B'};font-weight:700">${fmtE(te)}</div>
     <div class="td"></div>`;
 }
 
@@ -3576,7 +3576,7 @@ function renderLogements(){
     return`<div class="log-card" style="--lc:${l.color}"><h3>${l.key}</h3>
       <div class="log-line"><span>Budget prévu TTC</span><span>${fmt(p)}</span></div>
       <div class="log-line"><span>Réel engagé TTC</span><span>${fmt(r)}</span></div>
-      <div class="log-line"><span>Reste TTC</span><span style="color:${p-r>=0?'#68d391':'#fc8181'}">${fmt(p-r)}</span></div>
+      <div class="log-line"><span>Reste TTC</span><span style="color:${p-r>=0?'#7FBF9E':'#E0716B'}">${fmt(p-r)}</span></div>
       <div class="log-line"><span>Nb factures</span><span>${nb}</span></div>
       <div class="log-bar"><div class="log-bar-fill" style="background:${l.color};width:${pct.toFixed(1)}%"></div></div>
       <div style="font-size:10px;color:var(--text3);margin-top:4px;text-align:right">${Math.round(pct)}% consommé</div>
@@ -3637,7 +3637,7 @@ function renderBudget(){
     if(cat.type!==lastType){
       lastType=cat.type;
       const sectionLabel=cat.type==='travaux'?'🔨 TRAVAUX (INVESTISSEMENT)':'📋 FONCTIONNEMENT (CHARGES RÉCURRENTES)';
-      const sectionColor=cat.type==='travaux'?'#63b3ed':'#68d391';
+      const sectionColor=cat.type==='travaux'?'#5AC8D8':'#7FBF9E';
       const section=document.createElement('div');
       section.style.cssText=`grid-column:1/-1;padding:14px 12px 6px;font-size:11px;font-weight:700;letter-spacing:.6px;color:${sectionColor};border-top:2px solid ${sectionColor}33;margin-top:8px`;
       section.textContent=sectionLabel;
@@ -3675,7 +3675,7 @@ function renderBudget(){
           if(rL>0||eL>0){
             const subL=document.createElement('div');subL.style.cssText='font-size:8px;line-height:1.4;margin-top:2px;text-align:right';
             if(rL>0){const sl1=document.createElement('div');sl1.style.color='#4fd1c5';sl1.textContent='✓ '+fmt(rL);subL.appendChild(sl1);}
-            if(eL>0){const sl2=document.createElement('div');sl2.style.color='#b794f4';sl2.textContent='◐ '+fmt(eL);subL.appendChild(sl2);}
+            if(eL>0){const sl2=document.createElement('div');sl2.style.color='#B98ED4';sl2.textContent='◐ '+fmt(eL);subL.appendChild(sl2);}
             td.appendChild(subL);
           }
         }
@@ -3685,7 +3685,7 @@ function renderBudget(){
       const tot=LOGS.reduce((s,l)=>s+(+row[l.prevKey]||0),0);
       const topRow=document.createElement('div');topRow.style.cssText='display:flex;align-items:center;gap:8px';
       const span=document.createElement('span');span.textContent=tot>0?fmt(tot):'—';topRow.appendChild(span);
-      if(rows.length>1){const btn=document.createElement('button');btn.textContent='−';btn.title='Supprimer ce poste';btn.style.cssText='background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.4);border-radius:4px;color:var(--red);cursor:pointer;font-size:12px;font-weight:700;padding:1px 7px;line-height:1.4;flex-shrink:0';btn.onclick=()=>removeBudgetRow(cat.name,idx);topRow.appendChild(btn);}
+      if(rows.length>1){const btn=document.createElement('button');btn.textContent='−';btn.title='Supprimer ce poste';btn.style.cssText='background:rgba(224,113,107,.15);border:1px solid rgba(224,113,107,.4);border-radius:4px;color:var(--red);cursor:pointer;font-size:12px;font-weight:700;padding:1px 7px;line-height:1.4;flex-shrink:0';btn.onclick=()=>removeBudgetRow(cat.name,idx);topRow.appendChild(btn);}
       tdTot.appendChild(topRow);
       const posteKey=cat.name+'|||'+(row.desc||'').trim();
       const reelPoste=row.desc?(reelParPoste[posteKey]||0):0;
@@ -3693,14 +3693,14 @@ function renderBudget(){
       if(reelPoste>0||engagePoste>0){
         const sub=document.createElement('div');sub.style.cssText='font-size:9px;line-height:1.5;text-align:right';
         if(reelPoste>0){const l1=document.createElement('div');l1.style.color='#4fd1c5';l1.textContent='✓ '+fmt(reelPoste)+' réel';sub.appendChild(l1);}
-        if(engagePoste>0){const l2=document.createElement('div');l2.style.color='#b794f4';l2.textContent='◐ '+fmt(engagePoste)+' engagé';sub.appendChild(l2);}
+        if(engagePoste>0){const l2=document.createElement('div');l2.style.color='#B98ED4';l2.textContent='◐ '+fmt(engagePoste)+' engagé';sub.appendChild(l2);}
         tdTot.appendChild(sub);
       }
       grid.appendChild(tdTot);
     });
     // Bouton ajouter poste
     const addRow=document.createElement('div');addRow.className='bg-cat-hdr';addRow.style.cssText='grid-column:1/-1;background:transparent;border-top:none;padding:6px 12px;justify-content:flex-start';
-    const addBtn=document.createElement('button');addBtn.textContent='+ Ajouter un poste';addBtn.style.cssText='background:rgba(99,179,237,.08);border:1px dashed rgba(99,179,237,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-size:11px;font-weight:500;padding:4px 14px;transition:all .2s';addBtn.onmouseover=()=>addBtn.style.background='rgba(99,179,237,.16)';addBtn.onmouseout=()=>addBtn.style.background='rgba(99,179,237,.08)';addBtn.onclick=()=>addBudgetRow(cat.name);addRow.appendChild(addBtn);grid.appendChild(addRow);
+    const addBtn=document.createElement('button');addBtn.textContent='+ Ajouter un poste';addBtn.style.cssText='background:rgba(90,200,216,.08);border:1px dashed rgba(90,200,216,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-size:11px;font-weight:500;padding:4px 14px;transition:all .2s';addBtn.onmouseover=()=>addBtn.style.background='rgba(90,200,216,.16)';addBtn.onmouseout=()=>addBtn.style.background='rgba(90,200,216,.08)';addBtn.onclick=()=>addBudgetRow(cat.name);addRow.appendChild(addBtn);grid.appendChild(addRow);
     const stDiv=document.createElement('div');stDiv.className='bg-subtotal';
     ['Sous-total',...LOGS.map(l=>l.key),'Total'].forEach((lbl,i)=>{
       const td=document.createElement('div');td.className='bg-td';td.style.textAlign=i===0?'left':'right';
@@ -3739,7 +3739,7 @@ function renderReelGrid(){
   let totAll=0;
   let lastType=null;
   const TYPE_LABELS={travaux:'🔨 TRAVAUX (INVESTISSEMENT)',fonctionnement:'📋 FONCTIONNEMENT (CHARGES RÉCURRENTES)',hors_rentabilite:'⛔ HORS RENTABILITÉ (EXCLU DU CALCUL)'};
-  const TYPE_COLORS={travaux:'#63b3ed',fonctionnement:'#68d391',hors_rentabilite:'#a0aec0'};
+  const TYPE_COLORS={travaux:'#5AC8D8',fonctionnement:'#7FBF9E',hors_rentabilite:'#a0aec0'};
   CATEGORIES.forEach(cat=>{
     const m=matrix[cat.name]||{};
     LOGS.forEach((l,i)=>{ totals[i]+=m[l.prevKey]||0; });
@@ -3771,7 +3771,7 @@ function renderReelGrid(){
 
   // Ligne total général
   const totDiv=document.createElement('div');
-  totDiv.style.cssText=`grid-column:1/-1;display:grid;grid-template-columns:210px repeat(${Math.max(LOGS.length,1)},1fr) 110px;background:rgba(99,179,237,0.1);border-top:2px solid var(--border2)`;
+  totDiv.style.cssText=`grid-column:1/-1;display:grid;grid-template-columns:210px repeat(${Math.max(LOGS.length,1)},1fr) 110px;background:rgba(90,200,216,0.1);border-top:2px solid var(--border2)`;
   [{t:'TOTAL GÉNÉRAL',align:'left'},...totals.map(v=>({v})),{v:totAll,bold:true}].forEach(({t,v,align,bold})=>{
     const td=document.createElement('div');td.className='bg-td';
     td.style.textAlign=align||'right';td.style.fontWeight='700';td.style.color='var(--accent)';td.style.fontSize='12px';
@@ -3880,16 +3880,16 @@ function renderFactures(){
     let alertClass='';let alertBadge='';
     if(f.statut!=='Payée'&&f.date){
       const daysDiff=Math.floor((Date.now()-new Date(f.date).getTime())/(1000*60*60*24));
-      if(daysDiff>60){alertClass='row-alert-danger';alertBadge='<span style="font-size:9px;background:rgba(252,129,129,.2);color:var(--red);border:1px solid rgba(252,129,129,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⚠ +'+daysDiff+'j</span>';}
-      else if(daysDiff>30){alertClass='row-alert-warn';alertBadge='<span style="font-size:9px;background:rgba(246,173,85,.2);color:var(--orange);border:1px solid rgba(246,173,85,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⏰ '+daysDiff+'j</span>';}
+      if(daysDiff>60){alertClass='row-alert-danger';alertBadge='<span style="font-size:9px;background:rgba(224,113,107,.2);color:var(--red);border:1px solid rgba(224,113,107,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⚠ +'+daysDiff+'j</span>';}
+      else if(daysDiff>30){alertClass='row-alert-warn';alertBadge='<span style="font-size:9px;background:rgba(224,161,94,.2);color:var(--orange);border:1px solid rgba(224,161,94,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⏰ '+daysDiff+'j</span>';}
     }
-    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':'#b794f4';
+    const sc=f.statut==='Payée'?'#7FBF9E':f.statut==='En attente'?'#E0A15E':'#B98ED4';
     const isDup=dupIndices.has(ri);
     if(isDup){alertClass='row-alert-duplicate';}
     return`<tr class="${alertClass}" style="${excluStyle}">
-      <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${isDup?` <span onclick="confirmerPasDoublon(${ri})" title="Cliquer pour confirmer que ce n'est PAS un doublon" style="cursor:pointer;font-size:9px;background:rgba(252,129,129,.25);color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON — ✓ Confirmer que non</span>`:''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #f6ad55;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
+      <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${isDup?` <span onclick="confirmerPasDoublon(${ri})" title="Cliquer pour confirmer que ce n'est PAS un doublon" style="cursor:pointer;font-size:9px;background:rgba(224,113,107,.25);color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON — ✓ Confirmer que non</span>`:''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #E0A15E;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
-      <td style="font-weight:500">${f.four||'—'}${f.sourceCertifiee?' <span title="Facture électronique certifiée (Factur-X) — données garanties exactes, aucune lecture IA" style="font-size:9px;background:rgba(99,179,237,.15);color:#63b3ed;border:1px solid rgba(99,179,237,.4);border-radius:3px;padding:1px 5px;font-weight:700">🔷 CERTIFIÉE</span>':''}</td>
+      <td style="font-weight:500">${f.four||'—'}${f.sourceCertifiee?' <span title="Facture électronique certifiée (Factur-X) — données garanties exactes, aucune lecture IA" style="font-size:9px;background:rgba(90,200,216,.15);color:#5AC8D8;border:1px solid rgba(90,200,216,.4);border-radius:3px;padding:1px 5px;font-weight:700">🔷 CERTIFIÉE</span>':''}</td>
       <td style="color:var(--text2);font-size:11px">${getCatDisplayText(f)}</td>
       <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(f.ttc)}</td>
@@ -3901,11 +3901,11 @@ function renderFactures(){
       </td>
       <td style="text-align:center">
         ${hasPdf?`<button class="btn-pdf-view" onclick="viewPdf(${ri},'${(f.four||'Facture').replace(/'/g,"\\'")}')">📄 Local</button>`:''}
-        ${f.driveLink?`<a href="${f.driveLink}" target="_blank" style="background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}
-        ${!hasPdf&&!f.driveLink?`<button class="btn btn-sm" onclick="lierDriveLink(${ri})" style="background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.35);color:var(--accent);font-size:10px;padding:4px 9px" title="Rattacher un lien Google Drive existant">🔗 Lier Drive</button>`:''}
+        ${f.driveLink?`<a href="${f.driveLink}" target="_blank" style="background:rgba(127,191,158,.1);border:1px solid rgba(127,191,158,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}
+        ${!hasPdf&&!f.driveLink?`<button class="btn btn-sm" onclick="lierDriveLink(${ri})" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.35);color:var(--accent);font-size:10px;padding:4px 9px" title="Rattacher un lien Google Drive existant">🔗 Lier Drive</button>`:''}
       </td>
       <td style="text-align:center;display:flex;gap:5px;justify-content:center;flex-wrap:wrap">
-        ${!f.driveLink?'':`<a href="${f.driveLink}" target="_blank" class="btn btn-sm" style="background:rgba(104,211,145,.15);border-color:rgba(104,211,145,.4);color:var(--green);text-decoration:none">☁</a>`}
+        ${!f.driveLink?'':`<a href="${f.driveLink}" target="_blank" class="btn btn-sm" style="background:rgba(127,191,158,.15);border-color:rgba(127,191,158,.4);color:var(--green);text-decoration:none">☁</a>`}
         ${hasPdf&&!f.driveLink?`<button class="btn btn-sm btn-edit" onclick="viewPdf(${ri},'${(f.four||'').replace(/'/g,"\\'")}')">📄</button>`:''}
         <button class="btn btn-sm btn-edit" onclick="openEdit(${ri})">Modifier</button>
         <button class="btn btn-sm btn-danger" onclick="supprimerFacture(${ri})">×</button>
@@ -4088,7 +4088,7 @@ function renderBanque(){
     const{result:deblocage,creditKeys,logs}=getCreditDeblocageParLogement(factures);
     summaryEl.innerHTML=creditKeys.map(k=>{
       const lg=logs.find(l=>l.key===k);
-      const color=lg?lg.color:'#b794f4';
+      const color=lg?lg.color:'#B98ED4';
       const label=lg?lg.label:(k==='Commun'?'Terrain (Commun)':'Logement '+k);
       const capital=+((fc[k]&&fc[k].capital)||0);
       const apport=+((fc[k]&&fc[k].apport)||0);
@@ -4140,17 +4140,17 @@ function renderBanque(){
     const ri=f._ri;
     const hasPdf=!!loadPdf(ri);
     const checked=banqueSelection.has(ri)?'checked':'';
-    const horsProjet=f.inclus===false?' <span style="font-size:9px;color:var(--orange);border:1px solid #f6ad55;border-radius:3px;padding:1px 4px" title="Facture exclue du projet mais toujours disponible ici pour transmission bancaire">Hors projet</span>':'';
+    const horsProjet=f.inclus===false?' <span style="font-size:9px;color:var(--orange);border:1px solid #E0A15E;border-radius:3px;padding:1px 4px" title="Facture exclue du projet mais toujours disponible ici pour transmission bancaire">Hors projet</span>':'';
     const pdfCell=`${hasPdf?`<button class="btn-pdf-view" onclick="viewPdf(${ri},'${(f.four||'Facture').replace(/'/g,"\\'")}')">📄 Voir</button>`:''}
-        ${f.driveLink?`<a href="${f.driveLink}" target="_blank" style="background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}
-        ${!hasPdf&&!f.driveLink?`<button class="btn btn-sm" onclick="lierDriveLink(${ri})" style="background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.35);color:var(--accent);font-size:10px;padding:4px 9px" title="Rattacher un lien Google Drive existant">🔗 Lier Drive</button>`:''}`;
-    const actionCell=`<button class="btn btn-sm" style="${f.banque?'background:rgba(99,179,237,.15);border-color:rgba(99,179,237,.45);color:var(--accent)':'background:rgba(100,116,139,.1);border-color:rgba(100,116,139,.3);color:var(--text2)'}" onclick="toggleBanque(${ri},${!f.banque})">${f.banque?'✓ Transmise':'🏦 Marquer transmise'}</button>`;
+        ${f.driveLink?`<a href="${f.driveLink}" target="_blank" style="background:rgba(127,191,158,.1);border:1px solid rgba(127,191,158,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}
+        ${!hasPdf&&!f.driveLink?`<button class="btn btn-sm" onclick="lierDriveLink(${ri})" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.35);color:var(--accent);font-size:10px;padding:4px 9px" title="Rattacher un lien Google Drive existant">🔗 Lier Drive</button>`:''}`;
+    const actionCell=`<button class="btn btn-sm" style="${f.banque?'background:rgba(90,200,216,.15);border-color:rgba(90,200,216,.45);color:var(--accent)':'background:rgba(100,116,139,.1);border-color:rgba(100,116,139,.3);color:var(--text2)'}" onclick="toggleBanque(${ri},${!f.banque})">${f.banque?'✓ Transmise':'🏦 Marquer transmise'}</button>`;
 
     const shares=(f.repartition&&f.repartition.length>1)?getFactureShares(f,cfgLogements):null;
     if(shares){
       return shares.map((s,si)=>{
         const lcObj=LOGS.find(l=>l.key===s.log||l.label===s.log);
-        const lc=lcObj?lcObj.color:'#b794f4';
+        const lc=lcObj?lcObj.color:'#B98ED4';
         const logBadge=`<span class="log-badge" style="background:${lc}26;color:${lc}">${s.log||'—'}</span>`;
         if(si===0){
           const rs=shares.length;
@@ -4867,10 +4867,10 @@ window.updateEditSplitTotal=function(){
   });
   const diff=+(ttcTotal-saisi).toFixed(2);
   if(Math.abs(diff)<0.01){
-    infoEl.style.color='var(--green,#68d391)';
+    infoEl.style.color='var(--green,#7FBF9E)';
     infoEl.textContent=`✓ Total réparti : ${saisi.toFixed(2)} € — correspond au montant TTC`;
   } else if(diff>0){
-    infoEl.style.color='#f6ad55';
+    infoEl.style.color='#E0A15E';
     infoEl.textContent=`Il reste ${diff.toFixed(2)} € à répartir (saisi : ${saisi.toFixed(2)} € sur ${ttcTotal.toFixed(2)} €)`;
   } else {
     infoEl.style.color='#e53e3e';
@@ -5126,7 +5126,7 @@ function updateFinancement(){
     document.getElementById('fin-budget-'+l.prevKey).textContent=fmt(bud);
     const resteEl=document.getElementById('fin-reste-'+l.prevKey);
     resteEl.textContent=fmt(Math.abs(reste));
-    resteEl.style.color=reste<=0?'#68d391':'#fc8181';
+    resteEl.style.color=reste<=0?'#7FBF9E':'#E0716B';
   });
   document.getElementById('fin-credit-total').textContent=fmt(totCr);
   document.getElementById('fin-apport-total').textContent=fmt(totAp);
@@ -5134,7 +5134,7 @@ function updateFinancement(){
   document.getElementById('fin-budget-global').textContent=fmt(totBudget);
   const resteGl=document.getElementById('fin-reste-global');
   resteGl.textContent=fmt(Math.abs(totReste));
-  resteGl.style.color=totReste<=0?'#68d391':'#fc8181';
+  resteGl.style.color=totReste<=0?'#7FBF9E':'#E0716B';
   // Barres
   document.getElementById('fin-bars').innerHTML=LOGS.map(l=>{
     const cr=fin['credit_'+l.prevKey]||0,ap=fin['apport_'+l.prevKey]||0;
@@ -5146,11 +5146,11 @@ function updateFinancement(){
     return`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
       <div style="font-size:11px;font-weight:600;color:${l.color};margin-bottom:10px">${l.key}</div>
       <div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;display:flex;margin-bottom:6px">
-        <div style="height:100%;width:${crPct.toFixed(1)}%;background:#63b3ed;transition:width .7s"></div>
-        <div style="height:100%;width:${apPct.toFixed(1)}%;background:#68d391;transition:width .7s"></div>
+        <div style="height:100%;width:${crPct.toFixed(1)}%;background:#5AC8D8;transition:width .7s"></div>
+        <div style="height:100%;width:${apPct.toFixed(1)}%;background:#7FBF9E;transition:width .7s"></div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:8px"><span>${Math.round(pct)}% couvert</span><span>${fmt(finTot)} / ${fmt(bud)}</span></div>
-      <div style="font-size:11px;font-weight:600;color:${reste<=0?'#68d391':'#fc8181'}">${reste<=0?'✓ Couvert':'⚠ Reste de crédit : '+fmt(reste)}</div>
+      <div style="font-size:11px;font-weight:600;color:${reste<=0?'#7FBF9E':'#E0716B'}">${reste<=0?'✓ Couvert':'⚠ Reste de crédit : '+fmt(reste)}</div>
     </div>`;
   }).join('');
 }
@@ -5347,12 +5347,12 @@ function renderAnnuel(){
     let alertClass='';let alertBadge='';
     if(f.statut!=='Payée'&&f.date){
       const daysDiff=Math.floor((Date.now()-new Date(f.date).getTime())/(1000*60*60*24));
-      if(daysDiff>60){alertClass='row-alert-danger';alertBadge='<span style="font-size:9px;background:rgba(252,129,129,.2);color:var(--red);border:1px solid rgba(252,129,129,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⚠ +'+daysDiff+'j</span>';}
-      else if(daysDiff>30){alertClass='row-alert-warn';alertBadge='<span style="font-size:9px;background:rgba(246,173,85,.2);color:var(--orange);border:1px solid rgba(246,173,85,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⏰ '+daysDiff+'j</span>';}
+      if(daysDiff>60){alertClass='row-alert-danger';alertBadge='<span style="font-size:9px;background:rgba(224,113,107,.2);color:var(--red);border:1px solid rgba(224,113,107,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⚠ +'+daysDiff+'j</span>';}
+      else if(daysDiff>30){alertClass='row-alert-warn';alertBadge='<span style="font-size:9px;background:rgba(224,161,94,.2);color:var(--orange);border:1px solid rgba(224,161,94,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⏰ '+daysDiff+'j</span>';}
     }
-    const sc=f.statut==='Payée'?'#68d391':f.statut==='En attente'?'#f6ad55':'#b794f4';
+    const sc=f.statut==='Payée'?'#7FBF9E':f.statut==='En attente'?'#E0A15E':'#B98ED4';
     return`<tr class="${alertClass}" style="${excluStyle}">
-      <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #fc8181;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #f6ad55;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
+      <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #E0A15E;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
       <td style="color:var(--text2)">${f.datepay||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}</td>
@@ -5918,7 +5918,7 @@ async function syncToCloud(){
     const ccaRembourseFactures=loadCCARembourseFactures();
     const ccaVirements=loadCCAVirements();
     const syncEl=document.getElementById('sync-status');
-    if(syncEl){syncEl.textContent='⟳ Sync...';syncEl.style.color='#f6ad55';}
+    if(syncEl){syncEl.textContent='⟳ Sync...';syncEl.style.color='#E0A15E';}
     const updatedAt=new Date().toISOString();
     await window._setDoc(window._appDataDoc(),{
       budget,factures,devis,fin,locataires,logements,projection,fc:fcData,glDocs,
@@ -5937,13 +5937,13 @@ async function syncToCloud(){
     }catch(ePatrimoine){
       console.warn('Sync patrimoine échouée (non bloquant) :',ePatrimoine);
     }
-    if(syncEl){syncEl.textContent='✓ Sauvegardé';syncEl.style.color='#68d391';
-      setTimeout(()=>{syncEl.textContent='☁ Cloud';syncEl.style.color='#63b3ed';},2000);}
+    if(syncEl){syncEl.textContent='✓ Sauvegardé';syncEl.style.color='#7FBF9E';
+      setTimeout(()=>{syncEl.textContent='☁ Cloud';syncEl.style.color='#5AC8D8';},2000);}
     window._lastSyncError=null;
     localStorage.setItem(ctxKey('last_synced_at'),updatedAt);
   }catch(e){
     const syncEl=document.getElementById('sync-status');
-    if(syncEl){syncEl.textContent='✗ Erreur sync';syncEl.style.color='#fc8181';}
+    if(syncEl){syncEl.textContent='✗ Erreur sync';syncEl.style.color='#E0716B';}
     window._lastSyncError=(e&&e.message)?e.message:String(e);
     console.error('Sync error:',e);
   }
@@ -6161,11 +6161,11 @@ function renderLocataires(){
     st.textContent=`
       .loc-tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border2);margin-bottom:24px;overflow-x:auto}
       .loc-tab-btn{padding:10px 20px;font-size:12px;font-weight:700;letter-spacing:.4px;border:none;background:transparent;color:var(--text3);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;white-space:nowrap;text-transform:uppercase}
-      .loc-tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(99,179,237,.05)}
+      .loc-tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(90,200,216,.05)}
       .loc-tab-btn:hover:not(.active){color:var(--text);background:rgba(255,255,255,.04)}
       .loc-log-header{display:flex;align-items:center;gap:16px;padding:20px 24px;border-radius:14px;margin-bottom:20px;border:1px solid var(--border2);position:relative;overflow:hidden}
-      .loc-log-header::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--lc-header,#63b3ed)08,transparent 60%);pointer-events:none}
-      .loc-avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;flex-shrink:0;border:2px solid var(--lc-avatar,#63b3ed)}
+      .loc-log-header::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--lc-header,#5AC8D8)08,transparent 60%);pointer-events:none}
+      .loc-avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;flex-shrink:0;border:2px solid var(--lc-avatar,#5AC8D8)}
       .loc-status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;animation:pulse-dot 2s infinite}
       @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.8)}}
       .loc-metric{background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:10px;padding:14px 18px;flex:1;min-width:120px}
@@ -6178,14 +6178,14 @@ function renderLocataires(){
       .loc-calendar-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin:16px 0}
       .loc-cal-cell{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;cursor:pointer;transition:transform .1s}
       .loc-cal-cell:hover{transform:scale(1.1)}
-      .loc-cal-paye{background:rgba(104,211,145,.25);border:1px solid rgba(104,211,145,.5);color:var(--green)}
-      .loc-cal-impaye{background:rgba(252,129,129,.2);border:1px solid rgba(252,129,129,.4);color:var(--red)}
+      .loc-cal-paye{background:rgba(127,191,158,.25);border:1px solid rgba(127,191,158,.5);color:var(--green)}
+      .loc-cal-impaye{background:rgba(224,113,107,.2);border:1px solid rgba(224,113,107,.4);color:var(--red)}
       .loc-cal-futur{background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text3)}
       .loc-cal-vacant{background:transparent;border:1px dashed var(--border);color:var(--border2)}
       .loc-alert-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;margin:3px}
-      .loc-alert-red{background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.35);color:var(--red)}
-      .loc-alert-orange{background:rgba(246,173,85,.12);border:1px solid rgba(246,173,85,.35);color:var(--orange)}
-      .loc-alert-green{background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.3);color:var(--green)}
+      .loc-alert-red{background:rgba(224,113,107,.15);border:1px solid rgba(224,113,107,.35);color:var(--red)}
+      .loc-alert-orange{background:rgba(224,161,94,.12);border:1px solid rgba(224,161,94,.35);color:var(--orange)}
+      .loc-alert-green{background:rgba(127,191,158,.1);border:1px solid rgba(127,191,158,.3);color:var(--green)}
       .loc-vacant-card{border:2px dashed var(--border2);border-radius:16px;padding:40px;text-align:center;background:rgba(255,255,255,.02)}
     `;
     document.head.appendChild(st);
@@ -6238,14 +6238,14 @@ function renderLocataires(){
             ?`<span style="color:var(--green);font-size:12px;font-weight:600">✅ Tous les loyers du mois sont encaissés !</span>`
             :enAttente.map(lg=>{
               const cur=getCurrentLocataire(lg.key);
-              return`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(252,129,129,.08);border:1px solid rgba(252,129,129,.25);border-radius:10px">
-                <div style="width:8px;height:8px;border-radius:50%;background:#fc8181;flex-shrink:0"></div>
+              return`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(224,113,107,.08);border:1px solid rgba(224,113,107,.25);border-radius:10px">
+                <div style="width:8px;height:8px;border-radius:50%;background:#E0716B;flex-shrink:0"></div>
                 <div>
                   <div style="font-size:12px;font-weight:600;color:var(--text)">${lg.label}</div>
                   <div style="font-size:10px;color:var(--red)">${cur?.nom||'—'} · ${fmt(getMontantPeriode(cur,mk).total)} en attente</div>
                 </div>
                 <button class="btn btn-sm" onclick="ouvrirModalPaiement('${cur?.id}','${mk}','${lg.key}')" style="font-size:10px;padding:3px 8px">Encaisser</button>
-                <button class="btn btn-sm" onclick="ouvrirModalRelance('${cur?.id}')" style="font-size:10px;padding:3px 8px;background:rgba(252,129,129,.1);border-color:rgba(252,129,129,.3);color:var(--red)">Relance</button>
+                <button class="btn btn-sm" onclick="ouvrirModalRelance('${cur?.id}')" style="font-size:10px;padding:3px 8px;background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.3);color:var(--red)">Relance</button>
               </div>`;
             }).join('')}
         </div>
@@ -6254,7 +6254,7 @@ function renderLocataires(){
           <div style="font-size:11px;color:var(--text3);margin-bottom:8px">📈 Révisions IRL à venir</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">
             ${alertesIRL.map(a=>`
-              <div style="padding:6px 12px;background:rgba(246,173,85,.08);border:1px solid rgba(246,173,85,.3);border-radius:10px;font-size:11px">
+              <div style="padding:6px 12px;background:rgba(224,161,94,.08);border:1px solid rgba(224,161,94,.3);border-radius:10px;font-size:11px">
                 <span style="color:var(--orange);font-weight:600">${a.loc.nom||'—'}</span>
                 <span style="color:var(--text3)"> · Anniversaire le ${fmtDate(a.date)} (dans ${a.jours}j)</span>
                 <button class="btn btn-sm" onclick="ouvrirModalIRL('${a.loc.id}')" style="font-size:10px;padding:2px 8px;margin-left:8px">Réviser</button>
@@ -6268,8 +6268,8 @@ function renderLocataires(){
       ${ceMoisHtml}
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
         <div class="loc-metric"><div class="loc-metric-val" style="color:var(--accent)">${fmt(cashflowMois)}</div><div class="loc-metric-label">Encaissé ce mois</div></div>
-        <div class="loc-metric"><div class="loc-metric-val" style="color:${tauxEnc>=100?'#68d391':tauxEnc>=50?'#f6ad55':'#fc8181'}">${tauxEnc}%</div><div class="loc-metric-label">Taux encaissement</div></div>
-        <div class="loc-metric"><div class="loc-metric-val" style="color:${impayesTotal>0?'#fc8181':'#68d391'}">${impayesTotal}</div><div class="loc-metric-label">Mois impayés (cumul)</div></div>
+        <div class="loc-metric"><div class="loc-metric-val" style="color:${tauxEnc>=100?'#7FBF9E':tauxEnc>=50?'#E0A15E':'#E0716B'}">${tauxEnc}%</div><div class="loc-metric-label">Taux encaissement</div></div>
+        <div class="loc-metric"><div class="loc-metric-val" style="color:${impayesTotal>0?'#E0716B':'#7FBF9E'}">${impayesTotal}</div><div class="loc-metric-label">Mois impayés (cumul)</div></div>
         <div class="loc-metric"><div class="loc-metric-val" style="color:var(--purple)">${nbOccupes}/${logs.length}</div><div class="loc-metric-label">Logements occupés</div></div>
       </div>
 
@@ -6292,7 +6292,7 @@ function renderLocataires(){
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <span style="font-size:18px;font-weight:700;color:${lg.color}">${actif?fmt(getMontantPeriode(cur,mk).total):fmt(0)}</span>
-              <span style="font-size:10px;padding:3px 8px;border-radius:10px;font-weight:600;${actif?paye?'background:rgba(104,211,145,.15);color:var(--green)':'background:rgba(252,129,129,.15);color:var(--red)':'background:rgba(255,255,255,.06);color:var(--text3)'}">${actif?paye?'✓ Payé':'⚠ En attente':'Vacant'}</span>
+              <span style="font-size:10px;padding:3px 8px;border-radius:10px;font-weight:600;${actif?paye?'background:rgba(127,191,158,.15);color:var(--green)':'background:rgba(224,113,107,.15);color:var(--red)':'background:rgba(255,255,255,.06);color:var(--text3)'}">${actif?paye?'✓ Payé':'⚠ En attente':'Vacant'}</span>
             </div>
             ${depot>0?`<div style="font-size:10px;color:var(--text3)">🔒 Dépôt : <b style="color:var(--text2)">${fmt(depot)}</b></div>`:''}
             ${actif&&impLog>0?`<div style="font-size:10px;color:var(--red);margin-top:4px">⚠ ${impLog} mois impayé${impLog>1?'s':''}</div>`:''}
@@ -6369,7 +6369,7 @@ function renderLocataires(){
     <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px">
       ${months.map(({mi,dMk})=>{
         const info=getPaieInfo(dMk);
-        if(info.vacant&&info.explicit)return`<div class="loc-cal-cell" style="background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.3);color:var(--accent);cursor:pointer;border-radius:4px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700" title="${MOIS[mi-1]} ${calYear} — Marqué Vacant — Cliquer pour modifier" onclick="ouvrirModalPaiement('vacant','${dMk}','${lg.key}')">V</div>`;
+        if(info.vacant&&info.explicit)return`<div class="loc-cal-cell" style="background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.3);color:var(--accent);cursor:pointer;border-radius:4px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700" title="${MOIS[mi-1]} ${calYear} — Marqué Vacant — Cliquer pour modifier" onclick="ouvrirModalPaiement('vacant','${dMk}','${lg.key}')">V</div>`;
         if(info.vacant)return`<div class="loc-cal-cell loc-cal-vacant" title="${MOIS[mi-1]} ${calYear} — Vacant — Cliquer pour saisir" style="cursor:pointer" onclick="ouvrirModalPaiement('vacant','${dMk}','${lg.key}')">○</div>`;
         if(info.isFutur)return`<div class="loc-cal-cell loc-cal-futur" title="${MOIS[mi-1]} ${calYear}">${MOIS[mi-1]}</div>`;
         if(info.pp&&info.pp.paye)return`<div class="loc-cal-cell loc-cal-paye" title="${MOIS[mi-1]} — Payé${info.pp.date?' le '+fmtDate(info.pp.date):''} — Cliquer pour modifier" style="cursor:pointer" onclick="ouvrirModalPaiement('${info.locForMonth.id}','${dMk}','${lg.key}')">${MOIS[mi-1]}</div>`;
@@ -6377,8 +6377,8 @@ function renderLocataires(){
       }).join('')}
     </div>
     <div style="display:flex;gap:12px;font-size:10px;color:var(--text3);margin-top:8px">
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(104,211,145,.25);margin-right:4px"></span>Payé</span>
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(252,129,129,.2);margin-right:4px"></span>Impayé (cliquer)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(127,191,158,.25);margin-right:4px"></span>Payé</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(224,113,107,.2);margin-right:4px"></span>Impayé (cliquer)</span>
       <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;border:1px dashed var(--border);margin-right:4px"></span>Vacant</span>
     </div>
     ${years.length>1?`<div style="margin-top:10px;display:flex;gap:4px;flex-wrap:wrap">${years.map(yy=>`<button class="btn btn-sm" style="${yy===calYear?'background:var(--accent);color:#0a0e1a;border-color:var(--accent)':''}" onclick="_locCalYear=${yy};renderLocataires()">${yy}</button>`).join('')}</div>`:''}`;
@@ -6406,7 +6406,7 @@ function renderLocataires(){
               <div style="font-size:11px;color:var(--text3)">${fmtDate(l.dateEntree)} → ${l.dateSortie?fmtDate(l.dateSortie):'en cours'} · ${fmt(montantLoc)}/mois</div>
             </div>
             <div style="text-align:right;flex-shrink:0">
-              <div style="font-size:12px;font-weight:600;color:${nbPaieOk===nbPaieTot?'#68d391':'#f6ad55'}">${nbPaieOk}/${nbPaieTot} loyers</div>
+              <div style="font-size:12px;font-weight:600;color:${nbPaieOk===nbPaieTot?'#7FBF9E':'#E0A15E'}">${nbPaieOk}/${nbPaieTot} loyers</div>
               <div style="font-size:10px;color:var(--text3)">payés</div>
             </div>
             <button class="btn btn-sm btn-edit" onclick="openLocModal('${l.id}')" style="flex-shrink:0">✏</button>
@@ -6428,7 +6428,7 @@ function renderLocataires(){
           ${p.paye?`<span class="loc-alert-badge loc-alert-green" style="margin-left:8px">✓ ${p.date?fmtDate(p.date):''}</span>`:`<span class="loc-alert-badge loc-alert-red" style="margin-left:8px">✗ Impayé</span>`}
         </div>
         <div style="display:flex;gap:6px;align-items:center">
-          <span style="font-size:13px;font-weight:700;color:${p.paye?'#68d391':'#fc8181'}">${fmt(p.montant||getMontantPeriode(cur,pmk).total)}</span>
+          <span style="font-size:13px;font-weight:700;color:${p.paye?'#7FBF9E':'#E0716B'}">${fmt(p.montant||getMontantPeriode(cur,pmk).total)}</span>
           <button class="btn btn-sm" onclick="modifierDatePaiement('${cur.id}','${pmk}')" style="font-size:10px;padding:2px 8px">✏</button>
         </div>
       </div>
@@ -6450,20 +6450,20 @@ function renderLocataires(){
       </div>
       <div style="display:flex;gap:10px;flex-shrink:0">
         <button class="btn btn-sm btn-edit" onclick="openLocModal('${cur.id}')">✏ Modifier</button>
-        <button class="btn btn-sm" style="background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.3);color:var(--green)" onclick="ouvrirModalQuittance('${cur.id}')">📄 Quittance</button>
-        <button class="btn btn-sm" style="background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.3);color:var(--accent)" onclick="genererBail('${cur.id}')">📝 Bail</button>
-        <button class="btn btn-sm" style="background:rgba(183,148,244,.1);border-color:rgba(183,148,244,.3);color:var(--purple)" onclick="ouvrirEdl('${cur.id}','entree')">🔑 EDL entrée</button>
+        <button class="btn btn-sm" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.3);color:var(--green)" onclick="ouvrirModalQuittance('${cur.id}')">📄 Quittance</button>
+        <button class="btn btn-sm" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.3);color:var(--accent)" onclick="genererBail('${cur.id}')">📝 Bail</button>
+        <button class="btn btn-sm" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.3);color:var(--purple)" onclick="ouvrirEdl('${cur.id}','entree')">🔑 EDL entrée</button>
         <button class="btn btn-sm" style="background:rgba(246,135,179,.1);border-color:rgba(246,135,179,.3);color:#f687b3" onclick="ouvrirEdl('${cur.id}','sortie')">🚪 EDL sortie</button>
-        <button class="btn btn-sm" style="background:rgba(246,173,85,.1);border-color:rgba(246,173,85,.3);color:var(--orange)" onclick="ouvrirModalIRL('${cur.id}')">📈 Révision IRL</button>
+        <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirModalIRL('${cur.id}')">📈 Révision IRL</button>
         <button class="btn btn-sm" style="background:rgba(160,174,192,.1);border-color:rgba(160,174,192,.3);color:var(--text2)" onclick="ouvrirModalCourriers('${cur.id}')">✉️ Courriers</button>
-        ${Object.values(cur.paiements||{}).some(p=>!p.paye&&!p.vacant)?`<button class="btn btn-sm" style="background:rgba(252,129,129,.1);border-color:rgba(252,129,129,.3);color:var(--red)" onclick="ouvrirModalRelance('${cur.id}')">📧 Relance</button>`:''}
+        ${Object.values(cur.paiements||{}).some(p=>!p.paye&&!p.vacant)?`<button class="btn btn-sm" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.3);color:var(--red)" onclick="ouvrirModalRelance('${cur.id}')">📧 Relance</button>`:''}
         <button class="btn btn-sm" onclick="ouvrirModalPaiement('${cur.id}','${mk}','${lg.key}')">+ Encaisser loyer</button>
       </div>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
       <div class="loc-metric"><div class="loc-metric-val" style="color:${lg.color}">${fmt(getMontantPeriode(cur,mk).total)}</div><div class="loc-metric-label">Loyer total / mois</div></div>
-      <div class="loc-metric"><div class="loc-metric-val" style="color:${payeCeMois?'#68d391':'#fc8181'}">${payeCeMois?'✓ Payé':'⏳ En attente'}</div><div class="loc-metric-label">Statut ce mois</div></div>
+      <div class="loc-metric"><div class="loc-metric-val" style="color:${payeCeMois?'#7FBF9E':'#E0716B'}">${payeCeMois?'✓ Payé':'⏳ En attente'}</div><div class="loc-metric-label">Statut ce mois</div></div>
       <div class="loc-metric"><div class="loc-metric-val">${fmt(cur.depot||0)}</div><div class="loc-metric-label">Dépôt de garantie</div></div>
       <div class="loc-metric"><div class="loc-metric-val" style="color:var(--purple)">${fmt(getMontantPeriode(cur,mk).loyerHC*12)}</div><div class="loc-metric-label">Loyer annuel HC</div></div>
     </div>
@@ -6482,7 +6482,7 @@ function renderLocataires(){
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-sm" onclick="openLocModal(null,'${lg.key}')">+ Nouveau locataire</button>
       <button class="btn-export" onclick="ouvrirModalExport()">📊 Export CSV</button>
-      <button class="btn-export" style="background:rgba(246,173,85,.1);border-color:rgba(246,173,85,.4);color:var(--orange)" onclick="ouvrirModalExport()">📄 Export PDF</button>
+      <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="ouvrirModalExport()">📄 Export PDF</button>
     </div>
     ${historiqueHtml()}`
 
@@ -6594,8 +6594,8 @@ function ouvrirModalPaiement(locId, mk, logKeyOverride){
 
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
         <button class="btn btn-sm" onclick="fermerModalPaiement()" style="background:var(--bg3);border-color:var(--border)">Annuler</button>
-        ${isPaye||isVacant?`<button class="btn btn-sm" onclick="supprimerPaiementModal()" style="background:rgba(252,129,129,.1);border-color:rgba(252,129,129,.3);color:var(--red)">✗ Effacer</button>`:''}
-        <button class="btn btn-sm" onclick="validerPaiementModal()" style="background:#68d391;color:#0a0e1a;border-color:var(--green);font-weight:700">✓ ${isPaye||isVacant?'Mettre à jour':'Valider'}</button>
+        ${isPaye||isVacant?`<button class="btn btn-sm" onclick="supprimerPaiementModal()" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.3);color:var(--red)">✗ Effacer</button>`:''}
+        <button class="btn btn-sm" onclick="validerPaiementModal()" style="background:#7FBF9E;color:#0a0e1a;border-color:var(--green);font-weight:700">✓ ${isPaye||isVacant?'Mettre à jour':'Valider'}</button>
       </div>
     </div>`;
   modal.addEventListener('click',e=>{if(e.target===modal)fermerModalPaiement();});
@@ -6783,7 +6783,7 @@ function renderLoyersMoisBande(){
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:15px;font-weight:600" class="amount">${fmt(montant)}</span>
-        ${!paye?`<button class="btn-pdf-view" style="padding:3px 8px;font-size:10px;background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.35);color:var(--green)" onclick="toggleLoyerPaiement('${cur.id}','${mk}')">✓ Marquer payé</button>`
+        ${!paye?`<button class="btn-pdf-view" style="padding:3px 8px;font-size:10px;background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.35);color:var(--green)" onclick="toggleLoyerPaiement('${cur.id}','${mk}')">✓ Marquer payé</button>`
         :`<button class="btn-pdf-view" style="padding:3px 8px;font-size:10px" onclick="genererQuittance('${cur.id}','${mk}')">🧾 Quittance</button>`}
       </div>
     </div>`;
@@ -6847,7 +6847,7 @@ function renderLoyersTable(){
         <span class="status-pill ${cls}" style="cursor:pointer" onclick="toggleLoyerPaiement('${l.id}','${mk}')" title="${fmt(montant)} — clique pour basculer payé/impayé">${label}</span>
         ${paye?`<div style="margin-top:4px;display:flex;gap:3px;justify-content:center">
           <button class="btn-pdf-view" style="padding:1px 6px;font-size:9px" onclick="genererQuittance('${l.id}','${mk}')" title="Générer la quittance">🧾</button>
-          <button class="btn-pdf-view" style="padding:1px 6px;font-size:9px;background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.35);color:var(--accent)" onclick="modifierDatePaiement('${l.id}','${mk}')" title="Date de paiement : ${p.date?fmtDate(p.date):'non renseignée'} — cliquer pour corriger">✏️</button>
+          <button class="btn-pdf-view" style="padding:1px 6px;font-size:9px;background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.35);color:var(--accent)" onclick="modifierDatePaiement('${l.id}','${mk}')" title="Date de paiement : ${p.date?fmtDate(p.date):'non renseignée'} — cliquer pour corriger">✏️</button>
         </div>`:''}
       </div>`);
     }
@@ -7008,7 +7008,7 @@ function getOccupationYear(logKey,year){
 // ─────────────────────────────────────────────────────────────────────────────
 // PARAMÈTRES — Gestion des logements
 // ─────────────────────────────────────────────────────────────────────────────
-const LOG_COLORS=['#63b3ed','#68d391','#f6ad55','#b794f4','#fc8181','#f687b3','#76e4f7','#fbd38d'];
+const LOG_COLORS=['#5AC8D8','#7FBF9E','#E0A15E','#B98ED4','#E0716B','#f687b3','#76e4f7','#fbd38d'];
 
 function renderParametres(){
   const container=document.getElementById('parametres-container');
@@ -7085,10 +7085,10 @@ function renderParametres(){
               ${i>0?`<button class="btn btn-sm" onclick="deplacerLogement(${i},-1)" title="Monter">↑</button>`:''}
               ${i<logs.length-1?`<button class="btn btn-sm" onclick="deplacerLogement(${i},1)" title="Descendre">↓</button>`:''}
               <button class="btn btn-sm btn-edit" onclick="ouvrirModalLogement(${i})">✏ Modifier</button>
-              <button class="btn btn-sm" onclick="toggleLogement(${i})" style="${lg.actif!==false?'':'background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.3);color:var(--green)'}">
+              <button class="btn btn-sm" onclick="toggleLogement(${i})" style="${lg.actif!==false?'':'background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.3);color:var(--green)'}">
                 ${lg.actif!==false?'👁 Masquer':'👁 Afficher'}
               </button>
-              <button class="btn btn-sm" onclick="supprimerLogement(${i})" style="background:rgba(252,129,129,.08);border-color:rgba(252,129,129,.3);color:var(--red)" title="Supprimer définitivement">🗑</button>
+              <button class="btn btn-sm" onclick="supprimerLogement(${i})" style="background:rgba(224,113,107,.08);border-color:rgba(224,113,107,.3);color:var(--red)" title="Supprimer définitivement">🗑</button>
             </div>
           </div>
         `).join('')}
@@ -7121,8 +7121,8 @@ function renderParametres(){
               <div style="font-size:10px;color:var(--text3);margin-top:2px">${mod.desc}</div>
             </div>
             <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0">
-              <span style="font-size:11px;font-weight:600;color:${mods[mod.id]?'#68d391':'var(--text3)'}">${mods[mod.id]?'Activé':'Désactivé'}</span>
-              <span onclick="toggleModule('${mod.id}')" style="width:40px;height:22px;border-radius:100px;background:${mods[mod.id]?'#68d391':'rgba(255,255,255,.15)'};position:relative;transition:.2s;display:inline-block">
+              <span style="font-size:11px;font-weight:600;color:${mods[mod.id]?'#7FBF9E':'var(--text3)'}">${mods[mod.id]?'Activé':'Désactivé'}</span>
+              <span onclick="toggleModule('${mod.id}')" style="width:40px;height:22px;border-radius:100px;background:${mods[mod.id]?'#7FBF9E':'rgba(255,255,255,.15)'};position:relative;transition:.2s;display:inline-block">
                 <span style="position:absolute;top:2px;left:${mods[mod.id]?'20px':'2px'};width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s"></span>
               </span>
             </label>
@@ -7145,7 +7145,7 @@ function renderParametres(){
             <div>
               <input type="file" id="logo-file-input" accept="image/*" style="display:none" onchange="uploadLogoOuTampon(this,'logo')">
               <button class="btn btn-sm" onclick="document.getElementById('logo-file-input').click()">📤 Choisir un logo</button>
-              <button class="btn btn-sm" style="color:var(--red);border-color:rgba(252,129,129,.4)" onclick="supprimerLogoOuTampon('logo')">🗑</button>
+              <button class="btn btn-sm" style="color:var(--red);border-color:rgba(224,113,107,.4)" onclick="supprimerLogoOuTampon('logo')">🗑</button>
             </div>
           </div>
         </div>
@@ -7159,7 +7159,7 @@ function renderParametres(){
             <div>
               <input type="file" id="tampon-file-input" accept="image/*" style="display:none" onchange="uploadLogoOuTampon(this,'tampon')">
               <button class="btn btn-sm" onclick="document.getElementById('tampon-file-input').click()">📤 Choisir un tampon</button>
-              <button class="btn btn-sm" style="color:var(--red);border-color:rgba(252,129,129,.4)" onclick="supprimerLogoOuTampon('tampon')">🗑</button>
+              <button class="btn btn-sm" style="color:var(--red);border-color:rgba(224,113,107,.4)" onclick="supprimerLogoOuTampon('tampon')">🗑</button>
             </div>
           </div>
         </div>
@@ -7221,11 +7221,11 @@ function renderParametres(){
     </div>
 
     <!-- Danger zone -->
-    <div class="table-wrap" style="padding:24px;border:1px solid rgba(252,129,129,.2)">
+    <div class="table-wrap" style="padding:24px;border:1px solid rgba(224,113,107,.2)">
       <div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:12px">⚠ Zone dangereuse</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-sm" style="border-color:rgba(252,129,129,.4);color:var(--red);background:rgba(252,129,129,.08)" onclick="resetLogementsDefaut()">↺ Réinitialiser les logements par défaut</button>
-        <button class="btn btn-sm" style="border-color:rgba(252,129,129,.4);color:var(--red);background:rgba(252,129,129,.08)" onclick="purgeLmnpData()">🗑 Purger toutes les données ${cfg.nom}</button>
+        <button class="btn btn-sm" style="border-color:rgba(224,113,107,.4);color:var(--red);background:rgba(224,113,107,.08)" onclick="resetLogementsDefaut()">↺ Réinitialiser les logements par défaut</button>
+        <button class="btn btn-sm" style="border-color:rgba(224,113,107,.4);color:var(--red);background:rgba(224,113,107,.08)" onclick="purgeLmnpData()">🗑 Purger toutes les données ${cfg.nom}</button>
       </div>
     </div>
 
@@ -7654,7 +7654,7 @@ function renderRentabilite(){
       <div class="kpi-val">${fmtM(totalCharges)}</div>
       <div class="kpi-sub">factures incluses</div>
     </div>
-    <div class="kpi" style="--kpi-color:${cf>=0?'#68d391':'#fc8181'}">
+    <div class="kpi" style="--kpi-color:${cf>=0?'#7FBF9E':'#E0716B'}">
       <div class="kpi-label">Cash-flow net</div>
       <div class="kpi-val">${fmtE(cf)}</div>
       <div class="kpi-sub">encaissé − charges</div>
@@ -8059,12 +8059,12 @@ function renderChargesRecurrentes(){
             <div style="font-size:10px;color:var(--text3)">soit ${fmt(montantAnnuel)} en ${nowY}</div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-            <button class="btn btn-sm" onclick="ouvrirModalEditCharge('${c.id}')" style="background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.3);color:var(--accent)">✏ Modifier</button>
-            <button class="btn btn-sm" onclick="ouvrirModalAnneesCharge('${c.id}')" style="background:rgba(246,173,85,.1);border-color:rgba(246,173,85,.3);color:var(--orange)">📅 Par année</button>
-            <button class="btn btn-sm" onclick="toggleChargeRecurrente('${c.id}')" style="${c.actif!==false?'':'background:rgba(104,211,145,.1);border-color:rgba(104,211,145,.3);color:var(--green)'}">
+            <button class="btn btn-sm" onclick="ouvrirModalEditCharge('${c.id}')" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.3);color:var(--accent)">✏ Modifier</button>
+            <button class="btn btn-sm" onclick="ouvrirModalAnneesCharge('${c.id}')" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)">📅 Par année</button>
+            <button class="btn btn-sm" onclick="toggleChargeRecurrente('${c.id}')" style="${c.actif!==false?'':'background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.3);color:var(--green)'}">
               ${c.actif!==false?'⏸ Suspendre':'▶ Activer'}
             </button>
-            <button class="btn btn-sm" onclick="supprimerChargeRecurrente('${c.id}')" style="background:rgba(252,129,129,.08);border-color:rgba(252,129,129,.3);color:var(--red)">🗑</button>
+            <button class="btn btn-sm" onclick="supprimerChargeRecurrente('${c.id}')" style="background:rgba(224,113,107,.08);border-color:rgba(224,113,107,.3);color:var(--red)">🗑</button>
           </div>
         </div>`;
       }).join('');
@@ -8270,7 +8270,7 @@ function getLogementsAutoPatrimoine(){
     if(k&&k.endsWith('_logements_config'))prefixesConnus.add(k.slice(0,-'_logements_config'.length));
   }
   const NOMS_HERITES={sci:'SCI Lémyane',lmnp:'LMNP Barreteau'}; // rétrocompatibilité anciens préfixes perso
-  const COULEURS=['#63b3ed','#68d391','#f6ad55','#b794f4','#4fd1c5','#fc8181'];
+  const COULEURS=['#5AC8D8','#7FBF9E','#E0A15E','#B98ED4','#4fd1c5','#E0716B'];
   let colorIdx=0;
   prefixesConnus.forEach(prefix=>{
     try{
@@ -8311,7 +8311,7 @@ function getBiensManuelsCalcules(){
     return{
       ...b,
       source:'Personnel',
-      sourceColor:'#b794f4',
+      sourceColor:'#B98ED4',
       coutRevient,
       capitalRestant,
       isAuto:false
@@ -8347,7 +8347,7 @@ function renderPatrimoine(){
       <div class="kpi"><div class="kpi-val" style="color:var(--accent)">${tous.length}</div><div class="kpi-label">Biens au total</div></div>
       <div class="kpi"><div class="kpi-val" style="color:var(--accent)">${fmt(totalCoutRevient)}</div><div class="kpi-label">Coût de revient total</div></div>
       ${totalValeurMarche>0?`<div class="kpi"><div class="kpi-val" style="color:var(--green)">${fmt(totalValeurMarche)}</div><div class="kpi-label">Valeur de marché estimée</div></div>`:''}
-      ${plusValueLatente!==null?`<div class="kpi"><div class="kpi-val" style="color:${plusValueLatente>=0?'#68d391':'#fc8181'}">${plusValueLatente>=0?'+':''}${fmt(plusValueLatente)}</div><div class="kpi-label">Plus-value latente</div></div>`:''}
+      ${plusValueLatente!==null?`<div class="kpi"><div class="kpi-val" style="color:${plusValueLatente>=0?'#7FBF9E':'#E0716B'}">${plusValueLatente>=0?'+':''}${fmt(plusValueLatente)}</div><div class="kpi-label">Plus-value latente</div></div>`:''}
       <div class="kpi"><div class="kpi-val" style="color:var(--red)">${fmt(totalCapitalRestant)}</div><div class="kpi-label">Capital restant dû</div></div>
       <div class="kpi"><div class="kpi-val" style="color:var(--orange)">${fmt(patrimoineNet)}</div><div class="kpi-label">Patrimoine net (revient − dette)</div></div>
     `;
@@ -8375,8 +8375,8 @@ function renderPatrimoine(){
             </div>
             ${!b.isAuto
               ?`<div style="display:flex;gap:6px">
-                  <button class="btn btn-sm" onclick="ouvrirModalEditBienPatrimoine('${b.id}')" style="background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.3);color:var(--accent)">✏ Modifier</button>
-                  <button class="btn btn-sm" onclick="supprimerBienPatrimoine('${b.id}')" style="background:rgba(252,129,129,.08);border-color:rgba(252,129,129,.3);color:var(--red)">🗑</button>
+                  <button class="btn btn-sm" onclick="ouvrirModalEditBienPatrimoine('${b.id}')" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.3);color:var(--accent)">✏ Modifier</button>
+                  <button class="btn btn-sm" onclick="supprimerBienPatrimoine('${b.id}')" style="background:rgba(224,113,107,.08);border-color:rgba(224,113,107,.3);color:var(--red)">🗑</button>
                 </div>`
               :`<div style="font-size:10px;color:var(--text3);font-style:italic">Géré dans ${b.source}</div>`
             }
@@ -8400,10 +8400,10 @@ function renderPatrimoine(){
                       placeholder="Ex : 160 000"
                       onblur="sauvegarderValeurMarche('${b.cleMarche}',this)"
                       onkeydown="if(event.key==='Enter'){this.blur()}"
-                      style="width:130px;font-size:13px;font-weight:600;color:var(--green);background:rgba(104,211,145,.08);border:1px solid rgba(104,211,145,.3);border-radius:8px;padding:5px 10px">
+                      style="width:130px;font-size:13px;font-weight:600;color:var(--green);background:rgba(127,191,158,.08);border:1px solid rgba(127,191,158,.3);border-radius:8px;padding:5px 10px">
                     <span style="font-size:10px;color:var(--text3)">€ ↵</span>
                   </div>`
-                :`<div style="font-size:15px;font-weight:700;color:${b.valeurMarche>0?'#68d391':'var(--text3)'}">
+                :`<div style="font-size:15px;font-weight:700;color:${b.valeurMarche>0?'#7FBF9E':'var(--text3)'}">
                     ${b.valeurMarche>0?fmt(b.valeurMarche):'— non renseignée'}
                   </div>`
               }
@@ -8411,7 +8411,7 @@ function renderPatrimoine(){
 
             ${plusValue!==null?`<div>
               <div style="font-size:9px;color:var(--text3);text-transform:uppercase;margin-bottom:2px">Plus-value potentielle</div>
-              <div style="font-size:15px;font-weight:700;color:${plusValue>=0?'#68d391':'#fc8181'}">${plusValue>=0?'+':''}${fmt(plusValue)}</div>
+              <div style="font-size:15px;font-weight:700;color:${plusValue>=0?'#7FBF9E':'#E0716B'}">${plusValue>=0?'+':''}${fmt(plusValue)}</div>
             </div>`:''}
 
             <div>
@@ -8442,7 +8442,7 @@ function sauvegarderValeurMarche(cleMarche, input){
   // Retour visuel sur le champ
   const auto=getLogementsAutoPatrimoine();
   const b=auto.find(x=>x.cleMarche===cleMarche);
-  if(b) input.style.color=val>0?(val>=(b.coutRevient||0)?'#68d391':'#fc8181'):'#68d391';
+  if(b) input.style.color=val>0?(val>=(b.coutRevient||0)?'#7FBF9E':'#E0716B'):'#7FBF9E';
 }
 
 function _updatePatrimoineKPIs(){
@@ -8460,7 +8460,7 @@ function _updatePatrimoineKPIs(){
     <div class="kpi"><div class="kpi-val" style="color:var(--accent)">${tous.length}</div><div class="kpi-label">Biens au total</div></div>
     <div class="kpi"><div class="kpi-val" style="color:var(--accent)">${fmt(totalCoutRevient)}</div><div class="kpi-label">Coût de revient total</div></div>
     ${totalValeurMarche>0?`<div class="kpi"><div class="kpi-val" style="color:var(--green)">${fmt(totalValeurMarche)}</div><div class="kpi-label">Valeur de marché estimée</div></div>`:''}
-    ${plusValueLatente!==null?`<div class="kpi"><div class="kpi-val" style="color:${plusValueLatente>=0?'#68d391':'#fc8181'}">${plusValueLatente>=0?'+':''}${fmt(plusValueLatente)}</div><div class="kpi-label">Plus-value latente</div></div>`:''}
+    ${plusValueLatente!==null?`<div class="kpi"><div class="kpi-val" style="color:${plusValueLatente>=0?'#7FBF9E':'#E0716B'}">${plusValueLatente>=0?'+':''}${fmt(plusValueLatente)}</div><div class="kpi-label">Plus-value latente</div></div>`:''}
     <div class="kpi"><div class="kpi-val" style="color:var(--red)">${fmt(totalCapitalRestant)}</div><div class="kpi-label">Capital restant dû</div></div>
     <div class="kpi"><div class="kpi-val" style="color:var(--orange)">${fmt(patrimoineNet)}</div><div class="kpi-label">Patrimoine net (revient − dette)</div></div>
   `;
@@ -8941,15 +8941,15 @@ function renderProjection(){
       <div class="kpi-val">${fmtE(rows[0].cf)}</div>
       <div class="kpi-sub">loyers nets − charges</div>
     </div>
-    <div class="kpi" style="--kpi-color:${r5.cumul>=0?'#68d391':'#fc8181'}">
+    <div class="kpi" style="--kpi-color:${r5.cumul>=0?'#7FBF9E':'#E0716B'}">
       <div class="kpi-label">Cumulé à 5 ans</div>
       <div class="kpi-val">${fmtE(r5.cumul)}</div>
     </div>
-    <div class="kpi" style="--kpi-color:${r10.cumul>=0?'#68d391':'#fc8181'}">
+    <div class="kpi" style="--kpi-color:${r10.cumul>=0?'#7FBF9E':'#E0716B'}">
       <div class="kpi-label">Cumulé à 10 ans</div>
       <div class="kpi-val">${fmtE(r10.cumul)}</div>
     </div>
-    <div class="kpi" style="--kpi-color:${r20.cumul>=0?'#68d391':'#fc8181'}">
+    <div class="kpi" style="--kpi-color:${r20.cumul>=0?'#7FBF9E':'#E0716B'}">
       <div class="kpi-label">Cumulé à 20 ans</div>
       <div class="kpi-val">${fmtE(r20.cumul)}</div>
     </div>`;
@@ -8958,7 +8958,7 @@ function renderProjection(){
   let body='';
   rows.forEach(r=>{
     const highlight=[5,10,15,20].includes(r.y);
-    body+=`<tr${highlight?' style="font-weight:600;background:rgba(99,179,237,0.06)"':''}>
+    body+=`<tr${highlight?' style="font-weight:600;background:rgba(90,200,216,0.06)"':''}>
       <td>Année ${r.y}</td>
       <td style="text-align:right" class="amount">${fmt(r.loyersBruts)}</td>
       <td style="text-align:right" class="amount">${fmt(r.loyersNets)}</td>
@@ -8977,8 +8977,8 @@ function renderProjection(){
   chartProjection=new Chart(document.getElementById('chart-projection'),{
     type:'line',
     data:{labels:rows.map(r=>'A'+r.y),datasets:[
-      {label:'Cash-flow cumulé',data:rows.map(r=>r.cumul),borderColor:'#63b3ed',backgroundColor:'rgba(99,179,237,.15)',fill:true,tension:.3},
-      {label:'Cash-flow annuel',data:rows.map(r=>r.cf),borderColor:'#68d391',backgroundColor:'rgba(104,211,145,.1)',fill:false,tension:.3}
+      {label:'Cash-flow cumulé',data:rows.map(r=>r.cumul),borderColor:'#5AC8D8',backgroundColor:'rgba(90,200,216,.15)',fill:true,tension:.3},
+      {label:'Cash-flow annuel',data:rows.map(r=>r.cf),borderColor:'#7FBF9E',backgroundColor:'rgba(127,191,158,.1)',fill:false,tension:.3}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
       scales:{
@@ -9138,7 +9138,7 @@ function importCreditPhoto(event,logKey){
 async function analyzeCreditPhoto(b64,logKey){
   const status=document.getElementById('fc-import-status-'+logKey);
   if(!getGeminiKeys().length){
-    if(status){status.style.display='inline';status.style.color='#fc8181';status.textContent='⚠ Ajoute au moins une clé API Gemini dans Paramètres pour utiliser cette fonction.';}
+    if(status){status.style.display='inline';status.style.color='#E0716B';status.textContent='⚠ Ajoute au moins une clé API Gemini dans Paramètres pour utiliser cette fonction.';}
     return;
   }
   if(status){status.style.display='inline';status.style.color='var(--text2)';status.textContent='⏳ Analyse en cours...';}
@@ -9212,7 +9212,7 @@ function renderFinancement(){
 
   const carteHtml=k=>{
     const lg=logs.find(l=>l.key===k);
-    const color=lg?lg.color:'#b794f4';
+    const color=lg?lg.color:'#B98ED4';
     const label=lg?lg.label:(k==='Commun'?'Terrain (Commun)':'Logement '+k);
     const capital=+((fc[k]&&fc[k].capital)||0);
     const apport=+((fc[k]&&fc[k].apport)||0);
@@ -9382,7 +9382,7 @@ function periodeRowHtml(p,i){
     <div class="form-group" style="margin:0"><label style="font-size:10px">Date de début</label><input class="p-debut" type="date" value="${p.debut||''}"></div>
     <div class="form-group" style="margin:0"><label style="font-size:10px">Loyer HC (€)</label><input class="p-loyer" type="number" step="0.01" value="${p.loyerHC||''}" placeholder="0"></div>
     <div class="form-group" style="margin:0"><label style="font-size:10px">Charges (€)</label><input class="p-charges" type="number" step="0.01" value="${p.charges||''}" placeholder="0"></div>
-    <button type="button" onclick="this.closest('.periode-row').remove()" style="background:rgba(252,129,129,.1);border:1px solid rgba(252,129,129,.3);color:var(--red);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;height:36px">×</button>
+    <button type="button" onclick="this.closest('.periode-row').remove()" style="background:rgba(224,113,107,.1);border:1px solid rgba(224,113,107,.3);color:var(--red);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;height:36px">×</button>
   </div>`;
 }
 
@@ -10207,7 +10207,7 @@ function ouvrirEdl(locId, type){
       <div style="display:flex;overflow-x:auto;border-bottom:2px solid var(--border2);background:rgba(0,0,0,.1);padding:0 16px" id="edl-pieces-tabs">
         ${_edlPieces.map((p,i)=>`
           <button onclick="edlSelectPiece('${p.id}')" id="edl-tab-${p.id}"
-            style="padding:10px 14px;border:none;background:transparent;color:${i===0?'#63b3ed':'var(--text3)'};font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;border-bottom:${i===0?'2px solid #63b3ed':'2px solid transparent'};margin-bottom:-2px;text-transform:uppercase;letter-spacing:.3px">
+            style="padding:10px 14px;border:none;background:transparent;color:${i===0?'#5AC8D8':'var(--text3)'};font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;border-bottom:${i===0?'2px solid #5AC8D8':'2px solid transparent'};margin-bottom:-2px;text-transform:uppercase;letter-spacing:.3px">
             ${p.label}
           </button>`).join('')}
       </div>
@@ -10251,8 +10251,8 @@ function edlSelectPiece(pieceId){
     const tab=document.getElementById('edl-tab-'+p.id);
     if(!tab)return;
     if(p.id===pieceId){
-      tab.style.color='#63b3ed';
-      tab.style.borderBottom='2px solid #63b3ed';
+      tab.style.color='#5AC8D8';
+      tab.style.borderBottom='2px solid #5AC8D8';
     }else{
       tab.style.color='var(--text3)';
       tab.style.borderBottom='2px solid transparent';
@@ -10275,14 +10275,14 @@ function edlSelectPiece(pieceId){
     <div style="display:flex;flex-direction:column;gap:8px">
       ${piece.elements.map(el=>{
         const d=(_edlData[pieceId]&&_edlData[pieceId][el])||{etat:'Bon état',observation:''};
-        const etatColor={'Neuf':'#68d391','Très bon état':'#63b3ed','Bon état':'#4fd1c5','État d\'usage':'#f6ad55','Usé':'#fc8181','Dégradé':'#e53e3e'}[d.etat]||'var(--text2)';
+        const etatColor={'Neuf':'#7FBF9E','Très bon état':'#5AC8D8','Bon état':'#4fd1c5','État d\'usage':'#E0A15E','Usé':'#E0716B','Dégradé':'#e53e3e'}[d.etat]||'var(--text2)';
         return`<div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:10px 14px">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <div style="font-size:12px;font-weight:600;color:var(--text);min-width:150px">${el}</div>
             <select data-piece="${pieceId}" data-el="${el.replace(/'/g,'&#39;')}" class="edl-etat-sel"
               style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:${etatColor};flex:0 0 auto"
               onchange="edlUpdateEtat(this)">
-              ${ETATS.map(e=>`<option value="${e}" ${e===d.etat?'selected':''} style="color:${{'Neuf':'#68d391','Très bon état':'#63b3ed','Bon état':'#4fd1c5','État d\'usage':'#f6ad55','Usé':'#fc8181','Dégradé':'#e53e3e'}[e]||'inherit'}">${e}</option>`).join('')}
+              ${ETATS.map(e=>`<option value="${e}" ${e===d.etat?'selected':''} style="color:${{'Neuf':'#7FBF9E','Très bon état':'#5AC8D8','Bon état':'#4fd1c5','État d\'usage':'#E0A15E','Usé':'#E0716B','Dégradé':'#e53e3e'}[e]||'inherit'}">${e}</option>`).join('')}
             </select>
             <input type="text" data-piece="${pieceId}" data-el="${el.replace(/'/g,'&#39;')}" class="edl-obs-el"
               placeholder="Observation..." value="${d.observation||''}"
@@ -10301,7 +10301,7 @@ function edlUpdateEtat(sel){
   if(!_edlData[pieceId])_edlData[pieceId]={};
   if(!_edlData[pieceId][el])_edlData[pieceId][el]={etat:'Bon état',observation:''};
   _edlData[pieceId][el].etat=sel.value;
-  const colors={'Neuf':'#68d391','Très bon état':'#63b3ed','Bon état':'#4fd1c5','État d\'usage':'#f6ad55','Usé':'#fc8181','Dégradé':'#e53e3e'};
+  const colors={'Neuf':'#7FBF9E','Très bon état':'#5AC8D8','Bon état':'#4fd1c5','État d\'usage':'#E0A15E','Usé':'#E0716B','Dégradé':'#e53e3e'};
   sel.style.color=colors[sel.value]||'var(--text2)';
 }
 function edlUpdateObs(inp){
@@ -10353,7 +10353,7 @@ function genererPdfEdl(locId){
   });
   const totalElements=Object.values(stats).reduce((s,n)=>s+n,0);
 
-  const etatColors={'Neuf':'#48bb78','Très bon état':'#63b3ed','Bon état':'#38b2ac','État d\'usage':'#e6a817','Usé':'#fc8181','Dégradé':'#e53e3e'};
+  const etatColors={'Neuf':'#48bb78','Très bon état':'#5AC8D8','Bon état':'#38b2ac','État d\'usage':'#e6a817','Usé':'#E0716B','Dégradé':'#e53e3e'};
 
   const piecesHtml=_edlPieces.map(piece=>{
     const elementsHtml=piece.elements.map(el=>{
@@ -10682,20 +10682,20 @@ function ouvrirModalDepot(locId){
         <label>Détail des retenues</label>
         <textarea id="depot-detail" rows="3" placeholder="ex: Remplacement vitrine cassée 150€, Nettoyage 80€..."></textarea>
       </div>
-      <div style="background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.3);border-radius:10px;padding:12px;margin-bottom:16px">
+      <div style="background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.3);border-radius:10px;padding:12px;margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
           <span>Dépôt initial</span><span>${fmt(depot)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
           <span>— Retenues</span><span id="depot-montant-ret">0,00 €</span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-weight:700;font-size:14px;color:var(--accent);border-top:1px solid rgba(99,179,237,.3);padding-top:6px">
+        <div style="display:flex;justify-content:space-between;font-weight:700;font-size:14px;color:var(--accent);border-top:1px solid rgba(90,200,216,.3);padding-top:6px">
           <span>= À restituer</span><span id="depot-montant-rest">${fmt(depot)}</span>
         </div>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-sm" onclick="document.getElementById('modal-depot').remove()" style="background:var(--bg3);border-color:var(--border)">Annuler</button>
-        <button class="btn btn-sm" onclick="genererCourrierDepot('${locId}')" style="background:#63b3ed;color:#0a0e1a;border-color:var(--accent);font-weight:700">📄 Générer le courrier</button>
+        <button class="btn btn-sm" onclick="genererCourrierDepot('${locId}')" style="background:#5AC8D8;color:#0a0e1a;border-color:var(--accent);font-weight:700">📄 Générer le courrier</button>
       </div>
     </div>`;
   modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
@@ -11074,13 +11074,13 @@ function renderGestionLocative(){
     st.textContent=`
       .gl-tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border2);margin-bottom:24px;overflow-x:auto}
       .gl-tab-btn{padding:10px 20px;font-size:12px;font-weight:700;letter-spacing:.4px;border:none;background:transparent;color:var(--text3);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;white-space:nowrap;text-transform:uppercase}
-      .gl-tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(99,179,237,.05)}
+      .gl-tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(90,200,216,.05)}
       .gl-doc-card{display:flex;align-items:center;gap:12px;padding:14px 18px;background:rgba(255,255,255,.03);border-radius:12px;border:1px solid var(--border);transition:all .2s;margin-bottom:8px}
       .gl-doc-card:hover{border-color:var(--border2);background:rgba(255,255,255,.05)}
       .gl-doc-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-      .gl-status-ok{background:rgba(104,211,145,.15);border:1px solid rgba(104,211,145,.35);color:var(--green);padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600}
-      .gl-status-warn{background:rgba(246,173,85,.12);border:1px solid rgba(246,173,85,.35);color:var(--orange);padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600}
-      .gl-status-expire{background:rgba(252,129,129,.12);border:1px solid rgba(252,129,129,.35);color:var(--red);padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600}
+      .gl-status-ok{background:rgba(127,191,158,.15);border:1px solid rgba(127,191,158,.35);color:var(--green);padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600}
+      .gl-status-warn{background:rgba(224,161,94,.12);border:1px solid rgba(224,161,94,.35);color:var(--orange);padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600}
+      .gl-status-expire{background:rgba(224,113,107,.12);border:1px solid rgba(224,113,107,.35);color:var(--red);padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600}
       .gl-status-none{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text3);padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600}
       .gl-cat-header{display:flex;justify-content:space-between;align-items:center;padding:10px 0 8px;border-bottom:1px solid var(--border2);margin-bottom:10px}
     `;
@@ -11093,7 +11093,7 @@ function renderGestionLocative(){
     const docs=glDocsForLogement(lg.key);
     const alertes=docs.filter(d=>{const s=glDocStatus(d);return s==='expire'||s==='bientot';}).length;
     const manquants=GL_CATEGORIES.filter(c=>c.key!=='autre'&&!docs.some(d=>d.categorie===c.key)).length;
-    const scoreColor=alertes>0?'#fc8181':manquants>0?'#f6ad55':'#68d391';
+    const scoreColor=alertes>0?'#E0716B':manquants>0?'#E0A15E':'#7FBF9E';
     const scoreLabel=alertes>0?alertes+' alerte(s)':manquants>0?manquants+' doc(s) manquant(s)':'Complet ✓';
     return`<div style="background:rgba(255,255,255,.03);border:1px solid ${lg.color}33;border-radius:14px;padding:18px;cursor:pointer;transition:all .2s${_glActiveLog===lg.key?';border-color:'+lg.color+';background:'+lg.color+'08':''}" onclick="_glActiveLog='${lg.key}';renderGestionLocative()">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
@@ -11419,7 +11419,7 @@ function ouvrirModalRelance(locId){
     const[yy,mm]=mk.split('-');
     const label=new Date(+yy,+mm-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
     const mInfo=getMontantPeriode(loc,mk);
-    return`<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(252,129,129,.08);border:1px solid rgba(252,129,129,.2);border-radius:8px;cursor:pointer">
+    return`<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(224,113,107,.08);border:1px solid rgba(224,113,107,.2);border-radius:8px;cursor:pointer">
       <input type="checkbox" value="${mk}" checked style="accent-color:var(--red)">
       <span style="font-size:12px">${label}</span>
       <span style="margin-left:auto;font-size:12px;font-weight:600;color:var(--red)">${fmt(mInfo.total)}</span>
@@ -11436,7 +11436,7 @@ function ouvrirModalRelance(locId){
       <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px" id="relance-mois-list">${moisHtml}</div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-sm" onclick="document.getElementById('modal-relance').remove()" style="background:var(--bg3);border-color:var(--border)">Annuler</button>
-        <button class="btn btn-sm" id="btn-send-relance" onclick="validerRelance('${locId}')" style="background:#fc8181;color:#0a0e1a;border-color:var(--red);font-weight:700">📧 Créer brouillon Gmail</button>
+        <button class="btn btn-sm" id="btn-send-relance" onclick="validerRelance('${locId}')" style="background:#E0716B;color:#0a0e1a;border-color:var(--red);font-weight:700">📧 Créer brouillon Gmail</button>
       </div>
     </div>`;
   modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
@@ -11633,12 +11633,12 @@ async function testerRafraichirIRL(){
   const res=await rafraichirIRLDepuisINSEE();
   if(statusEl){
     if(res.ok){
-      statusEl.style.color='#68d391';
+      statusEl.style.color='#7FBF9E';
       let msg='✅ IRL à jour — '+res.total+' trimestre(s) récupéré(s) depuis l\'INSEE ('+res.nouveauxOuMaj+' nouveau(x)/modifié(s)).';
       if(res.rejetes>0)msg+=' ⚠ '+res.rejetes+' valeur(s) jugée(s) non plausible(s) ont été ignorée(s) par sécurité.';
       statusEl.textContent=msg;
     }else{
-      statusEl.style.color='#f6ad55';
+      statusEl.style.color='#E0A15E';
       statusEl.textContent='⚠ Échec de la récupération automatique ('+res.erreur+') — l\'app utilise la table de secours mise à jour manuellement, aucune interruption.';
     }
   }
@@ -11749,7 +11749,7 @@ async function ouvrirModalIRL(locId){
           <div><div style="color:var(--text3);font-size:10px">Dernier anniversaire</div><div style="font-weight:600">${fmtDate(derniereDate)}</div></div>
           <div><div style="color:var(--text3);font-size:10px">Prochain anniversaire</div><div style="font-weight:600">${fmtDate(prochaineDate)}</div></div>
         </div>
-        ${dejaCetteAnnee?`<div style="margin-top:10px;padding:8px;background:rgba(246,173,85,.1);border:1px solid rgba(246,173,85,.3);border-radius:8px;font-size:11px;color:var(--orange)">⚠ Une révision a déjà été appliquée depuis le dernier anniversaire (${fmtDate(revision3ans)}). La révision n'est applicable qu'une fois par an.</div>`:''}
+        ${dejaCetteAnnee?`<div style="margin-top:10px;padding:8px;background:rgba(224,161,94,.1);border:1px solid rgba(224,161,94,.3);border-radius:8px;font-size:11px;color:var(--orange)">⚠ Une révision a déjà été appliquée depuis le dernier anniversaire (${fmtDate(revision3ans)}). La révision n'est applicable qu'une fois par an.</div>`:''}
       </div>
 
       <!-- IRL -->
@@ -11764,7 +11764,7 @@ async function ouvrirModalIRL(locId){
             <div style="font-size:10px;color:var(--text3)">${formatTrimestreLong(tBail)} ${irlAnneeNouv} (N)</div>
             <div style="font-size:18px;font-weight:700">${irlNouveau}</div>
           </div>
-          <div style="text-align:center;background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.3);border-radius:8px;padding:10px">
+          <div style="text-align:center;background:rgba(127,191,158,.1);border:1px solid rgba(127,191,158,.3);border-radius:8px;padding:10px">
             <div style="font-size:10px;color:var(--green)">Variation</div>
             <div style="font-size:18px;font-weight:700;color:var(--green)">+${variation}%</div>
           </div>
@@ -11773,7 +11773,7 @@ async function ouvrirModalIRL(locId){
       </div>
 
       <!-- Résultat -->
-      <div style="background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.3);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+      <div style="background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.3);border-radius:12px;padding:14px 16px;margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <div>
             <div style="font-size:11px;color:var(--text3)">Loyer actuel HC</div>
@@ -11788,7 +11788,7 @@ async function ouvrirModalIRL(locId){
         <div style="font-size:11px;color:var(--text3)">Augmentation : +${fmt(diff)}/mois · +${fmt(diff*12)}/an</div>
       </div>
 
-      <div style="background:rgba(246,173,85,.08);border:1px solid rgba(246,173,85,.3);border-radius:10px;padding:12px;margin-bottom:16px;font-size:11px;color:var(--orange)">
+      <div style="background:rgba(224,161,94,.08);border:1px solid rgba(224,161,94,.3);border-radius:10px;padding:12px;margin-bottom:16px;font-size:11px;color:var(--orange)">
         ⚖️ <strong>Rappel légal :</strong> La révision ne peut intervenir qu'à la date anniversaire du bail. Une <strong>notification écrite au locataire est obligatoire</strong> (courrier ci-dessous), idéalement <strong>1 mois minimum</strong> avant application — sans elle, la révision peut être contestée. Le loyer révisé est <strong>${fmt(nouveauLoyer)}</strong>.
       </div>
 
@@ -11806,7 +11806,7 @@ async function ouvrirModalIRL(locId){
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-sm" onclick="document.getElementById('modal-irl').remove()" style="background:var(--bg3);border-color:var(--border)">Annuler</button>
         <button class="btn btn-sm" onclick="genererCourrierRevisionIRL('${locId}')" style="background:var(--bg3);border-color:var(--border)">📨 Courrier de notification</button>
-        <button class="btn btn-sm" onclick="appliquerRevisionIRL('${locId}',${mInfo.charges})" style="background:#63b3ed;color:#0a0e1a;border-color:var(--accent);font-weight:700">✓ Appliquer la révision</button>
+        <button class="btn btn-sm" onclick="appliquerRevisionIRL('${locId}',${mInfo.charges})" style="background:#5AC8D8;color:#0a0e1a;border-color:var(--accent);font-weight:700">✓ Appliquer la révision</button>
       </div>
     </div>`;
   modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
@@ -12437,7 +12437,7 @@ async function testerLectureIA(){
   const btn=document.getElementById('btn-tester-ia');
   const statusEl=document.getElementById('test-ia-status');
   if(!getGeminiKeys().length){
-    if(statusEl){statusEl.style.display='inline';statusEl.style.color='#f6ad55';statusEl.textContent='⚠ Aucune clé API configurée — ajoutes-en une ci-dessus avant de tester.';}
+    if(statusEl){statusEl.style.display='inline';statusEl.style.color='#E0A15E';statusEl.textContent='⚠ Aucune clé API configurée — ajoutes-en une ci-dessus avant de tester.';}
     return;
   }
   if(btn){btn.disabled=true;btn.textContent='⏳ Test en cours...';}
@@ -12450,13 +12450,13 @@ async function testerLectureIA(){
     const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
     if(!text)throw new Error('Réponse vide de l\'API');
     if(statusEl){
-      statusEl.style.color='#68d391';
+      statusEl.style.color='#7FBF9E';
       statusEl.textContent='✅ La lecture IA fonctionne (testé le '+fmtDate(todayStr())+' avec gemini-3.1-flash-lite).';
     }
   }catch(e){
     console.error('Test lecture IA échoué:',e);
     if(statusEl){
-      statusEl.style.color='#fc8181';
+      statusEl.style.color='#E0716B';
       statusEl.textContent='❌ La lecture IA est en panne : '+e.message+' — la lecture automatique des factures/devis ne fonctionnera pas tant que ce n\'est pas résolu.';
     }
   }finally{
@@ -12510,10 +12510,10 @@ function renderComptaConnecteurs(){
   zone.innerHTML=COMPTA_CONNECTEURS_DISPONIBLES.map(c=>{
     const token=getComptaToken(c.id);
     const connecte=!!token;
-    return`<div style="border:1px solid ${connecte?'rgba(104,211,145,.35)':'var(--border)'};border-radius:10px;padding:16px 18px;margin-bottom:12px;background:${connecte?'rgba(104,211,145,.05)':'transparent'}">
+    return`<div style="border:1px solid ${connecte?'rgba(127,191,158,.35)':'var(--border)'};border-radius:10px;padding:16px 18px;margin-bottom:12px;background:${connecte?'rgba(127,191,158,.05)':'transparent'}">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div>
-          <div style="font-size:13px;font-weight:700;color:var(--text)">${c.logo} ${c.nom} ${connecte?'<span style="font-size:10px;background:rgba(104,211,145,.15);color:var(--green);border:1px solid rgba(104,211,145,.4);border-radius:5px;padding:2px 7px;font-weight:700;margin-left:4px">✓ Connecté</span>':''}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${c.logo} ${c.nom} ${connecte?'<span style="font-size:10px;background:rgba(127,191,158,.15);color:var(--green);border:1px solid rgba(127,191,158,.4);border-radius:5px;padding:2px 7px;font-weight:700;margin-left:4px">✓ Connecté</span>':''}</div>
           <div style="font-size:11px;color:var(--text3);margin-top:3px;max-width:520px">${c.description}</div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0">
@@ -12559,12 +12559,12 @@ window.testerConnecteurCompta=async function(id){
 async function testerConnecteurComptaAvecStatut(id,statutEl){
   try{
     const res=await COMPTA_CONNECTEURS_IMPL[id].tester();
-    if(statutEl){statutEl.style.color=res.ok?'#68d391':'#fc8181';statutEl.textContent=res.ok?'✓ Connexion réussie.':'✗ '+res.message;}
+    if(statutEl){statutEl.style.color=res.ok?'#7FBF9E':'#E0716B';statutEl.textContent=res.ok?'✓ Connexion réussie.':'✗ '+res.message;}
     else alert(res.ok?'✓ Connexion à '+id+' toujours valide.':'✗ '+res.message);
     return res;
   }catch(e){
     const msg='Erreur de connexion : '+e.message;
-    if(statutEl){statutEl.style.color='#fc8181';statutEl.textContent='✗ '+msg;}
+    if(statutEl){statutEl.style.color='#E0716B';statutEl.textContent='✗ '+msg;}
     else alert('✗ '+msg);
     return{ok:false,message:msg};
   }
@@ -12639,7 +12639,7 @@ function renderPennylaneSyncList(){
   const{factures}=loadData();
   zone.innerHTML=_pennylaneFacturesRecues.map((inv,i)=>{
     const dup=factures.some(f=>Math.abs((+f.ttc||0)-inv.montant_ttc)<0.01 && f.date===inv.date);
-    return`<label style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid ${dup?'rgba(246,173,85,.35)':'var(--border)'};border-radius:8px;margin-bottom:8px;cursor:pointer;background:${dup?'rgba(246,173,85,.06)':'transparent'}">
+    return`<label style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid ${dup?'rgba(224,161,94,.35)':'var(--border)'};border-radius:8px;margin-bottom:8px;cursor:pointer;background:${dup?'rgba(224,161,94,.06)':'transparent'}">
       <input type="checkbox" class="pennylane-sync-check" data-idx="${i}" ${dup?'':'checked'} style="width:16px;height:16px;flex-shrink:0">
       <div style="flex:1">
         <div style="font-weight:600;font-size:13px">${inv.fournisseur||'Fournisseur inconnu'} ${dup?'<span style="font-size:10px;color:var(--orange);font-weight:700">⚠ doublon probable</span>':''}</div>
@@ -12973,10 +12973,10 @@ window.updateLignesTotal=function(){
   document.querySelectorAll('.sv-ligne-montant').forEach(el=>{saisi+=parseFloat(el.value)||0;});
   const diff=+(ttcTotal-saisi).toFixed(2);
   if(Math.abs(diff)<0.02){
-    infoEl.style.color='var(--green,#68d391)';
+    infoEl.style.color='var(--green,#7FBF9E)';
     infoEl.textContent=`✓ Total des lignes : ${saisi.toFixed(2)} € — correspond au montant TTC de la facture`;
   } else {
-    infoEl.style.color='#f6ad55';
+    infoEl.style.color='#E0A15E';
     infoEl.textContent=`Total des lignes : ${saisi.toFixed(2)} € (facture : ${ttcTotal.toFixed(2)} €, écart ${diff.toFixed(2)} €)`;
   }
 };
@@ -13111,10 +13111,10 @@ window.updateSplitTotal=function(){
   });
   const diff=+(ttcTotal-saisi).toFixed(2);
   if(Math.abs(diff)<0.01){
-    infoEl.style.color='var(--green,#68d391)';
+    infoEl.style.color='var(--green,#7FBF9E)';
     infoEl.textContent=`✓ Total réparti : ${saisi.toFixed(2)} € — correspond au montant TTC`;
   } else if(diff>0){
-    infoEl.style.color='#f6ad55';
+    infoEl.style.color='#E0A15E';
     infoEl.textContent=`Il reste ${diff.toFixed(2)} € à répartir (saisi : ${saisi.toFixed(2)} € sur ${ttcTotal.toFixed(2)} €)`;
   } else {
     infoEl.style.color='#e53e3e';
@@ -13173,10 +13173,10 @@ window.updateDevisSplitTotal=function(){
   });
   const diff=+(ttcTotal-saisi).toFixed(2);
   if(Math.abs(diff)<0.01){
-    infoEl.style.color='var(--green,#68d391)';
+    infoEl.style.color='var(--green,#7FBF9E)';
     infoEl.textContent=`✓ Total réparti : ${saisi.toFixed(2)} € — correspond au montant TTC`;
   } else if(diff>0){
-    infoEl.style.color='#f6ad55';
+    infoEl.style.color='#E0A15E';
     infoEl.textContent=`Il reste ${diff.toFixed(2)} € à répartir (saisi : ${saisi.toFixed(2)} € sur ${ttcTotal.toFixed(2)} €)`;
   } else {
     infoEl.style.color='#e53e3e';
@@ -14845,7 +14845,7 @@ window._authReady.then(async () => {
   CTX_CONFIG[CTX] = {
     nom: info.nom || 'Ma structure',
     sousTitre: info.adresse || '',
-    couleur: '#63b3ed',
+    couleur: '#5AC8D8',
     gmail: window._currentUserEmail || '',
     driveFolderName: (info.nom || 'Structure') + ' Factures',
     hasBudgetTravaux: info.hasBudgetTravaux !== false, // activé par défaut, désactivable dans Paramètres (rétrocompatibilité)
@@ -14857,7 +14857,7 @@ window._authReady.then(async () => {
   if(window._myRole && window._myRole!=='owner'){
     const roleLabels={lecture:'Lecture seule',saisie:'Saisie de factures',admin:'Administrateur'};
     const banner=document.createElement('div');
-    banner.style.cssText='background:rgba(246,173,85,.12);border-bottom:1px solid rgba(246,173,85,.35);color:var(--orange);font-size:12px;font-weight:600;text-align:center;padding:8px;';
+    banner.style.cssText='background:rgba(224,161,94,.12);border-bottom:1px solid rgba(224,161,94,.35);color:var(--orange);font-size:12px;font-weight:600;text-align:center;padding:8px;';
     banner.textContent='👥 Structure partagée avec toi — rôle : '+(roleLabels[window._myRole]||window._myRole)+(window._myRole==='lecture'?' (consultation uniquement, aucune modification possible)':'');
     document.body.insertBefore(banner, document.body.firstChild);
   }
@@ -14887,7 +14887,7 @@ window._authReady.then(async () => {
 <div class="split-view" id="split-view">
   <div class="split-toolbar">
     <h3>📄 Saisie assistée — lisez la facture à gauche et remplissez à droite</h3>
-    <button onclick="closeSplitView()" style="background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.4);border-radius:6px;color:var(--red);padding:7px 14px;font-size:11px;cursor:pointer;font-weight:600">✕ Fermer sans enregistrer</button>
+    <button onclick="closeSplitView()" style="background:rgba(224,113,107,.15);border:1px solid rgba(224,113,107,.4);border-radius:6px;color:var(--red);padding:7px 14px;font-size:11px;cursor:pointer;font-weight:600">✕ Fermer sans enregistrer</button>
   </div>
   <div class="split-body">
     <iframe id="split-pdf-frame" class="split-pdf"></iframe>
@@ -14918,7 +14918,7 @@ window._authReady.then(async () => {
         <div id="sv-lignes-total-info" style="margin-top:10px;font-size:12px;font-weight:600"></div>
         <button type="button" onclick="validerLignesFacture()" style="margin-top:10px;background:var(--accent3);border:1px solid var(--accent2);border-radius:8px;padding:9px;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;width:100%">✓ Valider la répartition</button>
       </div>
-      <div id="sv-repartition-recap" style="display:none;margin:6px 0 16px;padding:12px 14px;background:rgba(104,211,145,.08);border:1px solid rgba(104,211,145,.3);border-radius:10px;font-size:12px;color:var(--green)"></div>
+      <div id="sv-repartition-recap" style="display:none;margin:6px 0 16px;padding:12px 14px;background:rgba(127,191,158,.08);border:1px solid rgba(127,191,158,.3);border-radius:10px;font-size:12px;color:var(--green)"></div>
       <div class="split-field"><label>Montant TTC (€)</label><input type="number" id="sv-ttc" placeholder="0.00" step="0.01"></div>
       <div class="split-field"><label>Date de paiement</label><input type="date" id="sv-datepay"></div>
       <div class="split-field"><label>Statut</label>
@@ -14967,9 +14967,9 @@ window._authReady.then(async () => {
 <div class="print-overlay" id="print-overlay">
   <div class="print-toolbar">
     <h3 id="print-overlay-title">Aperçu impression</h3>
-    <button id="btn-mail-quittance-toolbar" onclick="" style="display:none;background:rgba(246,173,85,.1);border:1px solid rgba(246,173,85,.4);border-radius:6px;color:var(--orange);padding:8px 14px;font-size:12px;cursor:pointer;font-weight:600;align-items:center;gap:6px">📧 Envoyer par mail</button>
+    <button id="btn-mail-quittance-toolbar" onclick="" style="display:none;background:rgba(224,161,94,.1);border:1px solid rgba(224,161,94,.4);border-radius:6px;color:var(--orange);padding:8px 14px;font-size:12px;cursor:pointer;font-weight:600;align-items:center;gap:6px">📧 Envoyer par mail</button>
     <button onclick="imprimerApercu()" style="background:#2b6cb0;border:none;border-radius:6px;color:#fff;padding:8px 18px;font-size:12px;cursor:pointer;font-weight:600">🖨 Imprimer / Sauvegarder PDF</button>
-    <button onclick="closePrintOverlay()" style="background:rgba(252,129,129,.15);border:1px solid rgba(252,129,129,.4);border-radius:6px;color:var(--red);padding:8px 14px;font-size:12px;cursor:pointer;font-weight:600">✕ Fermer</button>
+    <button onclick="closePrintOverlay()" style="background:rgba(224,113,107,.15);border:1px solid rgba(224,113,107,.4);border-radius:6px;color:var(--red);padding:8px 14px;font-size:12px;cursor:pointer;font-weight:600">✕ Fermer</button>
   </div>
   <iframe id="print-frame" class="print-frame"></iframe>
 </div>
@@ -14985,7 +14985,7 @@ if('serviceWorker' in navigator){
 }
 </script>
 <!-- CHATBOT -->
-<div id="chatbot-bubble" onclick="toggleChatbot()" style="position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#63b3ed,#4fd1c5);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(99,179,237,.4);z-index:300;font-size:24px;transition:transform .2s" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">💬</div>
+<div id="chatbot-bubble" onclick="toggleChatbot()" style="position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#5AC8D8,#4fd1c5);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(90,200,216,.4);z-index:300;font-size:24px;transition:transform .2s" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">💬</div>
 
 <div id="chatbot-panel" style="display:none;position:fixed;bottom:90px;right:24px;width:380px;max-width:92vw;height:520px;max-height:75vh;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:300;flex-direction:column;overflow:hidden">
   <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#0f1d35,#0a0e1a)">
@@ -14993,7 +14993,7 @@ if('serviceWorker' in navigator){
     <button onclick="toggleChatbot()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;line-height:1">✕</button>
   </div>
   <div id="chatbot-messages" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px">
-    <div style="background:rgba(99,179,237,.08);border:1px solid rgba(99,179,237,.2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);align-self:flex-start;max-width:85%">
+    <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);align-self:flex-start;max-width:85%">
       👋 Bonjour ! Posez-moi une question sur vos dépenses, votre budget, vos factures...<br><br>
       Exemples : <i>"Combien j'ai dépensé en terrassement ?"</i> ou <i>"Quel logement coûte le plus cher ?"</i>
     </div>
@@ -15073,12 +15073,12 @@ async function sendChatbotMessage(){
   const messages=document.getElementById('chatbot-messages');
   const geminiKey=getGeminiKeys().length;
   if(!geminiKey){
-    messages.innerHTML+=`<div style="background:rgba(252,129,129,.1);border:1px solid rgba(252,129,129,.3);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--red);align-self:flex-start">Ajoute d'abord au moins une clé API Gemini dans Paramètres pour utiliser l'assistant.</div>`;
+    messages.innerHTML+=`<div style="background:rgba(224,113,107,.1);border:1px solid rgba(224,113,107,.3);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--red);align-self:flex-start">Ajoute d'abord au moins une clé API Gemini dans Paramètres pour utiliser l'assistant.</div>`;
     input.value='';
     return;
   }
 
-  messages.innerHTML+=`<div style="background:rgba(99,179,237,.15);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--text);align-self:flex-end;max-width:85%">${question}</div>`;
+  messages.innerHTML+=`<div style="background:rgba(90,200,216,.15);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--text);align-self:flex-end;max-width:85%">${question}</div>`;
   input.value='';
   messages.scrollTop=messages.scrollHeight;
 
@@ -15113,7 +15113,7 @@ Règles : réponds toujours en français, avec des chiffres précis en euros (fo
   }catch(e){
     const el=document.getElementById(loadingId);
     if(el)el.remove();
-    messages.innerHTML+=`<div style="background:rgba(252,129,129,.08);border:1px solid rgba(252,129,129,.25);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--red);align-self:flex-start">⚠ Erreur : ${e.message}</div>`;
+    messages.innerHTML+=`<div style="background:rgba(224,113,107,.08);border:1px solid rgba(224,113,107,.25);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--red);align-self:flex-start">⚠ Erreur : ${e.message}</div>`;
   }
   messages.scrollTop=messages.scrollHeight;
 }
