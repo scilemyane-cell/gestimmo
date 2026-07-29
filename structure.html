@@ -844,29 +844,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
 <!-- FACTURES -->
 <div class="content" id="tab-factures">
-  <!-- Sous-onglets -->
-  <div style="display:flex;gap:2px;margin-bottom:20px;border-bottom:1px solid var(--border)">
-    <div id="sub-tab-recap" onclick="showSubTab('recap')" style="padding:8px 20px;border-radius:8px 8px 0 0;cursor:pointer;font-size:12px;font-weight:600;color:var(--accent);background:var(--bg3);border:1px solid var(--border2);border-bottom:1px solid var(--bg2);position:relative;top:1px">📊 Récapitulatif</div>
-    <div id="sub-tab-liste" onclick="showSubTab('liste')" style="padding:8px 20px;border-radius:8px 8px 0 0;cursor:pointer;font-size:12px;font-weight:500;color:var(--text2);border:1px solid transparent;border-bottom:none">📋 Liste des factures</div>
-  </div>
 
-  <!-- Sous-onglet Récapitulatif -->
-  <div id="sub-content-recap">
-    <div class="section-title">Récapitulatif réel par catégorie et logement (TTC)</div>
-    <div class="table-wrap" style="margin-bottom:24px">
-      <div class="reel-grid" id="reel-grid" style="display:grid;grid-template-columns:210px repeat(4,1fr) 110px">
-        <div class="bg-th">Catégorie</div>
-        <div class="bg-th" style="text-align:right">Log. A TTC</div>
-        <div class="bg-th" style="text-align:right">Log. B TTC</div>
-        <div class="bg-th" style="text-align:right">Log. C TTC</div>
-        <div class="bg-th" style="text-align:right">Commun TTC</div>
-        <div class="bg-th" style="text-align:right">Total TTC</div>
-      </div>
-    </div>
-  </div>
+  <!-- Récapitulatif retiré (peu utilisé) — la liste des factures est maintenant la seule vue -->
+  <div id="sub-content-recap" style="display:none"></div>
 
   <!-- Sous-onglet Liste -->
-  <div id="sub-content-liste" style="display:none">
+  <div id="sub-content-liste">
     <div class="filters">
       <input type="text" id="filter-search" placeholder="🔍 Rechercher fournisseur, N°, description..." oninput="renderFactures()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;min-width:240px;flex:1">
       <select class="filter-select" id="filter-annee" onchange="renderFactures()"><option value="">Toutes années</option></select>
@@ -1012,6 +995,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <select class="filter-select" id="devis-filter-cat" onchange="renderDevis()"><option value="">Toutes catégories</option></select>
     <div style="flex:1"></div>
     <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllDevisPdfsToDrive()" id="btn-sync-drive-devis" title="Uploader tous les PDF de devis locaux vers Google Drive">☁ Sync Drive</button>
+    <button class="btn-export" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="libererEspaceLocalDevisPDF()" id="btn-liberer-espace-devis" title="Supprime les copies locales des PDF de devis déjà présents sur Drive">🧹 Libérer l'espace local</button>
     <button class="btn-export" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)" onclick="nettoyerDoublonsDriveDevis()" id="btn-clean-drive-devis" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
     <select class="filter-select" id="drive-year-select-devis" title="Année du dossier Drive à ouvrir" style="font-weight:600"></select>
     <button class="btn-export" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.4);color:var(--accent)" onclick="ouvrirDossierDriveAnneeDevis()" id="btn-open-drive-devis" title="Ouvrir le dossier Drive de l'année sélectionnée">📂 Ouvrir dossier Drive</button>
@@ -2297,11 +2281,13 @@ function renderDevis(){
     <div class="kpi" style="--kpi-color:#B98ED4"><div class="kpi-label">Engagement total</div><div class="kpi-val">${fmt(totEngage)}</div><div class="kpi-sub">accepté + facturé</div></div>
   `;
 
+  const dupIndicesDevis=getDuplicateIndicesDevis(devis);
   const tbody=document.getElementById('devis-tbody');
   if(tbody)tbody.innerHTML=filtered.map(d=>{
     const sc=d.statut==='Facturé'?'#7FBF9E':d.statut==='Accepté'?'#5AC8D8':d.statut==='Refusé'?'#E0716B':'#E0A15E';
+    const isDupDevis=dupIndicesDevis.has(d._ri);
     return`<tr>
-      <td style="color:var(--accent);font-weight:500">${d.num||'—'}</td>
+      <td style="color:var(--accent);font-weight:500">${d.num||'—'}${isDupDevis?` <span onclick="confirmerPasDoublonDevis(${d._ri})" title="Cliquer pour confirmer que ce n'est PAS un doublon" style="cursor:pointer;font-size:9px;background:rgba(224,113,107,.25);color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON — ✓ Confirmer que non</span>`:''}</td>
       <td style="color:var(--text2)">${d.date||'—'}</td>
       <td style="font-weight:500">${d.four||'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${d.cat||'—'}</td>
@@ -2309,7 +2295,7 @@ function renderDevis(){
       <td style="text-align:right;font-weight:600">${fmt(d.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:600">${d.statut||'—'}${d.dateValidation?`<div style="font-size:9px;color:var(--text3);font-weight:400">le ${fmtDate(d.dateValidation)}</div>`:''}</td>
       <td style="font-size:11px;color:var(--text2)">${d.factureNum?('📄 '+d.factureNum):'—'}</td>
-      <td style="text-align:center">${(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:''}${d.driveLink?`<a href="${d.driveLink}" target="_blank" style="background:rgba(127,191,158,.1);border:1px solid rgba(127,191,158,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}${!loadDevisPdf(d._ri)&&!d.driveLink?'<span style="font-size:10px;color:var(--text3)">—</span>':''}</td>
+      <td style="text-align:center">${(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:''}${d.driveLink?`<a href="${d.driveLink}" target="_blank" style="background:rgba(127,191,158,.1);border:1px solid rgba(127,191,158,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}${!loadDevisPdf(d._ri)&&!d.driveLink?`<button class="btn btn-sm" onclick="lierDriveLinkDevis(${d._ri})" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.35);color:var(--accent);font-size:10px;padding:4px 9px" title="Rattacher un lien Google Drive existant">🔗 Lier Drive</button>`:''}</td>
       <td style="text-align:center;white-space:nowrap">
         ${d.statut==='En attente'?`<button class="btn btn-sm" style="background:rgba(127,191,158,.15);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="validerDevis(${d._ri})" title="Valider ce devis (passe en Accepté)">✓ Valider</button>`:''}
         ${(d.statut==='Accepté'||d.statut==='Facturé')&&(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn btn-sm" style="background:rgba(185,142,212,.15);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="reappliquerTamponDevis(${d._ri})" title="Réappliquer le tampon (ex: après changement du tampon dans Paramètres, ou remplacement du document)">🖋</button>`:''}
@@ -2320,7 +2306,7 @@ function renderDevis(){
   }).join('');
 }
 
-function ajouterOuModifierDevis(){
+async function ajouterOuModifierDevis(){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier les devis."); return; }
   const four=document.getElementById('devis-four').value.trim();
   const ttc=parseFloat(document.getElementById('devis-ttc').value)||0;
@@ -2384,7 +2370,10 @@ function ajouterOuModifierDevis(){
     const dfour=(four||'devis').replace(/[^a-zA-Z0-9]/g,'_');
     const dnum=obj.num||'DEV-'+(idxFinal+1);
     const dfname=dnum+'_'+dfour+'.pdf';
-    saveDevisPdfWithDrive(idxFinal,pendingDevisPdfB64,dfname);
+    const resUpload=await saveDevisPdfWithDrive(idxFinal,pendingDevisPdfB64,dfname);
+    if(driveAccessToken && !resUpload.driveLink){
+      alert('⚠ Le devis est enregistré, mais l\'envoi du PDF sur Google Drive a échoué (problème réseau ou temporaire). Le PDF est resté en local pour l\'instant.');
+    }
   }
   resetFormDevis();
   renderDevis();
@@ -3370,7 +3359,7 @@ function showTab(id){
   if(id==='projection')renderProjection();
   if(id==='financement')renderFinancement();
   if(id==='cout-revient')renderCoutRevient();
-  if(id==='parametres')renderParametres();
+  if(id==='parametres'){renderParametres();renderFacturesOrphelines();renderDevisOrphelins();}
   if(id==='budget')renderBudget();
   if(id==='dashboard')renderDashboard();
   if(id==='factures')renderFactures();
@@ -3807,6 +3796,34 @@ function getDuplicateIndices(factures){
   }
   return dups;
 }
+// Équivalent devis — mêmes critères (fournisseur + date + montant identiques).
+function getDuplicateIndicesDevis(devis){
+  const dups=new Set();
+  for(let i=0;i<devis.length;i++){
+    if(dups.has(i))continue;
+    const a=devis[i];
+    if(!a.four||!(+a.ttc>0)||a.doublonConfirme)continue;
+    for(let j=i+1;j<devis.length;j++){
+      const b=devis[j];
+      if(!b.four||!(+b.ttc>0)||b.doublonConfirme)continue;
+      const sameAmount=Math.abs((+a.ttc||0)-(+b.ttc||0))<0.01;
+      if(!sameAmount)continue;
+      const sameFour=normFourName(a.four)===normFourName(b.four);
+      const sameDate=a.date&&b.date&&a.date===b.date;
+      if(sameFour&&sameDate){dups.add(i);dups.add(j);}
+    }
+  }
+  return dups;
+}
+function confirmerPasDoublonDevis(idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ce devis."); return; }
+  const devis=loadDevis();
+  if(!devis[idx])return;
+  if(!confirm('Confirmer que ce devis n\'est PAS un doublon ?\nLe signalement ne réapparaîtra plus pour lui.'))return;
+  devis[idx].doublonConfirme=true;
+  saveDevis(devis);
+  renderDevis();
+}
 function confirmerPasDoublon(idx){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier cette facture."); return; }
   const d=loadData();
@@ -3818,7 +3835,6 @@ function confirmerPasDoublon(idx){
 }
 function renderFactures(){
   const{factures}=loadData();
-  renderReelGrid();
   populateDevisSelects();
   const btnSyncPennylane=document.getElementById('btn-sync-pennylane');
   if(btnSyncPennylane)btnSyncPennylane.style.display=getComptaToken('pennylane')?'inline-flex':'none';
@@ -4646,16 +4662,28 @@ async function exporterSelectionBanque(){
 // Rattache manuellement un lien Google Drive existant à une facture qui n'en a pas.
 // Utile quand le PDF est sur Drive mais que l'app n'a pas enregistré le lien
 // (upload interrompu, facture saisie manuellement sans PDF, etc.).
-// Rattache manuellement un lien Google Drive à une facture sans PDF.
+// Rattache manuellement un lien Google Drive à une facture ou un devis sans PDF.
 // Modale HTML au lieu de prompt() — les prompt() natifs sont bloqués sur GitHub Pages
 // et certaines configurations de navigateur (politiques de sécurité des iframes).
 let _lierDriveIdx=null;
+let _lierDriveType='facture';
 function lierDriveLink(idx){
   const{factures}=loadData();
   const f=factures[idx];
   if(!f)return;
   _lierDriveIdx=idx;
+  _lierDriveType='facture';
   document.getElementById('lier-drive-url').value=f.driveLink||'';
+  document.getElementById('lier-drive-overlay').style.display='flex';
+  setTimeout(()=>document.getElementById('lier-drive-url').focus(),50);
+}
+function lierDriveLinkDevis(idx){
+  const devis=loadDevis();
+  const d=devis[idx];
+  if(!d)return;
+  _lierDriveIdx=idx;
+  _lierDriveType='devis';
+  document.getElementById('lier-drive-url').value=d.driveLink||'';
   document.getElementById('lier-drive-overlay').style.display='flex';
   setTimeout(()=>document.getElementById('lier-drive-url').focus(),50);
 }
@@ -4665,6 +4693,15 @@ function confirmerLierDrive(){
   if(!url){document.getElementById('lier-drive-url').style.borderColor='var(--red)';return;}
   if(!url.includes('drive.google.com')&&!url.includes('docs.google.com')){
     document.getElementById('lier-drive-url').style.borderColor='var(--red)';
+    return;
+  }
+  if(_lierDriveType==='devis'){
+    const devis=loadDevis();
+    devis[_lierDriveIdx].driveLink=url;
+    saveDevis(devis);
+    document.getElementById('lier-drive-overlay').style.display='none';
+    _lierDriveIdx=null;
+    renderDevis();
     return;
   }
   const{factures}=loadData();
@@ -7010,6 +7047,52 @@ function getOccupationYear(logKey,year){
 // ─────────────────────────────────────────────────────────────────────────────
 const LOG_COLORS=['#5AC8D8','#7FBF9E','#E0A15E','#B98ED4','#E0716B','#f687b3','#76e4f7','#fbd38d'];
 
+// Repère les factures sans PDF local ni lien Drive — affiché en permanence dans Paramètres
+// pour éviter de tomber dessus par hasard le jour où on a besoin du document (cf. l'incident
+// de la facture CEDEO retrouvée manquante, sans qu'aucun lien Drive n'ait jamais été enregistré).
+function renderFacturesOrphelines(){
+  const{factures}=loadData();
+  const orphelines=factures.map((f,i)=>({...f,_ri:i})).filter(f=>!f.driveLink&&!loadPdf(f._ri));
+  const el=document.getElementById('factures-orphelines-contenu');
+  if(!el)return;
+  if(!orphelines.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--green)">✅ Aucune facture orpheline — toutes tes factures ont un PDF local ou un lien Drive.</div>';
+    return;
+  }
+  el.innerHTML=`
+    <div style="font-size:12px;color:var(--orange);margin-bottom:10px">⚠ ${orphelines.length} facture(s) concernée(s) :</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${orphelines.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(f=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px;font-size:12px">
+          <div><span style="color:var(--accent);font-weight:500">${f.num||'—'}</span> · ${f.four||'—'} · ${f.date||'—'} · ${fmt(f.ttc)}</div>
+          <button class="btn btn-sm" onclick="lierDriveLink(${f._ri})" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.35);color:var(--accent);font-size:10px;padding:4px 9px;flex-shrink:0">🔗 Lier Drive</button>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+// Équivalent devis de renderFacturesOrphelines().
+function renderDevisOrphelins(){
+  const devis=loadDevis();
+  const orphelins=devis.map((d,i)=>({...d,_ri:i})).filter(d=>!d.driveLink&&!loadDevisPdf(d._ri));
+  const el=document.getElementById('devis-orphelins-contenu');
+  if(!el)return;
+  if(!orphelins.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--green)">✅ Aucun devis orphelin — tous tes devis ont un PDF local ou un lien Drive.</div>';
+    return;
+  }
+  el.innerHTML=`
+    <div style="font-size:12px;color:var(--orange);margin-bottom:10px">⚠ ${orphelins.length} devis concerné(s) :</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${orphelins.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(d=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px;font-size:12px">
+          <div><span style="color:var(--accent);font-weight:500">${d.num||'—'}</span> · ${d.four||'—'} · ${d.date||'—'} · ${fmt(d.ttc)}</div>
+          <button class="btn btn-sm" onclick="lierDriveLinkDevis(${d._ri})" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.35);color:var(--accent);font-size:10px;padding:4px 9px;flex-shrink:0">🔗 Lier Drive</button>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
 function renderParametres(){
   const container=document.getElementById('parametres-container');
   if(!container)return;
@@ -7165,6 +7248,20 @@ function renderParametres(){
         </div>
       </div>
       <div style="font-size:10px;color:var(--text3);margin-top:12px;font-style:italic">Formats acceptés : PNG, JPG. Compression et redimensionnement automatiques — importe l'image telle quelle, on s'occupe du reste.</div>
+    </div>
+
+    <!-- Détecteur de factures orphelines (sans PDF ni lien Drive) -->
+    <div class="table-wrap" style="padding:24px;margin-bottom:24px" id="panel-factures-orphelines">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">🔍 Factures sans PDF ni lien Drive</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Ces factures n'ont ni fichier stocké localement, ni lien Google Drive — leur pièce jointe est introuvable si tu en as besoin un jour. Vérifié automatiquement à chaque ouverture de cet onglet.</div>
+      <div id="factures-orphelines-contenu"></div>
+    </div>
+
+    <!-- Détecteur de devis orphelins (sans PDF ni lien Drive) -->
+    <div class="table-wrap" style="padding:24px;margin-bottom:24px" id="panel-devis-orphelins">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">🔍 Devis sans PDF ni lien Drive</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Même vérification que ci-dessus, côté devis.</div>
+      <div id="devis-orphelins-contenu"></div>
     </div>
 
     <!-- Clé API Gemini (OCR factures) -->
@@ -13214,26 +13311,9 @@ function selectSuggestion(inputId,listId,val){
 }
 
 function showSubTab(id){
-  const tabs=['recap','liste'];
-  tabs.forEach(t=>{
-    const tab=document.getElementById('sub-tab-'+t);
-    const content=document.getElementById('sub-content-'+t);
-    if(t===id){
-      tab.style.color='var(--accent)';
-      tab.style.background='var(--bg3)';
-      tab.style.border='1px solid var(--border2)';
-      tab.style.borderBottom='1px solid var(--bg2)';
-      if(content)content.style.display='block';
-    } else {
-      tab.style.color='var(--text2)';
-      tab.style.background='transparent';
-      tab.style.border='1px solid transparent';
-      tab.style.borderBottom='none';
-      if(content)content.style.display='none';
-    }
-  });
+  // Le sélecteur Récapitulatif/Liste a été retiré (récap supprimé, peu utilisé) — cette fonction
+  // ne sert plus qu'à déclencher le rendu de la liste des factures, désormais la seule vue.
   if(id==='liste')renderFactures();
-  if(id==='recap')renderReelGrid();
 }
 
 // ── GOOGLE DRIVE ──────────────────────────────────────────
@@ -13643,6 +13723,7 @@ async function saveDevisPdfWithDrive(idx, b64, fileName){
           saveDevis(devis2);
           renderDevis();
         }
+        removeDevisPdf(idx); // confirmé sur Drive : la copie locale devient redondante, on la libère
         console.log('PDF devis uploadé sur Drive:', driveLink);
       }
     }catch(e){console.error('Upload Drive devis échoué:',e);}
@@ -14469,6 +14550,23 @@ async function ouvrirDossierDriveAnneeDevis(){
 
 // ── SYNC TOUS PDF DEVIS LOCAUX → DRIVE ────────────────────────────────────
 let _syncDriveDevisEnCours=false;
+// Équivalent devis de libererEspaceLocalPDF() (factures) — même principe.
+function libererEspaceLocalDevisPDF(){
+  const devis=loadDevis();
+  let liberes=0;
+  devis.forEach((d,i)=>{
+    if(d.driveLink && loadDevisPdf(i)){
+      removeDevisPdf(i);
+      liberes++;
+    }
+  });
+  if(liberes===0){
+    alert("Rien à libérer — aucun PDF local de devis redondant avec Drive n'a été trouvé. Essaie d'abord \"☁ Sync Drive\" si tu es bloqué par une erreur de stockage.");
+  } else {
+    alert('✓ '+liberes+' copie(s) locale(s) de PDF de devis déjà sur Drive ont été supprimées.');
+  }
+  renderDevis();
+}
 async function syncAllDevisPdfsToDrive(){
   if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
   if(_syncDriveDevisEnCours){alert('Une synchronisation est déjà en cours, patiente qu\'elle se termine.');return;}
@@ -14982,140 +15080,6 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.getRegistrations().then(regs=>{
     regs.forEach(reg=>reg.unregister());
   });
-}
-</script>
-<!-- CHATBOT -->
-<div id="chatbot-bubble" onclick="toggleChatbot()" style="position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#5AC8D8,#4fd1c5);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(90,200,216,.4);z-index:300;font-size:24px;transition:transform .2s" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">💬</div>
-
-<div id="chatbot-panel" style="display:none;position:fixed;bottom:90px;right:24px;width:380px;max-width:92vw;height:520px;max-height:75vh;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:300;flex-direction:column;overflow:hidden">
-  <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#0f1d35,#0a0e1a)">
-    <div style="font-size:13px;font-weight:600;color:var(--accent)">💬 Assistant Novimmo</div>
-    <button onclick="toggleChatbot()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;line-height:1">✕</button>
-  </div>
-  <div id="chatbot-messages" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px">
-    <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);align-self:flex-start;max-width:85%">
-      👋 Bonjour ! Posez-moi une question sur vos dépenses, votre budget, vos factures...<br><br>
-      Exemples : <i>"Combien j'ai dépensé en terrassement ?"</i> ou <i>"Quel logement coûte le plus cher ?"</i>
-    </div>
-  </div>
-  <div style="padding:12px;border-top:1px solid var(--border);display:flex;gap:8px">
-    <input type="text" id="chatbot-input" placeholder="Votre question..." onkeydown="if(event.key==='Enter')sendChatbotMessage()" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none">
-    <button onclick="sendChatbotMessage()" style="background:var(--accent3);border:1px solid var(--accent2);border-radius:8px;padding:9px 14px;color:var(--text);font-size:12px;font-weight:600;cursor:pointer">➤</button>
-  </div>
-</div>
-
-<script>
-function toggleChatbot(){
-  const panel=document.getElementById('chatbot-panel');
-  panel.style.display=panel.style.display==='none'?'flex':'none';
-  if(panel.style.display==='flex')document.getElementById('chatbot-input').focus();
-}
-
-function buildDataContext(){
-  const{budget,factures}=loadData();
-  const{byCat:prev,byLog:bPrev}=getBudgetTotals(budget);
-  const{byCat:reel,byLog:bReel}=getReelTotals(factures);
-  const cfg=getCTXConfig();
-  let tPrev=0,tReel=0;
-  CATEGORIES.forEach(c=>{tPrev+=prev[c.name]||0;tReel+=reel[c.name]||0;});
-
-  let ctx=`=== ${cfg.nom} — Données au ${new Date().toLocaleDateString('fr-FR')} ===\n`;
-  ctx+=`${cfg.sousTitre||''}\n`;
-  ctx+=`Logements : ${cfg.logements.map(l=>l.label).join(', ')||'aucun'}\n\n`;
-
-  ctx+=`--- BUDGET GLOBAL ---\n`;
-  ctx+=`Prévu: ${fmt(tPrev)} | Dépensé: ${fmt(tReel)} | Reste: ${fmt(tPrev-tReel)} (${tPrev>0?Math.round(tReel/tPrev*100):0}% consommé)\n\n`;
-
-  ctx+=`--- PAR CATÉGORIE ---\n`;
-  CATEGORIES.forEach(c=>{
-    const p=prev[c.name]||0,r=reel[c.name]||0,ecart=p-r;
-    if(p>0||r>0)ctx+=`${c.name}: prévu ${fmt(p)}, réel ${fmt(r)}, écart ${ecart>=0?'+':''}${fmt(ecart)}\n`;
-  });
-
-  ctx+=`\n--- PAR LOGEMENT ---\n`;
-  LOGS.forEach(l=>{
-    const p=bPrev[l.prevKey]||0,r=bReel[l.key]||0;
-    ctx+=`${l.key}: prévu ${fmt(p)}, réel ${fmt(r)}, reste ${fmt(p-r)}\n`;
-  });
-
-  const facIncluses=factures.filter(f=>f.inclus!==false);
-  const facExclues=factures.filter(f=>f.inclus===false);
-  const facPayees=facIncluses.filter(f=>f.statut==='Payée');
-  const facAttente=facIncluses.filter(f=>f.statut==='En attente');
-  ctx+=`\n--- FACTURES (${factures.length} total: ${facPayees.length} payées, ${facAttente.length} en attente, ${facExclues.length} exclues) ---\n`;
-  factures.slice().sort((a,b)=>(a.num||'').localeCompare(b.num||'')).forEach(f=>{
-    ctx+=`${f.num||'?'} | ${f.date||'?'} | ${f.four||'?'} | ${getCatDisplayText(f)} | ${getLogDisplayText(f)} | ${fmt(f.ttc)} | ${f.statut} | réglé: ${f.regleby||'—'}${f.inclus===false?' | EXCLU DU BUDGET':''}${f.desc?' | '+f.desc:''}\n`;
-  });
-
-  // Locataires et loyers
-  const locs=loadLocataires();
-  if(locs.length>0){
-    ctx+=`\n--- LOCATAIRES ---\n`;
-    locs.forEach(l=>{
-      const montant=(+l.loyerHC||0)+(+l.charges||0);
-      const actif=isLocataireActifAt(l,todayStr());
-      ctx+=`${l.nom||'?'} | Logement ${l.logement} | Loyer ${fmt(montant)}/mois | Entrée: ${fmtDate(l.dateEntree)}${l.dateSortie?' | Sortie: '+fmtDate(l.dateSortie):' | actif'} | Dépôt: ${fmt(+l.depot||0)}\n`;
-      // Paiements de l'année en cours
-      const annee=new Date().getFullYear();
-      const moisPaies=Object.entries(l.paiements||{}).filter(([mk,p])=>mk.startsWith(annee)&&p.paye).length;
-      const moisDus=Object.keys(l.paiements||{}).filter(mk=>mk.startsWith(annee)).length;
-      if(moisDus>0)ctx+=`  → ${moisPaies}/${moisDus} mois payés en ${annee}\n`;
-    });
-  }
-
-  return ctx;
-}
-
-async function sendChatbotMessage(){
-  const input=document.getElementById('chatbot-input');
-  const question=input.value.trim();
-  if(!question)return;
-  const messages=document.getElementById('chatbot-messages');
-  const geminiKey=getGeminiKeys().length;
-  if(!geminiKey){
-    messages.innerHTML+=`<div style="background:rgba(224,113,107,.1);border:1px solid rgba(224,113,107,.3);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--red);align-self:flex-start">Ajoute d'abord au moins une clé API Gemini dans Paramètres pour utiliser l'assistant.</div>`;
-    input.value='';
-    return;
-  }
-
-  messages.innerHTML+=`<div style="background:rgba(90,200,216,.15);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--text);align-self:flex-end;max-width:85%">${question}</div>`;
-  input.value='';
-  messages.scrollTop=messages.scrollHeight;
-
-  const loadingId='loading-'+Date.now();
-  messages.innerHTML+=`<div id="${loadingId}" style="background:rgba(255,255,255,.04);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--text3);align-self:flex-start"><div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></div>Analyse en cours...</div></div>`;
-  messages.scrollTop=messages.scrollHeight;
-
-  try{
-    const context=buildDataContext();
-    const cfg=getCTXConfig();
-    const systemPrompt=`Tu es l'assistant financier de ${cfg.nom}, une structure immobilière gérant la location et/ou la construction de logements. Tu as accès à toutes les données financières réelles du projet : factures, budgets par catégorie et par logement, locataires et historique des loyers.
-
-Ton rôle :
-- Répondre avec précision aux questions sur les dépenses, budgets, écarts, factures, loyers et locataires
-- Identifier les dépassements de budget, les factures en attente, les impayés
-- Faire des calculs et synthèses à partir des données fournies
-- Donner des conseils pratiques adaptés à la gestion d'un bien locatif ou d'un projet de construction
-- Alerter sur les points d'attention (retards, dépassements, documents manquants)
-
-Règles : réponds toujours en français, avec des chiffres précis en euros (format 1 234,56 €). Sois direct et concis. Si une donnée manque, dis-le clairement.`;
-
-    const data=await callGeminiAPI('gemini-2.5-flash',{
-        system_instruction:{parts:[{text:systemPrompt}]},
-        contents:[{
-          parts:[{text:`Données actuelles du projet :\n\n${context}\n\nQuestion : ${question}`}]
-        }],
-        generationConfig:{temperature:0.1,maxOutputTokens:1000}
-    });
-    document.getElementById(loadingId).remove();
-    const text=data.candidates?.[0]?.content?.parts?.[0]?.text||"Désolé, je n'ai pas pu répondre.";
-    messages.innerHTML+=`<div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text);align-self:flex-start;max-width:90%;white-space:pre-wrap">${text}</div>`;
-  }catch(e){
-    const el=document.getElementById(loadingId);
-    if(el)el.remove();
-    messages.innerHTML+=`<div style="background:rgba(224,113,107,.08);border:1px solid rgba(224,113,107,.25);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--red);align-self:flex-start">⚠ Erreur : ${e.message}</div>`;
-  }
-  messages.scrollTop=messages.scrollHeight;
 }
 </script>
 
