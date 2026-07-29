@@ -913,70 +913,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     ℹ️ Enregistre ici les devis reçus, avant même de recevoir la facture — ça permet de suivre l'engagement de dépense en amont. Une fois la facture reçue, saisis-la dans l'onglet Factures en la liant à ce devis (champ "Devis associé") : le devis passera automatiquement au statut "Facturé".
   </div>
 
-  <div class="table-wrap" style="padding:24px 24px 20px;margin-bottom:20px">
-    <div class="section-title" style="margin:0 0 14px" id="devis-form-title">+ Ajouter un devis</div>
-
-    <!-- UPLOAD PDF/PHOTO — en premier, comme pour les factures : préremplit les champs ci-dessous -->
-    <div style="margin-bottom:20px">
-      <div id="devis-drive-warning" style="display:none;background:rgba(224,161,94,.08);border:1px solid rgba(224,161,94,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--orange);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span>⚠️ Google Drive n'est pas connecté — les documents importés resteront <b>uniquement sur cet appareil</b> et pourraient être perdus si tu changes de navigateur ou vides ton cache.</span>
-        <button class="btn btn-sm" onclick="connectDrive()" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">📁 Connecter Drive</button>
-      </div>
-      <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Importer le devis (préremplit les champs automatiquement) <span style="text-transform:none;letter-spacing:0;color:var(--text3)">— optionnel, tu peux aussi tout saisir à la main plus bas</span></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-        <button type="button" onclick="document.getElementById('devis-pdf-input').click()" style="flex:1;min-width:150px;background:rgba(90,200,216,.1);border:1.5px dashed rgba(90,200,216,.4);border-radius:10px;padding:18px 14px;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
-          📎 Sélectionner un fichier<br><small style="font-size:10px;color:var(--text3);font-weight:400">PDF ou image</small>
-        </button>
-        <button type="button" onclick="document.getElementById('devis-camera-input').click()" style="flex:1;min-width:150px;background:rgba(127,191,158,.1);border:1.5px dashed rgba(127,191,158,.4);border-radius:10px;padding:18px 14px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
-          📷 Prendre une photo<br><small style="font-size:10px;color:var(--text3);font-weight:400">Appareil photo</small>
-        </button>
-        <button type="button" onclick="openDrivePicker('devis')" style="flex:1;min-width:150px;background:rgba(224,161,94,.1);border:1.5px dashed rgba(224,161,94,.4);border-radius:10px;padding:18px 14px;color:var(--orange);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
-          📂 Depuis Google Drive<br><small style="font-size:10px;color:var(--text3);font-weight:400">Fichier déjà existant</small>
-        </button>
-      </div>
-      <input type="file" accept="application/pdf,image/*" id="devis-pdf-input" onchange="onDevisFileChange(event)" style="display:none">
-      <input type="file" accept="image/*" capture="environment" id="devis-camera-input" onchange="onDevisCameraChange(event)" style="display:none">
-      <div id="devis-pdf-preview" style="display:none;margin-top:8px;font-size:11px;color:var(--text2)"></div>
-    </div>
-
-    <div class="form-grid">
-      <div class="form-group"><label>N° de devis</label><input type="text" id="devis-num" placeholder="DEV-2026-001"></div>
-      <div class="form-group"><label>Date</label><input type="date" id="devis-date"></div>
-      <div class="form-group"><label>Fournisseur</label><input type="text" id="devis-four" placeholder="Nom de l'entreprise"></div>
-      <div class="form-group"><label>Catégorie</label><select id="devis-cat" onchange="populatePosteSelect('devis-cat','devis-poste')"></select></div>
-      <div class="form-group"><label>Ligne de budget (poste) <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label><select id="devis-poste"><option value="">— Ligne générale (toute la catégorie) —</option></select></div>
-      <div class="form-group" id="devis-log-group"><label>Logement</label><select id="devis-log"></select></div>
-      <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="devis-ttc" step="0.01" placeholder="0.00" oninput="updateDevisSplitTotal()"></div>
-      <div class="form-group" style="grid-column:1/-1">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="checkbox" id="devis-split-toggle" onchange="toggleDevisSplit()" style="width:16px;height:16px;cursor:pointer">
-          <span>Répartir ce devis sur plusieurs logements</span>
-        </label>
-        <div id="devis-split-panel" style="display:none;margin-top:10px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px">
-          <div style="display:flex;gap:16px;margin-bottom:10px;font-size:12px">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="devis-split-mode" value="egale" checked onchange="toggleDevisSplit()"> Répartition égale</label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="devis-split-mode" value="manuel" onchange="toggleDevisSplit()"> Répartition manuelle (montants personnalisés)</label>
-          </div>
-          <div id="devis-split-desc" style="font-size:11px;color:var(--text3);margin-bottom:10px">Le montant TTC sera divisé à parts égales entre les logements cochés.</div>
-          <div id="devis-split-checkboxes" style="display:flex;flex-direction:column;gap:6px"></div>
-          <div id="devis-split-total-info" style="display:none;margin-top:10px;font-size:12px;font-weight:600"></div>
-        </div>
-      </div>
-      <div class="form-group"><label>Statut</label>
-        <select id="devis-statut">
-          <option value="En attente">En attente</option>
-          <option value="Accepté">Accepté</option>
-          <option value="Refusé">Refusé</option>
-        </select>
-      </div>
-      <div class="form-group" style="grid-column:1/-1"><label>Description</label><input type="text" id="devis-desc" placeholder="Détail du devis"></div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <button class="btn" onclick="ajouterOuModifierDevis()" id="devis-submit-btn">+ Ajouter le devis</button>
-      <button class="btn btn-sm" onclick="resetFormDevis()" id="devis-cancel-btn" style="display:none;background:rgba(100,116,139,.1);border-color:rgba(100,116,139,.3);color:var(--text2)">Annuler la modification</button>
-    </div>
-    <span class="msg-ok" id="devis-msg-ok" style="display:none">Devis enregistré ✓</span>
-  </div>
 
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:10px">
     <div class="section-title" style="margin-bottom:0">Liste des devis</div>
@@ -1072,6 +1008,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
 <!-- SAISIE -->
 <div class="content" id="tab-saisie">
+  <div style="display:flex;gap:10px;margin-bottom:20px">
+    <button id="saisie-toggle-facture" onclick="toggleSaisieType('facture')" class="btn btn-sm" style="background:var(--accent3);border-color:var(--accent2)">🧾 Facture</button>
+    <button id="saisie-toggle-devis" onclick="toggleSaisieType('devis')" class="btn btn-sm" style="background:var(--bg3);border-color:var(--border);color:var(--text2)">📝 Devis</button>
+  </div>
+
+  <div id="saisie-facture-form">
   <div class="section-title">Enregistrer une facture</div>
   <div class="table-wrap" style="padding:24px 24px 20px">
     <div class="form-grid">
@@ -1177,6 +1119,74 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
     <button class="btn" onclick="ajouterFacture()">Enregistrer la facture</button>
     <span class="msg-ok" id="msg-ok">Facture enregistrée ✓</span>
+  </div>
+  </div>
+
+  <div id="saisie-devis-form" style="display:none">
+  <div class="table-wrap" style="padding:24px 24px 20px;margin-bottom:20px">
+    <div class="section-title" style="margin:0 0 14px" id="devis-form-title">+ Ajouter un devis</div>
+
+    <!-- UPLOAD PDF/PHOTO — en premier, comme pour les factures : préremplit les champs ci-dessous -->
+    <div style="margin-bottom:20px">
+      <div id="devis-drive-warning" style="display:none;background:rgba(224,161,94,.08);border:1px solid rgba(224,161,94,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--orange);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>⚠️ Google Drive n'est pas connecté — les documents importés resteront <b>uniquement sur cet appareil</b> et pourraient être perdus si tu changes de navigateur ou vides ton cache.</span>
+        <button class="btn btn-sm" onclick="connectDrive()" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">📁 Connecter Drive</button>
+      </div>
+      <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Importer le devis (préremplit les champs automatiquement) <span style="text-transform:none;letter-spacing:0;color:var(--text3)">— optionnel, tu peux aussi tout saisir à la main plus bas</span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <button type="button" onclick="document.getElementById('devis-pdf-input').click()" style="flex:1;min-width:150px;background:rgba(90,200,216,.1);border:1.5px dashed rgba(90,200,216,.4);border-radius:10px;padding:18px 14px;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+          📎 Sélectionner un fichier<br><small style="font-size:10px;color:var(--text3);font-weight:400">PDF ou image</small>
+        </button>
+        <button type="button" onclick="document.getElementById('devis-camera-input').click()" style="flex:1;min-width:150px;background:rgba(127,191,158,.1);border:1.5px dashed rgba(127,191,158,.4);border-radius:10px;padding:18px 14px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+          📷 Prendre une photo<br><small style="font-size:10px;color:var(--text3);font-weight:400">Appareil photo</small>
+        </button>
+        <button type="button" onclick="openDrivePicker('devis')" style="flex:1;min-width:150px;background:rgba(224,161,94,.1);border:1.5px dashed rgba(224,161,94,.4);border-radius:10px;padding:18px 14px;color:var(--orange);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+          📂 Depuis Google Drive<br><small style="font-size:10px;color:var(--text3);font-weight:400">Fichier déjà existant</small>
+        </button>
+      </div>
+      <input type="file" accept="application/pdf,image/*" id="devis-pdf-input" onchange="onDevisFileChange(event)" style="display:none">
+      <input type="file" accept="image/*" capture="environment" id="devis-camera-input" onchange="onDevisCameraChange(event)" style="display:none">
+      <div id="devis-pdf-preview" style="display:none;margin-top:8px;font-size:11px;color:var(--text2)"></div>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group"><label>N° de devis</label><input type="text" id="devis-num" placeholder="DEV-2026-001"></div>
+      <div class="form-group"><label>Date</label><input type="date" id="devis-date"></div>
+      <div class="form-group"><label>Fournisseur</label><input type="text" id="devis-four" placeholder="Nom de l'entreprise"></div>
+      <div class="form-group"><label>Catégorie</label><select id="devis-cat" onchange="populatePosteSelect('devis-cat','devis-poste')"></select></div>
+      <div class="form-group"><label>Ligne de budget (poste) <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label><select id="devis-poste"><option value="">— Ligne générale (toute la catégorie) —</option></select></div>
+      <div class="form-group" id="devis-log-group"><label>Logement</label><select id="devis-log"></select></div>
+      <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="devis-ttc" step="0.01" placeholder="0.00" oninput="updateDevisSplitTotal()"></div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="devis-split-toggle" onchange="toggleDevisSplit()" style="width:16px;height:16px;cursor:pointer">
+          <span>Répartir ce devis sur plusieurs logements</span>
+        </label>
+        <div id="devis-split-panel" style="display:none;margin-top:10px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px">
+          <div style="display:flex;gap:16px;margin-bottom:10px;font-size:12px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="devis-split-mode" value="egale" checked onchange="toggleDevisSplit()"> Répartition égale</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="devis-split-mode" value="manuel" onchange="toggleDevisSplit()"> Répartition manuelle (montants personnalisés)</label>
+          </div>
+          <div id="devis-split-desc" style="font-size:11px;color:var(--text3);margin-bottom:10px">Le montant TTC sera divisé à parts égales entre les logements cochés.</div>
+          <div id="devis-split-checkboxes" style="display:flex;flex-direction:column;gap:6px"></div>
+          <div id="devis-split-total-info" style="display:none;margin-top:10px;font-size:12px;font-weight:600"></div>
+        </div>
+      </div>
+      <div class="form-group"><label>Statut</label>
+        <select id="devis-statut">
+          <option value="En attente">En attente</option>
+          <option value="Accepté">Accepté</option>
+          <option value="Refusé">Refusé</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Description</label><input type="text" id="devis-desc" placeholder="Détail du devis"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn" onclick="ajouterOuModifierDevis()" id="devis-submit-btn">+ Ajouter le devis</button>
+      <button class="btn btn-sm" onclick="resetFormDevis()" id="devis-cancel-btn" style="display:none;background:rgba(100,116,139,.1);border-color:rgba(100,116,139,.3);color:var(--text2)">Annuler la modification</button>
+    </div>
+    <span class="msg-ok" id="devis-msg-ok" style="display:none">Devis enregistré ✓</span>
+  </div>
   </div>
 </div>
 
@@ -2394,6 +2404,8 @@ function openEditDevis(idx){
   const d=devis[idx];
   if(!d)return;
   editDevisIdx=idx;
+  showTab('saisie');
+  toggleSaisieType('devis');
   document.getElementById('devis-num').value=d.num||'';
   document.getElementById('devis-date').value=d.date||'';
   document.getElementById('devis-four').value=d.four||'';
@@ -3313,7 +3325,7 @@ function getTabGroups(){
   const mods = getModulesConfig();
   const groups = [];
   if(mods.construction) groups.push({id:'construction',label:'🏗️ Construction prévisionnelle',tabs:['synthese','logements','budget','dashboard']});
-  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['devis','factures','saisie','annuel','charges-recurrentes','banque','compte-courant']});
+  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['saisie','devis','factures','annuel','charges-recurrentes','banque','compte-courant']});
   if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']});
   if(mods.financement) groups.push({id:'financement',label:'💰 Financement',tabs:['projection','financement']});
   groups.push(paramGroup);
@@ -3321,7 +3333,7 @@ function getTabGroups(){
 }
 function getTabLabels(){return{
   synthese:'Synthèse',logements:'Par logement',budget:'Budget prévisionnel',dashboard:'📊 Dashboard Prév.',
-  devis:'📝 Devis',factures:'Factures réelles',saisie:'+ Saisir une facture',annuel:'📅 Par année','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque','compte-courant':'🤝 Compte courant',
+  devis:'📝 Devis',factures:'📋 Factures',saisie:'+ Saisir',annuel:'📅 Par année','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque','compte-courant':'🤝 Compte courant',
   locataires:'Fiches & loyers','gestion-locative':'📁 Gestion locative',rentabilite:'📈 Rentabilité',
   projection:'🔭 Projection 20 ans',financement:'💳 Crédit & charges',
   parametres:'⚙️ Paramètres'
@@ -13314,6 +13326,26 @@ function showSubTab(id){
   // Le sélecteur Récapitulatif/Liste a été retiré (récap supprimé, peu utilisé) — cette fonction
   // ne sert plus qu'à déclencher le rendu de la liste des factures, désormais la seule vue.
   if(id==='liste')renderFactures();
+}
+
+// Bascule entre les deux formulaires de l'onglet "Saisir" unifié (factures / devis).
+function toggleSaisieType(type){
+  const factureForm=document.getElementById('saisie-facture-form');
+  const devisForm=document.getElementById('saisie-devis-form');
+  const btnFacture=document.getElementById('saisie-toggle-facture');
+  const btnDevis=document.getElementById('saisie-toggle-devis');
+  if(!factureForm||!devisForm)return;
+  if(type==='devis'){
+    factureForm.style.display='none';
+    devisForm.style.display='block';
+    if(btnFacture){btnFacture.style.background='var(--bg3)';btnFacture.style.borderColor='var(--border)';btnFacture.style.color='var(--text2)';}
+    if(btnDevis){btnDevis.style.background='var(--accent3)';btnDevis.style.borderColor='var(--accent2)';btnDevis.style.color='var(--text)';}
+  } else {
+    factureForm.style.display='block';
+    devisForm.style.display='none';
+    if(btnDevis){btnDevis.style.background='var(--bg3)';btnDevis.style.borderColor='var(--border)';btnDevis.style.color='var(--text2)';}
+    if(btnFacture){btnFacture.style.background='var(--accent3)';btnFacture.style.borderColor='var(--accent2)';btnFacture.style.color='var(--text)';}
+  }
 }
 
 // ── GOOGLE DRIVE ──────────────────────────────────────────
