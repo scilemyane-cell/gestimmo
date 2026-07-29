@@ -11789,7 +11789,7 @@ async function ouvrirModalIRL(locId){
       </div>
 
       <div style="background:rgba(246,173,85,.08);border:1px solid rgba(246,173,85,.3);border-radius:10px;padding:12px;margin-bottom:16px;font-size:11px;color:var(--orange)">
-        ⚖️ <strong>Rappel légal :</strong> La révision ne peut intervenir qu'à la date anniversaire du bail. Le préavis recommandé est d'<strong>1 mois minimum</strong> avant application. Le loyer révisé est <strong>${fmt(nouveauLoyer)}</strong>.
+        ⚖️ <strong>Rappel légal :</strong> La révision ne peut intervenir qu'à la date anniversaire du bail. Une <strong>notification écrite au locataire est obligatoire</strong> (courrier ci-dessous), idéalement <strong>1 mois minimum</strong> avant application — sans elle, la révision peut être contestée. Le loyer révisé est <strong>${fmt(nouveauLoyer)}</strong>.
       </div>
 
       <div class="form-grid" style="margin-bottom:16px">
@@ -11805,6 +11805,7 @@ async function ouvrirModalIRL(locId){
 
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-sm" onclick="document.getElementById('modal-irl').remove()" style="background:var(--bg3);border-color:var(--border)">Annuler</button>
+        <button class="btn btn-sm" onclick="genererCourrierRevisionIRL('${locId}')" style="background:var(--bg3);border-color:var(--border)">📨 Courrier de notification</button>
         <button class="btn btn-sm" onclick="appliquerRevisionIRL('${locId}',${mInfo.charges})" style="background:#63b3ed;color:#0a0e1a;border-color:var(--accent);font-weight:700">✓ Appliquer la révision</button>
       </div>
     </div>`;
@@ -11828,6 +11829,91 @@ function appliquerRevisionIRL(locId, chargesActuelles){
   document.getElementById('modal-irl')?.remove();
   renderLocataires();
   alert(`✓ Révision appliquée !\nNouveau loyer de ${fmt(montant)} applicable à partir du ${fmtDate(date)}.`);
+}
+
+// Courrier de notification de révision IRL — obligatoire légalement (article 17-1 loi 89-462) :
+// le locataire doit être informé par écrit avant l'application d'une révision de loyer.
+// Réutilise les valeurs actuellement affichées/modifiées dans la fenêtre "Révision IRL".
+function genererCourrierRevisionIRL(locId){
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(locId));
+  if(!loc)return;
+  const cfg=getCTXConfig();
+  const lg=getLogementsActifs().find(x=>x.key===loc.logement);
+  const logoB64=getLogoB64();
+  const sigB64=(window._structureInfo&&window._structureInfo.tamponBase64)||'';
+  const adresseBailleur=CTX_CONFIG[CTX].sousTitre||'';
+  const nomBailleur=cfg.nom;
+
+  const dateEffet=document.getElementById('irl-date')?.value;
+  const nouveauLoyer=+document.getElementById('irl-montant')?.value||0;
+  if(!dateEffet||!nouveauLoyer){alert('Ouvre d\'abord la fenêtre de révision IRL et vérifie les valeurs avant de générer le courrier.');return;}
+
+  const mInfo=getMontantPeriode(loc,monthKey(new Date().getFullYear(),new Date().getMonth()+1));
+  const loyerActuel=mInfo.loyerHC;
+
+  const moisBail=new Date(loc.dateEntree+'T00:00:00').getMonth()+1;
+  const tBail=moisBail<=3?'T1':moisBail<=6?'T2':moisBail<=9?'T3':'T4';
+  const anneeCourante=new Date().getFullYear();
+  let irlAncien=null,irlNouveau=null,irlAnneeRef=null,irlAnneeNouv=null;
+  for(let y=anneeCourante;y>=2019;y--){
+    const key=`${y}-${tBail}`;
+    if(IRL_HISTORIQUE[key]!=null){
+      if(!irlNouveau){irlNouveau=IRL_HISTORIQUE[key];irlAnneeNouv=y;}
+      else if(!irlAncien){irlAncien=IRL_HISTORIQUE[key];irlAnneeRef=y;break;}
+    }
+  }
+  if(!irlNouveau||!irlAncien){irlAncien=145.47;irlAnneeRef=2025;irlNouveau=146.60;irlAnneeNouv=2026;}
+  const variation=((irlNouveau-irlAncien)/irlAncien*100).toFixed(2);
+  const dateEffetTxt=new Date(dateEffet+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+
+  const entete=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+  <style>
+    *{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;color:#1a202c;padding:30px 40px;font-size:13px;line-height:1.8;max-width:700px;margin:0 auto}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2b6cb0;padding-bottom:14px;margin-bottom:28px}
+    p{margin:10px 0;text-align:justify}.sig{margin-top:44px;text-align:right}
+    @media print{@page{size:A4 portrait;margin:15mm 20mm}body{padding:0}}
+  </style></head><body>
+  <div class="header">
+    <div style="display:flex;align-items:center;gap:12px">
+      <img src="${logoB64}" alt="Logo" style="height:60px;width:auto;object-fit:contain">
+      <div><div style="font-weight:700;font-size:12px">${nomBailleur}</div><div style="font-size:10px;color:#718096">${adresseBailleur}</div></div>
+    </div>
+    <div style="text-align:right;font-size:11px">
+      <div style="font-weight:600">${loc.nom||'—'}</div>
+      <div>${lg?.adresse||''}</div>
+      <div style="margin-top:6px;color:#718096">Le ${fmtDate(todayStr())}</div>
+      <div style="margin-top:4px;font-size:10px;color:#c53030;font-weight:600">LETTRE RECOMMANDÉE AVEC A.R.</div>
+    </div>
+  </div>`;
+
+  const pied=`<div class="sig">
+    <p>Veuillez agréer, Madame, Monsieur, l'expression de mes salutations distinguées.</p>
+    <div style="margin-top:8px;font-weight:600">${nomBailleur}</div>
+    ${sigB64?`<img src="${sigB64}" alt="Signature" style="height:55px;width:auto;margin:8px 0;display:block">`:'<div style="height:55px"></div>'}
+    <div style="border-top:1px solid #2d3748;padding-top:6px;font-size:10px;color:#718096;display:inline-block;min-width:200px">${fmtDate(todayStr())}</div>
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec Novimmo — gestion locative simplifiée</span>
+    </div>
+  </div></body></html>`;
+
+  const corps=`<p><b>Objet : Révision annuelle du loyer — Indice de référence des loyers (IRL)</b></p>
+    <p>Madame, Monsieur ${loc.nom||''},</p>
+    <p>Conformément à la clause de révision prévue à votre contrat de location portant sur le logement situé au <b>${lg?.adresse||''}</b>, et à l'article 17-1 de la loi n°89-462 du 6 juillet 1989, je vous informe de la révision annuelle de votre loyer, applicable à compter du <b>${dateEffetTxt}</b>.</p>
+    <div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin:14px 0;font-size:12px">
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2e8f0"><span>Loyer actuel (hors charges)</span><span style="font-weight:600">${fmt(loyerActuel)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2e8f0"><span>IRL de référence (${formatTrimestreLong(tBail)} ${irlAnneeRef})</span><span>${irlAncien}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2e8f0"><span>IRL de révision (${formatTrimestreLong(tBail)} ${irlAnneeNouv})</span><span>${irlNouveau}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2e8f0"><span>Variation</span><span>+${variation} %</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;color:#2b6cb0"><span>Nouveau loyer (hors charges)</span><span>${fmt(nouveauLoyer)}</span></div>
+    </div>
+    <p style="font-size:11px;color:#718096">Formule appliquée : Loyer actuel × (IRL ${formatTrimestreLong(tBail)} ${irlAnneeNouv} ÷ IRL ${formatTrimestreLong(tBail)} ${irlAnneeRef}) = ${fmt(loyerActuel)} × (${irlNouveau} ÷ ${irlAncien}) = ${fmt(nouveauLoyer)}</p>
+    <p>Les charges locatives restent inchangées. Je vous remercie de bien vouloir tenir compte de ce nouveau montant à compter de l'échéance mentionnée ci-dessus.</p>`;
+
+  const html=entete+corps+pied;
+  document.getElementById('modal-irl')?.remove();
+  openPrintOverlay(html,`Révision de loyer IRL — ${loc.nom||''}`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
