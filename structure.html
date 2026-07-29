@@ -930,6 +930,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <select class="filter-select" id="devis-filter-log" onchange="renderDevis()"><option value="">Tous logements</option></select>
     <select class="filter-select" id="devis-filter-cat" onchange="renderDevis()"><option value="">Toutes catégories</option></select>
     <div style="flex:1"></div>
+    <button class="btn-export" onclick="exportDevisCSV()">Exporter CSV</button>
+    <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="exportDevisPDF()">Exporter PDF</button>
+    <button class="btn-export" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="renumeroterDevis()">🔢 Renuméroter</button>
+    <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="corrigerNumerosMalAlignesDevis()" title="Corrige uniquement les devis dont le numéro ne correspond pas à l'année de leur date">🔧 Corriger numéros/dates</button>
     <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllDevisPdfsToDrive()" id="btn-sync-drive-devis" title="Uploader tous les PDF de devis locaux vers Google Drive">☁ Sync Drive</button>
     <button class="btn-export" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="libererEspaceLocalDevisPDF()" id="btn-liberer-espace-devis" title="Supprime les copies locales des PDF de devis déjà présents sur Drive">🧹 Libérer l'espace local</button>
     <button class="btn-export" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)" onclick="nettoyerDoublonsDriveDevis()" id="btn-clean-drive-devis" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
@@ -1152,7 +1156,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
     <div class="form-grid">
       <div class="form-group"><label>N° de devis</label><input type="text" id="devis-num" placeholder="DEV-2026-001"></div>
-      <div class="form-group"><label>Date</label><input type="date" id="devis-date"></div>
+      <div class="form-group"><label>Date</label><input type="date" id="devis-date" onchange="majNumeroDevisSelonDate('devis-date','devis-num')"></div>
       <div class="form-group"><label>Fournisseur</label><input type="text" id="devis-four" placeholder="Nom de l'entreprise"></div>
       <div class="form-group"><label>Catégorie</label><select id="devis-cat" onchange="populatePosteSelect('devis-cat','devis-poste')"></select></div>
       <div class="form-group"><label>Ligne de budget (poste) <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label><select id="devis-poste"><option value="">— Ligne générale (toute la catégorie) —</option></select></div>
@@ -2456,6 +2460,7 @@ function resetFormDevis(){
   editDevisIdx=null;
   pendingDevisPdfB64=null;pendingDevisPdfName=null;
   ['devis-num','devis-date','devis-four','devis-ttc','devis-desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  setTimeout(()=>{const n=document.getElementById('devis-num');if(n){n.value=getNextDevisNum();_lastAutoDevisNum=n.value;}},100);
   const statutEl=document.getElementById('devis-statut');if(statutEl)statutEl.value='En attente';
   document.getElementById('devis-form-title').textContent='+ Ajouter un devis';
   document.getElementById('devis-submit-btn').textContent='+ Ajouter le devis';
@@ -3385,6 +3390,8 @@ function showTab(id){
   if(id==='saisie'){
     const numField=document.getElementById('f-num');
     if(numField&&!numField.value){ numField.value=getNextFactureNum(); _lastAutoFactureNum=numField.value; }
+    const devisNumField=document.getElementById('devis-num');
+    if(devisNumField&&!devisNumField.value){ devisNumField.value=getNextDevisNum(); _lastAutoDevisNum=devisNumField.value; }
   }
 }
 
@@ -5095,6 +5102,46 @@ function exportPDF(){
     </div>
   </body></html>`;
   openPrintOverlay(html, 'Synthèse des dépenses');
+}
+
+// Équivalent devis de exportCSV().
+function exportDevisCSV(){
+  const devis=loadDevis();
+  if(!devis.length){alert('Aucun devis à exporter.');return;}
+  const cfg=getCTXConfig();
+  const cols=['N° Devis','Date','Fournisseur','Catégorie','Sous-catégorie','Logement','TTC €','Statut','Facture liée','Description','PDF joint'];
+  const rows=devis.map((d,i)=>[d.num,d.date,d.four,getCatDisplayText(d),d.poste||'',getLogDisplayText(d),d.ttc,d.statut,d.factureNum||'',d.desc,loadDevisPdf(i)?'Oui':'Non'].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';'));
+  const csv='\uFEFF'+cols.join(';')+'\n'+rows.join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download=(cfg.nom||'Structure').replace(/[^a-zA-Z0-9]/g,'_')+'_Devis_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+// Équivalent devis de exportPDF().
+function exportDevisPDF(){
+  const devis=loadDevis();
+  if(!devis.length){alert('Aucun devis à exporter.');return;}
+  const cfg=getCTXConfig();
+  const totEnAttente=devis.filter(d=>d.statut==='En attente').reduce((s,d)=>s+(+d.ttc||0),0);
+  const totAccepte=devis.filter(d=>d.statut==='Accepté').reduce((s,d)=>s+(+d.ttc||0),0);
+  const totFacture=devis.filter(d=>d.statut==='Facturé').reduce((s,d)=>s+(+d.ttc||0),0);
+  const totEngage=totAccepte+totFacture;
+  const rows=devis.map((d,i)=>`<tr><td>${d.num||'—'}</td><td>${d.date||'—'}</td><td>${d.four||'—'}</td><td>${getCatDisplayText(d)}</td><td>${getLogDisplayText(d)}</td><td style="text-align:right">${fmt(d.ttc)}</td><td>${d.statut||'—'}</td><td>${d.factureNum||'—'}</td><td style="text-align:center">${loadDevisPdf(i)?'✓':''}</td></tr>`).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${cfg.nom}</title>
+  <style>@media print{@page{size:A4 portrait;margin:15mm}body{padding:0}}body{font-family:Arial,sans-serif;font-size:12px;color:#1a202c;padding:32px}h1{font-size:18px;color:#2b6cb0;margin-bottom:4px}p.sub{color:#718096;font-size:11px;margin-bottom:24px}h2{font-size:13px;color:#2b6cb0;margin:20px 0 10px;border-bottom:2px solid #bee3f8;padding-bottom:4px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{text-align:left;padding:8px;background:#ebf8ff;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#2c5282}td{padding:7px 8px;font-size:11px;border-bottom:1px solid #e2e8f0}.kpi-grid{display:flex;gap:16px;margin-bottom:24px}.kpi{flex:1;background:#f0f9ff;border:1px solid #bee3f8;border-radius:8px;padding:12px}.kpi label{display:block;font-size:10px;color:#718096;text-transform:uppercase;margin-bottom:4px}.kpi span{font-size:18px;font-weight:700;color:#2b6cb0}</style></head><body>
+  <h1>${cfg.nom} — Suivi des devis</h1>
+  <p class="sub">${cfg.sousTitre||''} · Édité le ${new Date().toLocaleDateString('fr-FR')}</p>
+  <div class="kpi-grid">
+    <div class="kpi"><label>En attente</label><span>${fmt(totEnAttente)}</span></div>
+    <div class="kpi"><label>Accepté, non facturé</label><span>${fmt(totAccepte)}</span></div>
+    <div class="kpi"><label>Déjà facturé</label><span>${fmt(totFacture)}</span></div>
+    <div class="kpi"><label>Engagement total</label><span>${fmt(totEngage)}</span></div>
+  </div>
+  <h2>Liste des devis</h2>
+  <table><thead><tr><th>N°</th><th>Date</th><th>Fournisseur</th><th>Catégorie</th><th>Logement</th><th style="text-align:right">TTC</th><th>Statut</th><th>Facture liée</th><th>PDF</th></tr></thead><tbody>${rows}</tbody></table>
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${GESTIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec Novimmo — gestion locative simplifiée</span>
+    </div>
+  </body></html>`;
+  openPrintOverlay(html, 'Suivi des devis');
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
@@ -13878,6 +13925,36 @@ function getNextFactureNum(dateStr){
   const next=String(max+1).padStart(3,'0');
   return 'FAC-'+year+'-'+next;
 }
+// Équivalent devis de getNextFactureNum.
+let _lastAutoDevisNum=null;
+function getNextDevisNum(dateStr){
+  const devis=loadDevis();
+  let year=new Date().getFullYear();
+  if(dateStr){
+    const y=+String(dateStr).slice(0,4);
+    if(y>=2000&&y<=2100)year=y;
+  }
+  let max=0;
+  devis.forEach(d=>{
+    if(d.num){
+      const match=d.num.match(/DEV-?(\d{4})-?(\d+)/i);
+      if(match && parseInt(match[1])===year){
+        max=Math.max(max,parseInt(match[2]));
+      }
+    }
+  });
+  const next=String(max+1).padStart(3,'0');
+  return 'DEV-'+year+'-'+next;
+}
+function majNumeroDevisSelonDate(dateInputId,numInputId){
+  const dateEl=document.getElementById(dateInputId);
+  const numEl=document.getElementById(numInputId);
+  if(!dateEl||!numEl)return;
+  if(numEl.value && numEl.value!==_lastAutoDevisNum)return;
+  const suggestion=getNextDevisNum(dateEl.value);
+  numEl.value=suggestion;
+  _lastAutoDevisNum=suggestion;
+}
 // Recalcule le numéro suggéré quand la date change, pour une facture antidatée (ex: saisie en 2026
 // d'une facture datée de 2025) — sans jamais écraser un numéro que l'utilisateur a modifié à la main.
 function majNumeroFactureSelonDate(dateInputId,numInputId){
@@ -14941,6 +15018,122 @@ async function renumeroterFactures(){
   } else {
     alert('✓ '+count+' factures renumérotées !');
   }
+}
+
+// Équivalent devis de renumeroterFactures().
+async function renumeroterDevis(){
+  const mode=confirm('Cliquez OK pour renuméroter TOUS les devis (recommandé).\nCliquez Annuler pour numéroter uniquement ceux sans numéro.');
+  const devis=loadDevis();
+  const sorted=[...devis].map((d,i)=>({...d,_origIdx:i}))
+    .sort((a,b)=>{
+      const da=a.date||'0000-00-00';
+      const db=b.date||'0000-00-00';
+      return da.localeCompare(db);
+    });
+  const counters={};
+  let count=0;
+  const driveRenames=[];
+
+  sorted.forEach(d=>{
+    const hasNum=d.num&&d.num.trim()!==''&&d.num.match(/DEV-\d{4}-\d+/i);
+    if(mode||!hasNum){
+      const year=(d.date||new Date().getFullYear().toString()).slice(0,4);
+      if(!counters[year])counters[year]=0;
+      counters[year]++;
+      const newNum='DEV-'+year+'-'+String(counters[year]).padStart(3,'0');
+
+      if(devis[d._origIdx].driveLink){
+        const four=(devis[d._origIdx].four||'devis').replace(/[^a-zA-Z0-9]/g,'_');
+        const newName=newNum+'_'+four+'.pdf';
+        driveRenames.push({driveLink:devis[d._origIdx].driveLink, newName, idx:d._origIdx});
+      }
+
+      devis[d._origIdx].num=newNum;
+      count++;
+    }
+  });
+
+  saveDevis(devis);
+  renderDevis();
+
+  if(driveRenames.length>0&&driveAccessToken){
+    const doRename=confirm(count+' devis renumérotés !\n\n'+driveRenames.length+' fichier(s) à renommer sur Google Drive.\nVoulez-vous les renommer maintenant ?');
+    if(doRename){
+      let renamed=0;
+      const echecs=[];
+      for(const r of driveRenames){
+        const ok=await renameDriveFile(r.driveLink,r.newName);
+        if(ok)renamed++;
+        else echecs.push(r.newName);
+      }
+      let msg='✓ '+renamed+'/'+driveRenames.length+' fichiers renommés sur Drive !';
+      if(echecs.length){
+        msg+='\n\n⚠ Échec pour '+echecs.length+' fichier(s) (lien Drive cassé, fichier supprimé/déplacé ou déjà en double) :\n'+echecs.join('\n');
+      }
+      alert(msg);
+    }
+  } else {
+    alert('✓ '+count+' devis renumérotés !');
+  }
+}
+
+// Équivalent devis de corrigerNumerosMalAlignes().
+async function corrigerNumerosMalAlignesDevis(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
+  const devis=loadDevis();
+  const malAlignes=[];
+  devis.forEach((d,idx)=>{
+    if(!d.date)return;
+    const m=(d.num||'').match(/DEV-?(\d{4})-?(\d+)/i);
+    if(!m)return;
+    const anneeNum=m[1];
+    const anneeDate=d.date.slice(0,4);
+    if(anneeNum!==anneeDate)malAlignes.push({idx,ancienNum:d.num,date:d.date,anneeCorrecte:anneeDate,four:d.four});
+  });
+  if(!malAlignes.length){
+    alert('✓ Aucun devis mal numéroté trouvé — tous les numéros correspondent déjà à leur année de date.');
+    return;
+  }
+  const liste=malAlignes.map(x=>`${x.ancienNum} (${x.four||'?'}, daté du ${x.date}) → passera en DEV-${x.anneeCorrecte}-XXX`).join('\n');
+  if(!confirm(`${malAlignes.length} devis ont un numéro qui ne correspond pas à l'année de leur date :\n\n${liste}\n\nLes renuméroter pour qu'ils correspondent à leur vraie année ?\n(Seuls ces devis-là seront modifiés, aucun autre.)`))return;
+
+  const compteurs={};
+  malAlignes.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(x=>{
+    const annee=x.anneeCorrecte;
+    if(compteurs[annee]===undefined){
+      let max=0;
+      devis.forEach(d=>{
+        const m=(d.num||'').match(/DEV-?(\d{4})-?(\d+)/i);
+        if(m&&m[1]===annee)max=Math.max(max,parseInt(m[2]));
+      });
+      compteurs[annee]=max;
+    }
+    compteurs[annee]++;
+    const nouveauNum='DEV-'+annee+'-'+String(compteurs[annee]).padStart(3,'0');
+    x.nouveauNum=nouveauNum;
+    devis[x.idx].num=nouveauNum;
+  });
+  saveDevis(devis);
+
+  const aRenommer=malAlignes.filter(x=>devis[x.idx].driveLink);
+  if(aRenommer.length>0&&driveAccessToken){
+    if(confirm(malAlignes.length+' numéro(s) corrigé(s) !\n\n'+aRenommer.length+' fichier(s) à renommer sur Google Drive pour correspondre. Le faire maintenant ?')){
+      let renamed=0;const echecs=[];
+      for(const x of aRenommer){
+        const d=devis[x.idx];
+        const four=(d.four||'devis').replace(/[^a-zA-Z0-9]/g,'_');
+        const newName=x.nouveauNum+'_'+four+'.pdf';
+        const ok=await renameDriveFile(d.driveLink,newName);
+        if(ok)renamed++;else echecs.push(x.nouveauNum);
+      }
+      let msg='✓ '+renamed+'/'+aRenommer.length+' fichiers renommés sur Drive !';
+      if(echecs.length)msg+='\n⚠ Échec pour : '+echecs.join(', ');
+      alert(msg);
+    }
+  } else {
+    alert('✓ '+malAlignes.length+' devis renuméroté(s) avec succès !');
+  }
+  renderDevis();
 }
 
 function initSelects(){
