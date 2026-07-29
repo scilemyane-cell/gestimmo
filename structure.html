@@ -1014,8 +1014,55 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   </div>
 
   <div id="saisie-facture-form">
-  <div class="section-title">Enregistrer une facture</div>
   <div class="table-wrap" style="padding:24px 24px 20px">
+    <div class="section-title" style="margin:0 0 14px">Enregistrer une facture</div>
+    <div class="form-group" style="grid-column:1/-1;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="f-lignes-toggle" style="width:16px;height:16px;cursor:pointer">
+        <span>🧾 Cette facture contient plusieurs lignes pour plusieurs logements — coche AVANT d'importer le PDF pour attribuer chaque ligne toi-même</span>
+      </label>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">Le PDF s'ouvrira dans la vue de lecture assistée — le panneau d'attribution des lignes apparaîtra là-bas, à droite du document.</div>
+    </div>
+
+    <!-- UPLOAD PDF -->
+    <div style="margin-bottom:20px">
+      <div id="saisie-drive-warning" style="display:none;background:rgba(224,161,94,.08);border:1px solid rgba(224,161,94,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--orange);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>⚠️ Google Drive n'est pas connecté — les documents importés resteront <b>uniquement sur cet appareil</b> et pourraient être perdus si tu changes de navigateur ou vides ton cache.</span>
+        <button class="btn btn-sm" onclick="connectDrive()" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">📁 Connecter Drive</button>
+      </div>
+      <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Importer la facture (préremplit les champs automatiquement) <span style="text-transform:none;letter-spacing:0;color:var(--text3)">— optionnel, tu peux aussi tout saisir à la main plus bas</span></div>
+      <!-- Boutons mobile-friendly -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <button type="button" onclick="document.getElementById('f-pdf').click()" style="flex:1;min-width:150px;background:rgba(90,200,216,.1);border:1.5px dashed rgba(90,200,216,.4);border-radius:10px;padding:18px 14px;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+          📎 Sélectionner un fichier<br><small style="font-size:10px;color:var(--text3);font-weight:400">PDF ou image</small>
+        </button>
+        <button type="button" onclick="document.getElementById('f-camera').click()" style="flex:1;min-width:150px;background:rgba(127,191,158,.1);border:1.5px dashed rgba(127,191,158,.4);border-radius:10px;padding:18px 14px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+          📷 Prendre une photo<br><small style="font-size:10px;color:var(--text3);font-weight:400">Appareil photo</small>
+        </button>
+        <button type="button" onclick="openDrivePicker('facture')" style="flex:1;min-width:150px;background:rgba(224,161,94,.1);border:1.5px dashed rgba(224,161,94,.4);border-radius:10px;padding:18px 14px;color:var(--orange);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
+          📂 Depuis Google Drive<br><small style="font-size:10px;color:var(--text3);font-weight:400">Fichier déjà existant</small>
+        </button>
+      </div>
+      <input type="file" accept="application/pdf,image/*" id="f-pdf" onchange="onFileChange(event)" style="display:none">
+      <input type="file" accept="image/*" capture="environment" id="f-camera" onchange="onCameraChange(event)" style="display:none">
+      <div id="upload-zone" style="display:none"></div>
+      <div class="upload-preview" id="upload-preview" style="display:none">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E0716B" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span class="upload-preview-name" id="upload-name"></span>
+        <span class="upload-preview-size" id="upload-size"></span>
+        <button id="btn-sync" onclick="syncFacture()" title="Relire le PDF et resynchroniser les champs" style="background:rgba(90,200,216,.12);border:1px solid rgba(90,200,216,.45);border-radius:6px;color:var(--accent);cursor:pointer;font-size:11px;font-weight:600;padding:4px 12px;display:flex;align-items:center;gap:5px;white-space:nowrap">
+          <span id="sync-icon" style="display:inline-block">↻</span> Synchroniser
+        </button>
+        <button class="upload-clear" onclick="clearUpload()" title="Retirer">✕</button>
+      </div>
+      <div id="upload-warn" style="font-size:11px;color:var(--orange);margin-top:6px;display:none"></div>
+      <div id="upload-extracting" style="display:none;margin-top:10px;align-items:center;gap:10px;font-size:12px;color:var(--accent)">
+        <div style="width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
+        Lecture de la facture en cours…
+      </div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </div>
+
     <div class="form-grid">
       <div class="form-group"><label>N° de document (interne)</label><input type="text" id="f-num" placeholder="FAC-2025-001"></div>
       <div class="form-group"><label>Date de réception</label><input type="date" id="f-date" onchange="majNumeroFactureSelonDate('f-date','f-num')"></div>
@@ -1070,52 +1117,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>Description</label><input type="text" id="f-desc" placeholder="Détail de la prestation"></div>
     </div>
 
-    <div class="form-group" style="grid-column:1/-1;margin-bottom:16px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input type="checkbox" id="f-lignes-toggle" style="width:16px;height:16px;cursor:pointer">
-        <span>🧾 Cette facture contient plusieurs lignes pour plusieurs logements — coche AVANT d'importer le PDF pour attribuer chaque ligne toi-même</span>
-      </label>
-      <div style="font-size:10px;color:var(--text3);margin-top:4px">Le PDF s'ouvrira dans la vue de lecture assistée — le panneau d'attribution des lignes apparaîtra là-bas, à droite du document.</div>
-    </div>
-
-    <!-- UPLOAD PDF -->
-    <div style="margin-bottom:20px">
-      <div id="saisie-drive-warning" style="display:none;background:rgba(224,161,94,.08);border:1px solid rgba(224,161,94,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--orange);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span>⚠️ Google Drive n'est pas connecté — les documents importés resteront <b>uniquement sur cet appareil</b> et pourraient être perdus si tu changes de navigateur ou vides ton cache.</span>
-        <button class="btn btn-sm" onclick="connectDrive()" style="background:var(--accent3);border-color:var(--accent2);flex-shrink:0">📁 Connecter Drive</button>
-      </div>
-      <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Pièce jointe (PDF facture)</div>
-      <!-- Boutons mobile-friendly -->
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-        <button type="button" onclick="document.getElementById('f-pdf').click()" style="flex:1;min-width:150px;background:rgba(90,200,216,.1);border:1.5px dashed rgba(90,200,216,.4);border-radius:10px;padding:18px 14px;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
-          📎 Sélectionner un fichier<br><small style="font-size:10px;color:var(--text3);font-weight:400">PDF ou image</small>
-        </button>
-        <button type="button" onclick="document.getElementById('f-camera').click()" style="flex:1;min-width:150px;background:rgba(127,191,158,.1);border:1.5px dashed rgba(127,191,158,.4);border-radius:10px;padding:18px 14px;color:var(--green);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
-          📷 Prendre une photo<br><small style="font-size:10px;color:var(--text3);font-weight:400">Appareil photo</small>
-        </button>
-        <button type="button" onclick="openDrivePicker('facture')" style="flex:1;min-width:150px;background:rgba(224,161,94,.1);border:1.5px dashed rgba(224,161,94,.4);border-radius:10px;padding:18px 14px;color:var(--orange);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);text-align:center">
-          📂 Depuis Google Drive<br><small style="font-size:10px;color:var(--text3);font-weight:400">Fichier déjà existant</small>
-        </button>
-      </div>
-      <input type="file" accept="application/pdf,image/*" id="f-pdf" onchange="onFileChange(event)" style="display:none">
-      <input type="file" accept="image/*" capture="environment" id="f-camera" onchange="onCameraChange(event)" style="display:none">
-      <div id="upload-zone" style="display:none"></div>
-      <div class="upload-preview" id="upload-preview" style="display:none">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E0716B" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <span class="upload-preview-name" id="upload-name"></span>
-        <span class="upload-preview-size" id="upload-size"></span>
-        <button id="btn-sync" onclick="syncFacture()" title="Relire le PDF et resynchroniser les champs" style="background:rgba(90,200,216,.12);border:1px solid rgba(90,200,216,.45);border-radius:6px;color:var(--accent);cursor:pointer;font-size:11px;font-weight:600;padding:4px 12px;display:flex;align-items:center;gap:5px;white-space:nowrap">
-          <span id="sync-icon" style="display:inline-block">↻</span> Synchroniser
-        </button>
-        <button class="upload-clear" onclick="clearUpload()" title="Retirer">✕</button>
-      </div>
-      <div id="upload-warn" style="font-size:11px;color:var(--orange);margin-top:6px;display:none"></div>
-      <div id="upload-extracting" style="display:none;margin-top:10px;align-items:center;gap:10px;font-size:12px;color:var(--accent)">
-        <div style="width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
-        Lecture de la facture en cours…
-      </div>
-      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
-    </div>
 
     <button class="btn" onclick="ajouterFacture()">Enregistrer la facture</button>
     <span class="msg-ok" id="msg-ok">Facture enregistrée ✓</span>
@@ -2305,12 +2306,13 @@ function renderDevis(){
       <td style="text-align:right;font-weight:600">${fmt(d.ttc)}</td>
       <td style="color:${sc};font-size:11px;font-weight:600">${d.statut||'—'}${d.dateValidation?`<div style="font-size:9px;color:var(--text3);font-weight:400">le ${fmtDate(d.dateValidation)}</div>`:''}</td>
       <td style="font-size:11px;color:var(--text2)">${d.factureNum?('📄 '+d.factureNum):'—'}</td>
-      <td style="text-align:center">${(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄</button>`:''}${d.driveLink?`<a href="${d.driveLink}" target="_blank" style="background:rgba(127,191,158,.1);border:1px solid rgba(127,191,158,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}${!loadDevisPdf(d._ri)&&!d.driveLink?`<button class="btn btn-sm" onclick="lierDriveLinkDevis(${d._ri})" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.35);color:var(--accent);font-size:10px;padding:4px 9px" title="Rattacher un lien Google Drive existant">🔗 Lier Drive</button>`:''}</td>
-      <td style="text-align:center;white-space:nowrap">
+      <td style="text-align:center">${(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn-pdf-view" onclick="viewDevisPdf(${d._ri},'${(d.num||'Devis').replace(/'/g,"\\'")}')">📄 Local</button>`:''}${d.driveLink?`<a href="${d.driveLink}" target="_blank" style="background:rgba(127,191,158,.1);border:1px solid rgba(127,191,158,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}${!loadDevisPdf(d._ri)&&!d.driveLink?`<button class="btn btn-sm" onclick="lierDriveLinkDevis(${d._ri})" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.35);color:var(--accent);font-size:10px;padding:4px 9px" title="Rattacher un lien Google Drive existant">🔗 Lier Drive</button>`:''}</td>
+      <td style="text-align:center;display:flex;gap:5px;justify-content:center;flex-wrap:wrap">
+        ${!d.driveLink?'':`<a href="${d.driveLink}" target="_blank" class="btn btn-sm" style="background:rgba(127,191,158,.15);border-color:rgba(127,191,158,.4);color:var(--green);text-decoration:none">☁</a>`}
         ${d.statut==='En attente'?`<button class="btn btn-sm" style="background:rgba(127,191,158,.15);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="validerDevis(${d._ri})" title="Valider ce devis (passe en Accepté)">✓ Valider</button>`:''}
         ${(d.statut==='Accepté'||d.statut==='Facturé')&&(loadDevisPdf(d._ri)||d.driveLink)?`<button class="btn btn-sm" style="background:rgba(185,142,212,.15);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="reappliquerTamponDevis(${d._ri})" title="Réappliquer le tampon (ex: après changement du tampon dans Paramètres, ou remplacement du document)">🖋</button>`:''}
-        <button class="btn btn-sm btn-edit" onclick="openEditDevis(${d._ri})">✎</button>
-        <button class="btn btn-sm btn-danger" onclick="supprimerDevis(${d._ri})">🗑</button>
+        <button class="btn btn-sm btn-edit" onclick="openEditDevis(${d._ri})">Modifier</button>
+        <button class="btn btn-sm btn-danger" onclick="supprimerDevis(${d._ri})">×</button>
       </td>
     </tr>`;
   }).join('');
