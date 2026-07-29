@@ -7202,6 +7202,15 @@ function renderParametres(){
       </div>
     </div>
 
+    <div class="table-wrap" style="padding:20px 24px;margin-bottom:20px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px">📊 Indices IRL (révision des loyers)</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">L'app tente automatiquement de récupérer les derniers indices publiés par l'INSEE en arrière-plan (une fois par semaine). Ce bouton permet de forcer une actualisation immédiate et de vérifier que ça fonctionne bien depuis ton navigateur.</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="testerRafraichirIRL()" id="btn-refresh-irl" style="background:var(--bg3);border-color:var(--border)">🔄 Actualiser les indices IRL (INSEE)</button>
+        <span id="refresh-irl-status" style="font-size:11px;display:none"></span>
+      </div>
+    </div>
+
     <!-- Intégrations comptables (connecteurs par logiciel — Pennylane en premier, d'autres à venir) -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
       <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">🔗 Intégrations comptables</div>
@@ -11467,17 +11476,17 @@ function sauvegarderEdlDansGestion(locId, type, html){
 // RÉVISION IRL — Conforme à la loi (date anniversaire + IRL officiel)
 // ═══════════════════════════════════════════════════════════════════════
 
-// Historique IRL officiel INSEE (T1 2019 → T1 2026)
-// Source : INSEE série 001515333 — Indice de référence des loyers
+// Historique IRL officiel INSEE (T1 2019 → T2 2026) — France hexagonale
+// Source : INSEE, série des indices de référence des loyers, vérifié le 29/07/2026
 const IRL_HISTORIQUE = {
-  '2019-T1':128.45,'2019-T2':129.01,'2019-T3':129.38,'2019-T4':129.82,
-  '2020-T1':130.26,'2020-T2':130.57,'2020-T3':130.66,'2020-T4':130.69,
-  '2021-T1':130.69,'2021-T2':131.12,'2021-T3':132.11,'2021-T4':133.93,
-  '2022-T1':135.84,'2022-T2':138.41,'2022-T3':140.59,'2022-T4':143.46,
-  '2023-T1':145.47,'2023-T2':147.69,'2023-T3':149.03,'2023-T4':149.06,
-  '2024-T1':149.14,'2024-T2':149.47,'2024-T3':149.71,'2024-T4':150.02,
-  '2025-T1':150.38,'2025-T2':151.10,'2025-T3':null,'2025-T4':null,
-  '2026-T1':null
+  '2019-T1':129.38,'2019-T2':129.72,'2019-T3':129.99,'2019-T4':130.26,
+  '2020-T1':130.57,'2020-T2':130.57,'2020-T3':130.59,'2020-T4':130.52,
+  '2021-T1':130.69,'2021-T2':131.12,'2021-T3':131.67,'2021-T4':132.62,
+  '2022-T1':133.93,'2022-T2':135.84,'2022-T3':136.27,'2022-T4':137.26,
+  '2023-T1':138.61,'2023-T2':140.59,'2023-T3':141.03,'2023-T4':142.06,
+  '2024-T1':143.46,'2024-T2':145.17,'2024-T3':144.51,'2024-T4':144.64,
+  '2025-T1':145.47,'2025-T2':146.68,'2025-T3':145.77,'2025-T4':145.78,
+  '2026-T1':146.60,'2026-T2':148.37,'2026-T3':null,'2026-T4':null
 };
 
 function getTrimestre(dateStr){
@@ -11489,8 +11498,148 @@ function getTrimestre(dateStr){
   return `${y}-${t}`;
 }
 
+// Affiche "1er trimestre" plutôt que "T1", pour éviter la confusion avec un type de logement (studio)
+function formatTrimestreLong(t){
+  const labels={T1:'1er trimestre',T2:'2e trimestre',T3:'3e trimestre',T4:'4e trimestre'};
+  return labels[t]||t;
+}
+
 function getIRL(trimestre){
   return IRL_HISTORIQUE[trimestre]||null;
+}
+
+// ── RÉCUPÉRATION AUTOMATIQUE DE L'IRL DEPUIS L'API PUBLIQUE INSEE ───────
+// Série officielle "Indice de référence des loyers" : idbank 001515333.
+// API SDMX de la Banque de Données Macroéconomiques (BDM), gratuite, sans clé.
+// Toute valeur récupérée est mise en cache dans localStorage et vient
+// compléter/rafraîchir IRL_HISTORIQUE — en cas d'échec (réseau, CORS bloqué
+// par le navigateur, format de réponse inattendu...), l'app continue de
+// fonctionner normalement avec la table statique ci-dessus, jamais bloquée.
+const IRL_CACHE_KEY='novimmo_irl_cache_v1';
+const IRL_CACHE_DATE_KEY='novimmo_irl_cache_date_v1';
+
+function chargerIRLDepuisCache(){
+  try{
+    const cached=JSON.parse(localStorage.getItem(IRL_CACHE_KEY)||'{}');
+    Object.assign(IRL_HISTORIQUE,cached); // les valeurs mises en cache (plus fraîches) prennent le dessus
+  }catch(e){ /* cache invalide, on ignore et on garde la table statique */ }
+}
+chargerIRLDepuisCache();
+
+// Convertit "2026-Q2" (format SDMX) en clé interne "2026-T2"
+function periodeSdmxVersCleInterne(periode){
+  const m=String(periode).match(/^(\d{4})-Q(\d)$/);
+  return m?`${m[1]}-T${m[2]}`:null;
+}
+
+// Vérifie qu'une valeur IRL récupérée automatiquement est réaliste, en la comparant aux valeurs
+// déjà connues pour le même trimestre l'année précédente et pour le trimestre juste avant.
+// L'IRL évolue historiquement de quelques dixièmes de % par trimestre (record : +3,6% sur un an
+// en 2022) — une marge large mais bornée permet de filtrer une donnée corrompue ou mal analysée
+// sans jamais l'appliquer à une vraie révision de loyer sans vérification humaine.
+function irlEstPlausible(cle,val){
+  if(val<100||val>250)return false; // hors de toute plage réaliste, quelle que soit l'époque
+  const m=cle.match(/^(\d{4})-T(\d)$/);
+  if(!m)return false;
+  const annee=+m[1],trimestre=+m[2];
+  const refAnnee=IRL_HISTORIQUE[`${annee-1}-T${trimestre}`];
+  if(refAnnee!=null&&Math.abs(val-refAnnee)/refAnnee>0.10)return false; // >10% de variation annuelle : suspect
+  const cleTrimPrec=trimestre===1?`${annee-1}-T4`:`${annee}-T${trimestre-1}`;
+  const refTrim=IRL_HISTORIQUE[cleTrimPrec];
+  if(refTrim!=null&&Math.abs(val-refTrim)/refTrim>0.06)return false; // >6% de variation trimestrielle : suspect
+  return true;
+}
+
+async function rafraichirIRLDepuisINSEE(){
+  const url='https://bdm.insee.fr/series/sdmx/data/SERIES_BDM/001515333?lastNObservations=24';
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),8000);
+  try{
+    const resp=await fetch(url,{signal:controller.signal});
+    clearTimeout(timeout);
+    if(!resp.ok)throw new Error('Réponse INSEE non valide (code '+resp.status+')');
+    const xmlText=await resp.text();
+    // Le format exact (SDMX-ML "structure-specific" ou "générique") peut varier selon la
+    // négociation de contenu — on essaie plusieurs motifs d'extraction, du plus courant au
+    // plus générique, et on garde le premier qui donne des résultats exploitables.
+    let pairs=[];
+    // Motif 1 : attributs à plat sur la balise Obs (format "structure-specific", le plus courant)
+    pairs=[...xmlText.matchAll(/<(?:\w+:)?Obs\b[^>]*\bTIME_PERIOD="([^"]+)"[^>]*\bOBS_VALUE="([^"]+)"[^>]*\/?>/g)];
+    if(!pairs.length){
+      // Motif 2 : même chose mais avec OBS_VALUE avant TIME_PERIOD
+      pairs=[...xmlText.matchAll(/<(?:\w+:)?Obs\b[^>]*\bOBS_VALUE="([^"]+)"[^>]*\bTIME_PERIOD="([^"]+)"[^>]*\/?>/g)].map(m=>[m[0],m[2],m[1]]);
+    }
+    if(!pairs.length){
+      // Motif 3 : format "générique" SDMX, avec ObsDimension et ObsValue en éléments enfants séparés
+      pairs=[...xmlText.matchAll(/<(?:\w+:)?ObsDimension[^>]*value="([^"]+)"[^>]*\/>\s*<(?:\w+:)?ObsValue[^>]*value="([^"]+)"[^>]*\/>/g)];
+    }
+    let nouveauxOuMaj=0;
+    let rejetes=0;
+    const misAJour={};
+    const valeursRejetees=[];
+    pairs.forEach(([,periode,valeur])=>{
+      const cle=periodeSdmxVersCleInterne(periode);
+      const val=parseFloat(valeur.replace(',','.'));
+      if(!cle||isNaN(val))return;
+      if(!irlEstPlausible(cle,val)){
+        // Valeur aberrante (format de réponse mal interprété, donnée corrompue...) : on la
+        // rejette purement et simplement plutôt que de risquer d'afficher un mauvais indice
+        // à l'utilisateur pour calculer une révision de loyer réelle.
+        rejetes++;
+        valeursRejetees.push(cle+'='+val);
+        return;
+      }
+      if(IRL_HISTORIQUE[cle]!==val)nouveauxOuMaj++;
+      IRL_HISTORIQUE[cle]=val;
+      misAJour[cle]=val;
+    });
+    if(rejetes>0)console.warn('IRL INSEE : '+rejetes+' valeur(s) rejetée(s) car jugée(s) non plausible(s) —',valeursRejetees.join(', '));
+    if(Object.keys(misAJour).length===0){
+      const detail=rejetes>0?' ('+rejetes+' valeur(s) rejetée(s) car non plausible(s) — voir console)':'';
+      throw new Error('Aucune donnée fiable dans la réponse INSEE'+detail);
+    }
+    // Fusionne avec le cache existant (ne perd jamais les anciennes valeurs déjà en cache)
+    const cacheActuel=JSON.parse(localStorage.getItem(IRL_CACHE_KEY)||'{}');
+    Object.assign(cacheActuel,misAJour);
+    localStorage.setItem(IRL_CACHE_KEY,JSON.stringify(cacheActuel));
+    localStorage.setItem(IRL_CACHE_DATE_KEY,new Date().toISOString());
+    return{ok:true,nouveauxOuMaj,total:Object.keys(misAJour).length,rejetes};
+  }catch(e){
+    clearTimeout(timeout);
+    console.warn('Récupération IRL INSEE échouée, utilisation de la table statique :',e.message);
+    return{ok:false,erreur:e.message};
+  }
+}
+
+// Rafraîchissement silencieux en arrière-plan si le cache a plus de 7 jours (ou n'existe pas) —
+// n'affecte jamais l'affichage immédiat, qui utilise déjà la table statique/le cache existant.
+(function rafraichirIRLSiPerime(){
+  const derniereMaj=localStorage.getItem(IRL_CACHE_DATE_KEY);
+  const perime=!derniereMaj||(Date.now()-new Date(derniereMaj).getTime())>7*24*60*60*1000;
+  if(perime){
+    setTimeout(()=>{ rafraichirIRLDepuisINSEE().catch(()=>{}); },3000);
+  }
+})();
+
+// Bouton manuel (Paramètres) — actualise l'IRL et affiche clairement le résultat
+async function testerRafraichirIRL(){
+  const btn=document.getElementById('btn-refresh-irl');
+  const statusEl=document.getElementById('refresh-irl-status');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Interrogation de l\'INSEE...';}
+  if(statusEl){statusEl.style.display='inline';statusEl.style.color='var(--text2)';statusEl.textContent='';}
+  const res=await rafraichirIRLDepuisINSEE();
+  if(statusEl){
+    if(res.ok){
+      statusEl.style.color='#68d391';
+      let msg='✅ IRL à jour — '+res.total+' trimestre(s) récupéré(s) depuis l\'INSEE ('+res.nouveauxOuMaj+' nouveau(x)/modifié(s)).';
+      if(res.rejetes>0)msg+=' ⚠ '+res.rejetes+' valeur(s) jugée(s) non plausible(s) ont été ignorée(s) par sécurité.';
+      statusEl.textContent=msg;
+    }else{
+      statusEl.style.color='#f6ad55';
+      statusEl.textContent='⚠ Échec de la récupération automatique ('+res.erreur+') — l\'app utilise la table de secours mise à jour manuellement, aucune interruption.';
+    }
+  }
+  if(btn){btn.disabled=false;btn.textContent='🔄 Actualiser les indices IRL (INSEE)';}
 }
 
 function getTrimestreReference(dateEntree){
@@ -11551,10 +11700,10 @@ async function ouvrirModalIRL(locId){
     }
   }
 
-  // Fallback si IRL N pas encore publié
+  // Fallback si IRL N pas encore publié (dernières valeurs réelles connues, mises à jour le 29/07/2026)
   if(!irlNouveau||!irlAncien){
-    irlAncien=149.14; irlAnneeRef=2024;
-    irlNouveau=150.38; irlAnneeNouv=2025;
+    irlAncien=145.47; irlAnneeRef=2025;
+    irlNouveau=146.60; irlAnneeNouv=2026;
   }
 
   const variation=((irlNouveau-irlAncien)/irlAncien*100).toFixed(2);
@@ -11587,7 +11736,7 @@ async function ouvrirModalIRL(locId){
         <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📋 Informations légales</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div><div style="color:var(--text3);font-size:10px">Date d'entrée (anniversaire)</div><div style="font-weight:600">${fmtDate(loc.dateEntree)}</div></div>
-          <div><div style="color:var(--text3);font-size:10px">Trimestre de référence bail</div><div style="font-weight:600">${tBail} (inscrit au contrat)</div></div>
+          <div><div style="color:var(--text3);font-size:10px">Trimestre de référence bail</div><div style="font-weight:600">${formatTrimestreLong(tBail)} ${irlAnneeRef} (calculé depuis la date d'entrée)</div></div>
           <div><div style="color:var(--text3);font-size:10px">Dernier anniversaire</div><div style="font-weight:600">${fmtDate(derniereDate)}</div></div>
           <div><div style="color:var(--text3);font-size:10px">Prochain anniversaire</div><div style="font-weight:600">${fmtDate(prochaineDate)}</div></div>
         </div>
@@ -11599,11 +11748,11 @@ async function ouvrirModalIRL(locId){
         <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📊 Indices IRL (INSEE)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
           <div style="text-align:center;background:rgba(0,0,0,.1);border-radius:8px;padding:10px">
-            <div style="font-size:10px;color:var(--text3)">${tBail} ${irlAnneeRef} (N-1)</div>
+            <div style="font-size:10px;color:var(--text3)">${formatTrimestreLong(tBail)} ${irlAnneeRef} (N-1)</div>
             <div style="font-size:18px;font-weight:700">${irlAncien}</div>
           </div>
           <div style="text-align:center;background:rgba(0,0,0,.1);border-radius:8px;padding:10px">
-            <div style="font-size:10px;color:var(--text3)">${tBail} ${irlAnneeNouv} (N)</div>
+            <div style="font-size:10px;color:var(--text3)">${formatTrimestreLong(tBail)} ${irlAnneeNouv} (N)</div>
             <div style="font-size:18px;font-weight:700">${irlNouveau}</div>
           </div>
           <div style="text-align:center;background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.3);border-radius:8px;padding:10px">
@@ -11611,7 +11760,7 @@ async function ouvrirModalIRL(locId){
             <div style="font-size:18px;font-weight:700;color:var(--green)">+${variation}%</div>
           </div>
         </div>
-        <div style="font-size:10px;color:var(--text3);margin-top:8px">Formule légale : Loyer actuel × (IRL ${tBail} ${irlAnneeNouv} ÷ IRL ${tBail} ${irlAnneeRef})</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:8px">Formule légale : Loyer actuel × (IRL ${formatTrimestreLong(tBail)} ${irlAnneeNouv} ÷ IRL ${formatTrimestreLong(tBail)} ${irlAnneeRef})</div>
       </div>
 
       <!-- Résultat -->
