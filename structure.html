@@ -25,6 +25,8 @@
 window._structureId = new URLSearchParams(window.location.search).get('id');
 if(localStorage.getItem('gestimmo_theme')==='light'){
   document.documentElement.classList.add('theme-light');
+} else if(localStorage.getItem('gestimmo_theme')==='gray'){
+  document.documentElement.classList.add('theme-gray');
 }
 if(!window._structureId){
   window.location.href = 'dashboard.html';
@@ -205,8 +207,18 @@ html.theme-light{
   --cat1:#2b6cb0;--cat2:#2f855a;--cat3:#c05621;--cat4:#6b46c1;
   --cat5:#c53030;--cat6:#2c7a7b;--cat7:#b83280;--cat8:#b7791f;
 }
+html.theme-gray{
+  --bg:#3A3F47;--bg2:#464C56;--bg3:#40454E;
+  --border:rgba(90,200,216,0.15);--border2:rgba(90,200,216,0.28);
+  --accent:#5AC8D8;--accent2:#3FA8B8;--accent3:#B98D3E;
+  --text:#EAF3FA;--text2:#B8C2CC;--text3:#8A93A0;
+  --green:#7FBF9E;--orange:#E0A15E;--red:#E0716B;--purple:#B98ED4;--teal:#5FD1C5;
+  --cat1:#5AC8D8;--cat2:#7FBF9E;--cat3:#E0A15E;--cat4:#B98ED4;
+  --cat5:#E0716B;--cat6:#5FD1C5;--cat7:#f687b3;--cat8:#fbd38d;
+}
 html.theme-light .header{background:linear-gradient(135deg,#ffffff 0%,#eef2f7 100%);border-bottom:1px solid var(--border2)}
 html.theme-light{box-shadow:none}
+html.theme-gray .header{background:linear-gradient(135deg,#464C56 0%,#3A3F47 100%);border-bottom:1px solid var(--border2)}
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{overscroll-behavior:none}
@@ -12489,16 +12501,25 @@ async function callGeminiAPI(model, requestBody, _dejaRetente){
   throw lastError||new Error('Échec de toutes les clés Gemini');
 }
 
-// ── THÈME CLAIR / SOMBRE ────────────────────────────────────────────────
+// ── THÈME SOMBRE / GRIS / CLAIR ─────────────────────────────────────────
 function updateThemeButton(){
   const btn=document.getElementById('btn-theme-toggle');
   if(!btn)return;
-  const isLight=document.documentElement.classList.contains('theme-light');
-  btn.textContent=isLight?'☀️ Clair':'🌙 Sombre';
+  const html=document.documentElement;
+  if(html.classList.contains('theme-light'))btn.textContent='☀️ Clair';
+  else if(html.classList.contains('theme-gray'))btn.textContent='◐ Gris';
+  else btn.textContent='🌙 Sombre';
 }
 window.toggleTheme=function(){
-  const isLight=document.documentElement.classList.toggle('theme-light');
-  localStorage.setItem('gestimmo_theme',isLight?'light':'dark');
+  const html=document.documentElement;
+  const isLight=html.classList.contains('theme-light');
+  const isGray=html.classList.contains('theme-gray');
+  html.classList.remove('theme-light','theme-gray');
+  let next='dark';
+  if(!isLight&&!isGray){ html.classList.add('theme-gray'); next='gray'; }
+  else if(isGray){ html.classList.add('theme-light'); next='light'; }
+  // sinon (isLight) : les deux classes restent retirées -> retour au sombre
+  localStorage.setItem('gestimmo_theme',next);
   updateThemeButton();
 };
 
