@@ -7446,7 +7446,7 @@ window.inviterUtilisateur=async function(){
     });
     emailInput.value='';
     const structureNom=(getCTXConfig()?.nom)||'Structure';
-    const lien='https://scilemyane-cell.github.io/gestimmo/index.html?invite='+encodeURIComponent(window._structureId+'_'+email.replace(/[^a-z0-9]/g,'_'))+'&email='+encodeURIComponent(email)+'&structure='+encodeURIComponent(structureNom);
+    const lien='https://novimmo.immo/index.html?invite='+encodeURIComponent(window._structureId+'_'+email.replace(/[^a-z0-9]/g,'_'))+'&email='+encodeURIComponent(email)+'&structure='+encodeURIComponent(structureNom);
     status.style.display='block';status.style.color='var(--green)';
     status.innerHTML='✓ Invitation créée. Envoie ce lien à la personne (par SMS, WhatsApp, email...) :<br><div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input type="text" readonly value="'+lien+'" id="invite-link-output" style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text2);font-size:11px"><button class="btn btn-sm" onclick="copierLienInvitation()" style="flex-shrink:0">📋 Copier</button></div>';
     renderCollaborateursEtInvitations();
