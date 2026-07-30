@@ -411,7 +411,7 @@ async function accepterInvitationsEnAttente(user){
   }catch(e){ console.error('Erreur vérification invitations:', e); }
 }
 
-const ADMIN_BACKUP_EMAILS = ['valentin.giliane@gmail.com', 'gestimmo.solutions@gmail.com'];
+const ADMIN_BACKUP_EMAILS = ['novimmo.contact@gmail.com', 'gestimmo.solutions@gmail.com'];
 
 async function chargerDashboard(user){
   const estAdminBackup = !!(user.email && ADMIN_BACKUP_EMAILS.includes(user.email.toLowerCase()));
