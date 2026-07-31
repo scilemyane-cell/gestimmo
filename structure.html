@@ -63,6 +63,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs, query, where, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+// UID Firebase du compte personnel de Valentin — sert UNIQUEMENT à verrouiller l'onglet
+// "Micro-entreprise" (strictement privé, jamais visible par un abonné Novimmo).
+const NOVIMMO_ME_UID = 'dFhEx33SAKfKvcRCUt1ZABTsLfv2';
+
 const firebaseConfig = {
   apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
   authDomain: "gestimmo-app.firebaseapp.com",
@@ -620,6 +624,89 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 </div>
 
 <!-- PARAMÈTRES -->
+<div class="content" id="tab-microentreprise">
+  <div class="section-title">🧾 Micro-entreprise — suivi personnel Novimmo</div>
+  <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
+    ℹ️ Onglet strictement personnel — visible uniquement par toi, jamais par tes abonnés. Sert à suivre le chiffre d'affaires et les cotisations de ta micro-entreprise Novimmo, séparément du suivi immobilier de cette structure.
+  </div>
+
+  <div class="kpi-grid" id="me-kpi-grid" style="margin-bottom:24px"></div>
+
+  <div class="table-wrap" style="padding:16px 20px;margin-bottom:24px">
+    <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Progression vers le plafond micro-entreprise</div>
+    <div style="background:rgba(255,255,255,.06);border-radius:8px;height:14px;overflow:hidden;margin-bottom:6px">
+      <div id="me-plafond-bar" style="height:100%;border-radius:8px;background:var(--accent);transition:width .3s"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">
+      <span id="me-plafond-label">0 € / 83 600 €</span>
+      <span id="me-plafond-alerte" style="color:var(--orange);font-weight:600;display:none">⚠ Seuil de franchise TVA approché (37 500 €)</span>
+    </div>
+  </div>
+
+  <div class="section-title">Chiffre d'affaires encaissé</div>
+  <div class="table-wrap" style="padding:20px 24px;margin-bottom:24px">
+    <div class="form-grid">
+      <div class="form-group"><label>Date d'encaissement</label><input type="date" id="me-ca-date"></div>
+      <div class="form-group"><label>Montant encaissé (€)</label><input type="number" id="me-ca-montant" step="0.01" placeholder="0.00"></div>
+      <div class="form-group"><label>Origine <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label><input type="text" id="me-ca-origine" placeholder="ex: abonnement Stripe, facture directe..."></div>
+    </div>
+    <button class="btn" onclick="ajouterOuModifierCA_ME()" id="me-ca-submit-btn" style="margin-top:10px">+ Ajouter l'encaissement</button>
+    <button class="btn btn-sm" onclick="annulerEditCA_ME()" id="me-ca-cancel-btn" style="display:none;margin-top:10px;margin-left:8px;background:rgba(100,116,139,.1);border-color:rgba(100,116,139,.3);color:var(--text2)">Annuler la modification</button>
+  </div>
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table class="factures-table">
+      <thead><tr><th>Date</th><th>Origine</th><th style="text-align:right">Montant</th><th></th></tr></thead>
+      <tbody id="me-ca-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="me-ca-empty" style="display:none">Aucun encaissement enregistré pour l'instant.</div>
+  </div>
+
+  <div class="section-title">Cotisations URSSAF &amp; versement libératoire</div>
+  <div class="table-wrap" style="padding:16px 20px;margin-bottom:24px">
+    <div class="form-grid">
+      <div class="form-group"><label>Taux cotisations URSSAF (%) <span style="font-size:10px;color:var(--text3)">— BIC services 2026</span></label><input type="number" id="me-taux-urssaf" step="0.1" value="21.1"></div>
+      <div class="form-group"><label>Taux versement libératoire (%)</label><input type="number" id="me-taux-vl" step="0.1" value="1.7"></div>
+      <div class="form-group"><label>Périodicité déclaration</label>
+        <select id="me-periodicite"><option value="mensuel">Mensuelle</option><option value="trimestriel">Trimestrielle</option></select>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:8px">Ces taux évoluent chaque année — ajuste-les ici si besoin, ils servent uniquement au calcul des provisions ci-dessous.</div>
+  </div>
+  <div class="kpi-grid" id="me-cotis-kpi-grid" style="margin-bottom:24px"></div>
+
+  <div class="section-title">Provisions déclarées / payées</div>
+  <div class="table-wrap" style="padding:20px 24px;margin-bottom:24px">
+    <div class="form-grid">
+      <div class="form-group"><label>Période</label><input type="text" id="me-decl-periode" placeholder="ex: Juillet 2026"></div>
+      <div class="form-group"><label>Montant payé (€)</label><input type="number" id="me-decl-montant" step="0.01" placeholder="0.00"></div>
+    </div>
+    <button class="btn" onclick="ajouterDeclaration_ME()" style="margin-top:10px">+ Enregistrer le paiement</button>
+  </div>
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table class="factures-table">
+      <thead><tr><th>Période</th><th style="text-align:right">Montant payé</th><th></th></tr></thead>
+      <tbody id="me-decl-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="me-decl-empty" style="display:none">Aucune déclaration payée enregistrée.</div>
+  </div>
+
+  <div class="section-title">Charges liées à Novimmo <span style="font-size:10px;color:var(--text3);font-weight:400">(informatif — non déductible en micro, mais utile pour ta vraie rentabilité)</span></div>
+  <div class="table-wrap" style="padding:20px 24px;margin-bottom:24px">
+    <div class="form-grid">
+      <div class="form-group"><label>Libellé</label><input type="text" id="me-charge-libelle" placeholder="ex: Hébergement Firebase, nom de domaine..."></div>
+      <div class="form-group"><label>Montant mensuel (€)</label><input type="number" id="me-charge-montant" step="0.01" placeholder="0.00"></div>
+    </div>
+    <button class="btn" onclick="ajouterCharge_ME()" style="margin-top:10px">+ Ajouter la charge</button>
+  </div>
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table class="factures-table">
+      <thead><tr><th>Libellé</th><th style="text-align:right">Montant / mois</th><th></th></tr></thead>
+      <tbody id="me-charges-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="me-charges-empty" style="display:none">Aucune charge enregistrée.</div>
+  </div>
+</div>
+
 <div class="content" id="tab-parametres">
   <div id="parametres-container"></div>
 </div>
@@ -3335,6 +3422,10 @@ function getTabGroups(){
   if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['saisie','devis','factures','annuel','charges-recurrentes','banque','compte-courant']});
   if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']});
   if(mods.financement) groups.push({id:'financement',label:'💰 Financement',tabs:['projection','financement']});
+  // Onglet strictement personnel : suivi de la micro-entreprise Novimmo. Verrouillé sur l'UID
+  // réel de la personne connectée (window._authUid), jamais sur un rôle ou un paramètre visible —
+  // aucun autre utilisateur (y compris un abonné admin de sa propre structure) ne peut le voir.
+  if(window._authUid===NOVIMMO_ME_UID) groups.push({id:'microentreprise',label:'🧾 Micro-entreprise',tabs:['microentreprise']});
   groups.push(paramGroup);
   return groups;
 }
@@ -3343,7 +3434,8 @@ function getTabLabels(){return{
   devis:'📝 Devis',factures:'📋 Factures',saisie:'+ Saisir',annuel:'📅 Par année','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque','compte-courant':'🤝 Compte courant',
   locataires:'Fiches & loyers','gestion-locative':'📁 Gestion locative',rentabilite:'📈 Rentabilité',
   projection:'🔭 Projection 20 ans',financement:'💳 Crédit & charges',
-  parametres:'⚙️ Paramètres'
+  parametres:'⚙️ Paramètres',
+  microentreprise:'Micro-entreprise'
 };}
 const TAB_GROUPS=getTabGroups();
 const TAB_LABELS=getTabLabels();
@@ -3379,6 +3471,7 @@ function showTab(id){
   if(id==='financement')renderFinancement();
   if(id==='cout-revient')renderCoutRevient();
   if(id==='parametres'){renderParametres();renderFacturesOrphelines();renderDevisOrphelins();}
+  if(id==='microentreprise')renderMicroEntreprise();
   if(id==='budget')renderBudget();
   if(id==='dashboard')renderDashboard();
   if(id==='factures')renderFactures();
@@ -4678,6 +4771,220 @@ async function exporterSelectionBanque(){
   openPrintOverlay(html, title+(depuisDrive>0?' — '+depuisDrive+' PDF récupéré(s) depuis Drive':''));
   if(statusEl)statusEl.style.display='none';
   if(btn){btn.innerHTML='🖨 Exporter la sélection (PDF groupé)';btn.disabled=false;}
+}
+
+// ── MICRO-ENTREPRISE (onglet strictement personnel, verrouillé sur NOVIMMO_ME_UID) ─────────
+// Stockage totalement indépendant des structures/factures : un seul document Firestore,
+// rattaché à l'UID personnel, jamais scopé par structureId ni synchronisé vers un collaborateur.
+function meDocRef(){
+  return window._doc(window._db, 'users', NOVIMMO_ME_UID, 'prive', 'microentreprise');
+}
+let _meCache=null;
+let _meEditCAId=null;
+async function loadDataME(){
+  if(_meCache) return _meCache;
+  try{
+    const snap=await window._getDoc(meDocRef());
+    _meCache = snap.exists() ? snap.data() : {};
+  }catch(e){
+    console.error('Chargement micro-entreprise échoué:',e);
+    _meCache = {};
+  }
+  if(!Array.isArray(_meCache.ca))_meCache.ca=[];
+  if(!Array.isArray(_meCache.declarations))_meCache.declarations=[];
+  if(!Array.isArray(_meCache.charges))_meCache.charges=[];
+  if(typeof _meCache.tauxUrssaf!=='number')_meCache.tauxUrssaf=21.1;
+  if(typeof _meCache.tauxVL!=='number')_meCache.tauxVL=1.7;
+  if(!_meCache.periodicite)_meCache.periodicite='mensuel';
+  return _meCache;
+}
+async function saveDataME(data){
+  _meCache=data;
+  try{
+    await window._setDoc(meDocRef(), data);
+  }catch(e){
+    console.error('Sauvegarde micro-entreprise échouée:',e);
+    alert('⚠ La sauvegarde a échoué (problème réseau) — réessaie dans un instant.');
+  }
+}
+function meUid(){return 'me_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);}
+
+async function renderMicroEntreprise(){
+  const data=await loadDataME();
+
+  // Champs de taux/périodicité — appliqués aux inputs seulement au premier rendu (pas à chaque
+  // clic, pour ne pas écraser une modification en cours de frappe).
+  const tauxU=document.getElementById('me-taux-urssaf');
+  const tauxV=document.getElementById('me-taux-vl');
+  const periodEl=document.getElementById('me-periodicite');
+  if(tauxU && !tauxU.dataset.init){tauxU.value=data.tauxUrssaf;tauxU.dataset.init='1';tauxU.onchange=()=>maj_ME({tauxUrssaf:+tauxU.value||0});}
+  if(tauxV && !tauxV.dataset.init){tauxV.value=data.tauxVL;tauxV.dataset.init='1';tauxV.onchange=()=>maj_ME({tauxVL:+tauxV.value||0});}
+  if(periodEl && !periodEl.dataset.init){periodEl.value=data.periodicite;periodEl.dataset.init='1';periodEl.onchange=()=>maj_ME({periodicite:periodEl.value});}
+
+  const anneeCourante=new Date().getFullYear().toString();
+  const caAnnee=data.ca.filter(c=>(c.date||'').startsWith(anneeCourante));
+  const totalCAAnnee=caAnnee.reduce((s,c)=>s+(+c.montant||0),0);
+  const totalCAGlobal=data.ca.reduce((s,c)=>s+(+c.montant||0),0);
+  const PLAFOND=83600, SEUIL_TVA=37500;
+
+  const kpiEl=document.getElementById('me-kpi-grid');
+  if(kpiEl)kpiEl.innerHTML=`
+    <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">CA encaissé ${anneeCourante}</div><div class="kpi-val">${fmt(totalCAAnnee)}</div><div class="kpi-sub">${caAnnee.length} encaissement(s)</div></div>
+    <div class="kpi" style="--kpi-color:var(--purple)"><div class="kpi-label">CA total (tous exercices)</div><div class="kpi-val">${fmt(totalCAGlobal)}</div><div class="kpi-sub">${data.ca.length} ligne(s)</div></div>
+    <div class="kpi" style="--kpi-color:var(--orange)"><div class="kpi-label">Restant avant plafond</div><div class="kpi-val">${fmt(Math.max(0,PLAFOND-totalCAAnnee))}</div><div class="kpi-sub">sur ${fmt(PLAFOND)}/an</div></div>
+  `;
+
+  const pct=Math.min(100,(totalCAAnnee/PLAFOND)*100);
+  const bar=document.getElementById('me-plafond-bar');
+  if(bar){bar.style.width=pct+'%';bar.style.background=pct>=95?'var(--red)':pct>=(SEUIL_TVA/PLAFOND*100)?'var(--orange)':'var(--accent)';}
+  const label=document.getElementById('me-plafond-label');
+  if(label)label.textContent=fmt(totalCAAnnee)+' / '+fmt(PLAFOND);
+  const alerteTVA=document.getElementById('me-plafond-alerte');
+  if(alerteTVA)alerteTVA.style.display=totalCAAnnee>=SEUIL_TVA?'inline':'none';
+
+  // Table des encaissements
+  const caTbody=document.getElementById('me-ca-tbody');
+  const caTriee=data.ca.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(caTbody)caTbody.innerHTML=caTriee.map(c=>`
+    <tr>
+      <td>${fmtDate(c.date)}</td>
+      <td>${(c.origine||'—')}</td>
+      <td style="text-align:right;font-weight:600">${fmt(c.montant)}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn-icon" onclick="ouvrirEditCA_ME('${c.id}')" title="Modifier">✏️</button>
+        <button class="btn-icon" onclick="supprimerCA_ME('${c.id}')" title="Supprimer">🗑️</button>
+      </td>
+    </tr>`).join('');
+  const caEmpty=document.getElementById('me-ca-empty');
+  if(caEmpty)caEmpty.style.display=data.ca.length?'none':'block';
+
+  // Cotisations à provisionner (sur le CA de l'année en cours)
+  const cotisUrssaf=totalCAAnnee*(data.tauxUrssaf/100);
+  const cotisVL=totalCAAnnee*(data.tauxVL/100);
+  const totalDeclare=data.declarations.reduce((s,d)=>s+(+d.montant||0),0);
+  const restantAProvisionner=Math.max(0,cotisUrssaf+cotisVL-totalDeclare);
+  const cotisKpiEl=document.getElementById('me-cotis-kpi-grid');
+  if(cotisKpiEl)cotisKpiEl.innerHTML=`
+    <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">Cotisations URSSAF (${anneeCourante})</div><div class="kpi-val">${fmt(cotisUrssaf)}</div><div class="kpi-sub">${data.tauxUrssaf}% du CA</div></div>
+    <div class="kpi" style="--kpi-color:var(--purple)"><div class="kpi-label">Versement libératoire (${anneeCourante})</div><div class="kpi-val">${fmt(cotisVL)}</div><div class="kpi-sub">${data.tauxVL}% du CA</div></div>
+    <div class="kpi" style="--kpi-color:var(--orange)"><div class="kpi-label">Restant à provisionner</div><div class="kpi-val">${fmt(restantAProvisionner)}</div><div class="kpi-sub">${fmt(totalDeclare)} déjà payé</div></div>
+  `;
+
+  // Table des déclarations payées
+  const declTbody=document.getElementById('me-decl-tbody');
+  const declTriees=data.declarations.slice().sort((a,b)=>(b.periode||'').localeCompare(a.periode||''));
+  if(declTbody)declTbody.innerHTML=declTriees.map(d=>`
+    <tr>
+      <td>${d.periode||'—'}</td>
+      <td style="text-align:right;font-weight:600">${fmt(d.montant)}</td>
+      <td style="text-align:right"><button class="btn-icon" onclick="supprimerDeclaration_ME('${d.id}')" title="Supprimer">🗑️</button></td>
+    </tr>`).join('');
+  const declEmpty=document.getElementById('me-decl-empty');
+  if(declEmpty)declEmpty.style.display=data.declarations.length?'none':'block';
+
+  // Table des charges
+  const chargesTbody=document.getElementById('me-charges-tbody');
+  if(chargesTbody)chargesTbody.innerHTML=data.charges.map(c=>`
+    <tr>
+      <td>${c.libelle||'—'}</td>
+      <td style="text-align:right;font-weight:600">${fmt(c.montant)}</td>
+      <td style="text-align:right"><button class="btn-icon" onclick="supprimerCharge_ME('${c.id}')" title="Supprimer">🗑️</button></td>
+    </tr>`).join('');
+  const chargesEmpty=document.getElementById('me-charges-empty');
+  if(chargesEmpty)chargesEmpty.style.display=data.charges.length?'none':'block';
+}
+
+async function maj_ME(patch){
+  const data=await loadDataME();
+  Object.assign(data,patch);
+  await saveDataME(data);
+}
+
+async function ajouterOuModifierCA_ME(){
+  const date=document.getElementById('me-ca-date').value;
+  const montant=+document.getElementById('me-ca-montant').value||0;
+  const origine=document.getElementById('me-ca-origine').value.trim();
+  if(!date||!montant){alert('Renseigne au moins la date et le montant.');return;}
+  const data=await loadDataME();
+  if(_meEditCAId){
+    const idx=data.ca.findIndex(c=>c.id===_meEditCAId);
+    if(idx>-1)data.ca[idx]={...data.ca[idx],date,montant,origine};
+    _meEditCAId=null;
+  } else {
+    data.ca.push({id:meUid(),date,montant,origine});
+  }
+  await saveDataME(data);
+  document.getElementById('me-ca-date').value='';
+  document.getElementById('me-ca-montant').value='';
+  document.getElementById('me-ca-origine').value='';
+  document.getElementById('me-ca-submit-btn').textContent='+ Ajouter l\'encaissement';
+  document.getElementById('me-ca-cancel-btn').style.display='none';
+  renderMicroEntreprise();
+}
+async function ouvrirEditCA_ME(id){
+  const data=await loadDataME();
+  const c=data.ca.find(x=>x.id===id);
+  if(!c)return;
+  _meEditCAId=id;
+  document.getElementById('me-ca-date').value=c.date||'';
+  document.getElementById('me-ca-montant').value=c.montant||'';
+  document.getElementById('me-ca-origine').value=c.origine||'';
+  document.getElementById('me-ca-submit-btn').textContent='✓ Enregistrer la modification';
+  document.getElementById('me-ca-cancel-btn').style.display='inline-block';
+  document.getElementById('me-ca-date').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function annulerEditCA_ME(){
+  _meEditCAId=null;
+  document.getElementById('me-ca-date').value='';
+  document.getElementById('me-ca-montant').value='';
+  document.getElementById('me-ca-origine').value='';
+  document.getElementById('me-ca-submit-btn').textContent='+ Ajouter l\'encaissement';
+  document.getElementById('me-ca-cancel-btn').style.display='none';
+}
+async function supprimerCA_ME(id){
+  if(!confirm('Supprimer cet encaissement ?'))return;
+  const data=await loadDataME();
+  data.ca=data.ca.filter(c=>c.id!==id);
+  await saveDataME(data);
+  renderMicroEntreprise();
+}
+
+async function ajouterDeclaration_ME(){
+  const periode=document.getElementById('me-decl-periode').value.trim();
+  const montant=+document.getElementById('me-decl-montant').value||0;
+  if(!periode||!montant){alert('Renseigne la période et le montant payé.');return;}
+  const data=await loadDataME();
+  data.declarations.push({id:meUid(),periode,montant});
+  await saveDataME(data);
+  document.getElementById('me-decl-periode').value='';
+  document.getElementById('me-decl-montant').value='';
+  renderMicroEntreprise();
+}
+async function supprimerDeclaration_ME(id){
+  if(!confirm('Supprimer cette déclaration ?'))return;
+  const data=await loadDataME();
+  data.declarations=data.declarations.filter(d=>d.id!==id);
+  await saveDataME(data);
+  renderMicroEntreprise();
+}
+
+async function ajouterCharge_ME(){
+  const libelle=document.getElementById('me-charge-libelle').value.trim();
+  const montant=+document.getElementById('me-charge-montant').value||0;
+  if(!libelle||!montant){alert('Renseigne le libellé et le montant.');return;}
+  const data=await loadDataME();
+  data.charges.push({id:meUid(),libelle,montant});
+  await saveDataME(data);
+  document.getElementById('me-charge-libelle').value='';
+  document.getElementById('me-charge-montant').value='';
+  renderMicroEntreprise();
+}
+async function supprimerCharge_ME(id){
+  if(!confirm('Supprimer cette charge ?'))return;
+  const data=await loadDataME();
+  data.charges=data.charges.filter(c=>c.id!==id);
+  await saveDataME(data);
+  renderMicroEntreprise();
 }
 
 // Rattache manuellement un lien Google Drive existant à une facture qui n'en a pas.
