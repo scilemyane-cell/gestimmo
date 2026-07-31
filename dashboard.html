@@ -359,7 +359,7 @@ window.testerAbonnementEssentiel = async function () {
   btn.innerHTML = '⏳ ...';
   try {
     const creerSession = httpsCallable(functions, 'createCheckoutSession');
-    const resultat = await creerSession({ priceId: 'price_1TsKS6AkHBEzWUzZ8JOAjd2G' });
+    const resultat = await creerSession({ priceId: 'price_1TzI0iF6o6x0nG4NhksMuodg' });
     if (resultat.data && resultat.data.url) {
       window.location.href = resultat.data.url;
     } else {
