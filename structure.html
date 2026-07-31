@@ -7650,6 +7650,15 @@ async function verifierCoherenceDrive(){
         anomalies.push({f,type:'introuvable',detail:'Le fichier n\'existe plus sur Drive (supprimé définitivement ou jamais existé).'});
         continue;
       }
+      if(!resp.ok){
+        // Toute autre erreur HTTP (403 permission refusée, 401 jeton expiré...) n'est PAS une
+        // preuve d'incohérence — sans cette distinction, une simple coupure d'accès à Drive
+        // ferait passer TOUTES les factures pour "en conflit" à tort, ce qui s'est déjà produit.
+        let msg='HTTP '+resp.status;
+        try{ const errBody=await resp.json(); if(errBody?.error?.message) msg=errBody.error.message; }catch(e){}
+        anomalies.push({f,type:'erreur_acces',detail:'Impossible de vérifier ce fichier ('+msg+') — probablement pas une vraie incohérence, réessaie la vérification.'});
+        continue;
+      }
       const data=await resp.json();
       if(data.trashed){
         anomalies.push({f,type:'corbeille',detail:'Le fichier est dans la corbeille Drive : "'+(data.name||'?')+'"',driveFileName:data.name});
@@ -7657,8 +7666,8 @@ async function verifierCoherenceDrive(){
       }
       const numAttendu=(f.num||'').trim().toUpperCase();
       const nomFichier=(data.name||'').toUpperCase();
-      if(numAttendu && !nomFichier.startsWith(numAttendu)){
-        anomalies.push({f,type:'mismatch',detail:'Le lien pointe vers un fichier d\'une AUTRE facture : "'+(data.name||'?')+'"',driveFileName:data.name});
+      if(numAttendu && nomFichier && !nomFichier.startsWith(numAttendu)){
+        anomalies.push({f,type:'mismatch',detail:'Le lien pointe vers un fichier d\'une AUTRE facture : "'+data.name+'"',driveFileName:data.name});
       }
     }catch(e){
       anomalies.push({f,type:'erreur',detail:'Erreur réseau pendant la vérification : '+e.message});
@@ -7678,17 +7687,19 @@ async function verifierCoherenceDrive(){
     el.innerHTML='<div style="font-size:12px;color:var(--green)">✅ '+liees.length+' facture(s) liée(s) vérifiée(s) — tous les liens Drive sont corrects.</div>';
     return;
   }
-  const labels={mismatch:'⚠ Lien croisé',corbeille:'🗑 Dans la corbeille',introuvable:'❌ Fichier introuvable',lien_invalide:'❌ Lien invalide',erreur:'⚠ Erreur de vérification'};
+  const labels={mismatch:'⚠ Lien croisé',corbeille:'🗑 Dans la corbeille',introuvable:'❌ Fichier introuvable',lien_invalide:'❌ Lien invalide',erreur:'⚠ Erreur de vérification',erreur_acces:'⚠ Vérification impossible'};
+  const couleurBordure={erreur_acces:'rgba(224,161,94,.25)',erreur:'rgba(224,161,94,.25)'};
+  const couleurFond={erreur_acces:'rgba(224,161,94,.06)',erreur:'rgba(224,161,94,.06)'};
   el.innerHTML=`
     <div style="font-size:12px;color:var(--red);margin-bottom:10px">⚠ ${anomalies.length} problème(s) détecté(s) sur ${liees.length} facture(s) vérifiée(s) :</div>
     <div style="display:flex;flex-direction:column;gap:6px">
       ${anomalies.map(a=>`
-        <div style="padding:10px 12px;background:rgba(224,113,107,.06);border:1px solid rgba(224,113,107,.25);border-radius:8px;font-size:12px">
+        <div style="padding:10px 12px;background:${couleurFond[a.type]||'rgba(224,113,107,.06)'};border:1px solid ${couleurBordure[a.type]||'rgba(224,113,107,.25)'};border-radius:8px;font-size:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-            <div><span style="color:var(--accent);font-weight:500">${a.f.num||'—'}</span> · ${a.f.four||'—'} · ${a.f.date||'—'} · ${fmt(a.f.ttc)} <span style="color:var(--red);font-weight:600;margin-left:6px">${labels[a.type]||a.type}</span></div>
+            <div><span style="color:var(--accent);font-weight:500">${a.f.num||'—'}</span> · ${a.f.four||'—'} · ${a.f.date||'—'} · ${fmt(a.f.ttc)} <span style="color:${(a.type==='erreur_acces'||a.type==='erreur')?'var(--orange)':'var(--red)'};font-weight:600;margin-left:6px">${labels[a.type]||a.type}</span></div>
             <div style="display:flex;gap:6px;flex-shrink:0">
               <a href="${a.f.driveLink}" target="_blank" class="btn btn-sm" style="text-decoration:none;font-size:10px;padding:4px 9px">👁 Voir le lien actuel</a>
-              <button class="btn btn-sm" onclick="delierFactureDrive(${a.f._ri})" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.35);color:var(--red);font-size:10px;padding:4px 9px">🔓 Délier</button>
+              ${(a.type==='erreur_acces'||a.type==='erreur')?'':`<button class="btn btn-sm" onclick="delierFactureDrive(${a.f._ri})" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.35);color:var(--red);font-size:10px;padding:4px 9px">🔓 Délier</button>`}
             </div>
           </div>
           <div style="color:var(--text3);margin-top:4px">${a.detail}</div>
