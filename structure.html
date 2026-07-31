@@ -706,6 +706,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     </table>
     <div class="empty-state" id="me-charges-empty" style="display:none">Aucune charge enregistrée.</div>
   </div>
+
+  <div class="section-title">📋 Déclaration de revenus — case à remplir (2042-C-PRO)</div>
+  <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.25);border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:12px;color:var(--text2);line-height:1.6">
+    ℹ️ Micro-BIC — prestations de services (abattement forfaitaire de 50&nbsp;% appliqué automatiquement par l'administration, à ne jamais recalculer toi-même). Ceci est une aide de saisie, pas un conseil fiscal — vérifie toujours le numéro de case exact sur ta déclaration en ligne, ces références peuvent changer d'une année à l'autre.
+  </div>
+  <div class="table-wrap" style="padding:20px 24px;margin-bottom:16px">
+    <div class="form-grid">
+      <div class="form-group"><label>Année à déclarer</label><select id="me-fiscal-annee"></select></div>
+      <div class="form-group"><label>Option fiscale</label>
+        <select id="me-fiscal-vl"><option value="oui">Avec versement libératoire</option><option value="non">Sans versement libératoire</option></select>
+      </div>
+    </div>
+  </div>
+  <div class="kpi-grid" id="me-fiscal-kpi-grid" style="margin-bottom:16px"></div>
+  <div class="table-wrap" style="padding:20px 24px;margin-bottom:24px" id="me-fiscal-case-box"></div>
 </div>
 
 <div class="content" id="tab-parametres">
@@ -4828,6 +4843,7 @@ async function loadDataME(){
   if(typeof _meCache.tauxUrssaf!=='number')_meCache.tauxUrssaf=21.1;
   if(typeof _meCache.tauxVL!=='number')_meCache.tauxVL=1.7;
   if(!_meCache.periodicite)_meCache.periodicite='mensuel';
+  if(!_meCache.avecVL)_meCache.avecVL='oui';
   return _meCache;
 }
 async function saveDataME(data){
@@ -4924,6 +4940,56 @@ async function renderMicroEntreprise(){
     </tr>`).join('');
   const chargesEmpty=document.getElementById('me-charges-empty');
   if(chargesEmpty)chargesEmpty.style.display=data.charges.length?'none':'block';
+
+  // ── Aide à la déclaration 2042-C-PRO ──────────────────────────────────
+  // Micro-BIC prestations de services : abattement forfaitaire 50%.
+  // Case CA brut : 5TB (avec versement libératoire) ou 5KP (sans) — déclarant unique.
+  const anneeSelectEl=document.getElementById('me-fiscal-annee');
+  if(anneeSelectEl && !anneeSelectEl.dataset.init){
+    const anneesConnues=new Set(data.ca.map(c=>(c.date||'').slice(0,4)).filter(Boolean));
+    const anneeCiv=new Date().getFullYear();
+    anneesConnues.add(String(anneeCiv-1));
+    anneesConnues.add(String(anneeCiv));
+    const anneesTriees=[...anneesConnues].sort((a,b)=>b.localeCompare(a));
+    anneeSelectEl.innerHTML=anneesTriees.map(a=>`<option value="${a}">${a}</option>`).join('');
+    anneeSelectEl.value=String(anneeCiv-1); // par défaut, l'année écoulée (celle qu'on déclare au printemps)
+    anneeSelectEl.dataset.init='1';
+    anneeSelectEl.onchange=()=>renderMicroEntreprise();
+  }
+  const vlSelectEl=document.getElementById('me-fiscal-vl');
+  if(vlSelectEl && !vlSelectEl.dataset.init){
+    vlSelectEl.value=data.avecVL;
+    vlSelectEl.dataset.init='1';
+    vlSelectEl.onchange=()=>{maj_ME({avecVL:vlSelectEl.value});renderMicroEntreprise();};
+  }
+  if(anneeSelectEl && vlSelectEl){
+    const anneeChoisie=anneeSelectEl.value;
+    const avecVL=vlSelectEl.value==='oui';
+    const caAnneeChoisie=data.ca.filter(c=>(c.date||'').startsWith(anneeChoisie)).reduce((s,c)=>s+(+c.montant||0),0);
+    const ABATTEMENT=0.5;
+    const revenuNet=caAnneeChoisie*(1-ABATTEMENT);
+    const numCase=avecVL?'5TB':'5KP';
+
+    const fiscalKpi=document.getElementById('me-fiscal-kpi-grid');
+    if(fiscalKpi)fiscalKpi.innerHTML=`
+      <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">CA brut encaissé ${anneeChoisie}</div><div class="kpi-val">${fmt(caAnneeChoisie)}</div><div class="kpi-sub">montant à reporter tel quel</div></div>
+      <div class="kpi" style="--kpi-color:var(--purple)"><div class="kpi-label">Revenu net après abattement</div><div class="kpi-val">${fmt(revenuNet)}</div><div class="kpi-sub">50% — calculé automatiquement par les impôts</div></div>
+    `;
+
+    const caseBox=document.getElementById('me-fiscal-case-box');
+    if(caseBox)caseBox.innerHTML=`
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="font-size:32px;font-weight:800;color:var(--accent);background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.3);border-radius:12px;padding:10px 20px;flex-shrink:0">${numCase}</div>
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">Case « Prestations de services${avecVL?" — micro-entrepreneur ayant opté pour le versement libératoire de l'impôt sur le revenu":""} »</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Montant à y reporter : <strong style="color:var(--text2)">${fmt(caAnneeChoisie)}</strong> (le CA brut encaissé, jamais le montant après abattement)</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        Déclarant unique supposé (case 1). En cas de déclaration commune où tu n'es pas le déclarant principal, la case équivalente change (ex: 5UB/5VB au lieu de 5TB). Numéros de case indicatifs pour la campagne en cours — recoupe toujours avec la notice officielle sur impots.gouv.fr avant de valider.
+      </div>
+    `;
+  }
 }
 
 async function maj_ME(patch){
