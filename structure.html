@@ -14076,7 +14076,7 @@ window._gapiLoadedImpl=function(){
 };
 if(window._gapiScriptLoaded)window._gapiLoadedImpl();
 
-window.openDrivePicker = function(cible){
+window.openDrivePicker = async function(cible){
   await ensureDriveConnected();
   if(!driveAccessToken){
     alert("Connecte d'abord Google Drive (bouton \"📁 Connecter Drive\" en haut à droite) avant d'importer un fichier existant.");
