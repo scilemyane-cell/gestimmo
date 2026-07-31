@@ -206,6 +206,7 @@ window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform &
     <div class="user-menu">
       <span class="hud-clock" id="hud-clock"></span>
       <button id="btn-test-abonnement" onclick="testerAbonnementEssentiel()" title="TEST — lance le paiement Stripe pour l'offre Essentiel (mode test)" style="background:rgba(214,158,46,.12);border:1px solid rgba(214,158,46,.4);border-radius:8px;color:#d69e2e;cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">🧪 <span class="btn-label-full">Tester abonnement</span><span class="btn-label-short" style="display:none">Test</span></button>
+      <button id="btn-mes-factures" onclick="ouvrirPortailFacturation()" title="Télécharger tes factures d'abonnement Novimmo (portail sécurisé Stripe)" style="background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.35);border-radius:8px;color:var(--cyan,#5AC8D8);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">📄 <span class="btn-label-full">Mes factures</span><span class="btn-label-short" style="display:none">Factures</span></button>
       <button id="btn-connect-drive-backup" onclick="connectDriveDashboard()" title="Envoyer les sauvegardes automatiquement sur Google Drive au lieu d'un fichier local" style="display:none;background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:8px;color:#68d391;cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">🔗 <span class="btn-label-full">Activer sauvegarde Drive</span><span class="btn-label-short" style="display:none">Drive</span></button>
       <button id="btn-manual-backup" onclick="exporterSauvegardeManuelle()" title="Télécharger/envoyer une sauvegarde complète de toutes tes données" style="display:none;background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.35);border-radius:8px;color:var(--cyan,#63b3ed);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">💾 <span class="btn-label-full">Sauvegarder</span></button>
       <div class="user-avatar" id="user-avatar">?</div>
@@ -366,6 +367,32 @@ window.testerAbonnementEssentiel = async function () {
     }
   } catch (e) {
     alert('Erreur lors de la création de la session de paiement : ' + (e.message || e));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = texteInitial;
+  }
+};
+
+// Redirige l'abonné vers le portail client Stripe (self-service) où il peut télécharger
+// l'historique de ses factures d'abonnement Novimmo, mettre à jour son moyen de paiement,
+// ou résilier — sans qu'on ait besoin de générer/héberger nous-mêmes des PDF de facture.
+// ⚠️ Nécessite que "Historique des factures" soit activé dans Stripe Dashboard →
+// Paramètres → Facturation → Portail client.
+window.ouvrirPortailFacturation = async function () {
+  const btn = document.getElementById('btn-mes-factures');
+  const texteInitial = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ ...';
+  try {
+    const ouvrirPortail = httpsCallable(functions, 'createPortalSession');
+    const resultat = await ouvrirPortail({ returnUrl: window.location.href });
+    if (resultat.data && resultat.data.url) {
+      window.location.href = resultat.data.url;
+    } else {
+      alert('Erreur : aucune URL de portail reçue.');
+    }
+  } catch (e) {
+    alert("Impossible d'ouvrir le portail de facturation : " + (e.message || e));
   } finally {
     btn.disabled = false;
     btn.innerHTML = texteInitial;
