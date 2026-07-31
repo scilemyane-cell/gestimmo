@@ -706,21 +706,29 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     </table>
     <div class="empty-state" id="me-charges-empty" style="display:none">Aucune charge enregistrée.</div>
   </div>
+</div>
 
-  <div class="section-title">📋 Déclaration de revenus — case à remplir (2042-C-PRO)</div>
-  <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.25);border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:12px;color:var(--text2);line-height:1.6">
-    ℹ️ Micro-BIC — prestations de services (abattement forfaitaire de 50&nbsp;% appliqué automatiquement par l'administration, à ne jamais recalculer toi-même). Ceci est une aide de saisie, pas un conseil fiscal — vérifie toujours le numéro de case exact sur ta déclaration en ligne, ces références peuvent changer d'une année à l'autre.
+<!-- FISCALITÉ (Micro-entreprise) -->
+<div class="content" id="tab-fiscalite">
+  <div class="section-title">📋 Aide à la déclaration — 2042-C-PRO</div>
+  <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2);line-height:1.6">
+    ℹ️ Reconstitution informative de la case à remplir sur ta déclaration de revenus, calculée à partir du chiffre d'affaires encaissé dans Novimmo. Ce n'est pas un document officiel ni un conseil fiscal — vérifie toujours le vrai formulaire sur impots.gouv.fr avant de valider ta déclaration.
   </div>
-  <div class="table-wrap" style="padding:20px 24px;margin-bottom:16px">
+
+  <div class="table-wrap" style="padding:20px 24px;margin-bottom:20px">
     <div class="form-grid">
-      <div class="form-group"><label>Année à déclarer</label><select id="me-fiscal-annee"></select></div>
+      <div class="form-group"><label>Année à déclarer</label><select id="fisc-annee"></select></div>
       <div class="form-group"><label>Option fiscale</label>
-        <select id="me-fiscal-vl"><option value="oui">Avec versement libératoire</option><option value="non">Sans versement libératoire</option></select>
+        <select id="fisc-vl"><option value="oui">Avec versement libératoire</option><option value="non">Sans versement libératoire</option></select>
       </div>
     </div>
   </div>
-  <div class="kpi-grid" id="me-fiscal-kpi-grid" style="margin-bottom:16px"></div>
-  <div class="table-wrap" style="padding:20px 24px;margin-bottom:24px" id="me-fiscal-case-box"></div>
+
+  <div id="fisc-sheet-wrap" style="overflow-x:auto;padding-bottom:8px"></div>
+
+  <div style="font-size:10px;color:var(--text3);margin-top:16px;max-width:760px;line-height:1.6">
+    Déclarant unique supposé (case du déclarant 1). En cas de déclaration commune où tu n'es pas le déclarant principal, la case équivalente change (ex&nbsp;: 5UB/5VB au lieu de 5TB, ou 5LP/5MP au lieu de 5KP). Le revenu net après abattement n'est pas un champ du formulaire — il est calculé automatiquement par l'administration à partir du montant brut que tu déclares, ne le ressaisis jamais toi-même.
+  </div>
 </div>
 
 <div class="content" id="tab-parametres">
@@ -3461,7 +3469,7 @@ function getTabGroups(){
     if(window._authUid!==window.NOVIMMO_ME_UID) return [paramGroup]; // sécurité : accès refusé, seuls les paramètres restent visibles
     return [
       {id:'comptabilite',label:'🧾 Dépenses',tabs:['saisie','factures','annuel','charges-recurrentes']},
-      {id:'microentreprise',label:'📊 Micro-entreprise',tabs:['microentreprise']},
+      {id:'microentreprise',label:'📊 Micro-entreprise',tabs:['microentreprise','fiscalite']},
       paramGroup
     ];
   }
@@ -3474,7 +3482,8 @@ function getTabLabels(){return{
   locataires:'Fiches & loyers','gestion-locative':'📁 Gestion locative',rentabilite:'📈 Rentabilité',
   projection:'🔭 Projection 20 ans',financement:'💳 Crédit & charges',
   parametres:'⚙️ Paramètres',
-  microentreprise:'Micro-entreprise'
+  microentreprise:'Micro-entreprise',
+  fiscalite:'📋 Fiscalité'
 };}
 const TAB_GROUPS=getTabGroups();
 const TAB_LABELS=getTabLabels();
@@ -3511,6 +3520,7 @@ function showTab(id){
   if(id==='cout-revient')renderCoutRevient();
   if(id==='parametres'){renderParametres();renderFacturesOrphelines();renderDevisOrphelins();}
   if(id==='microentreprise')renderMicroEntreprise();
+  if(id==='fiscalite')renderFiscalite();
   if(id==='budget')renderBudget();
   if(id==='dashboard')renderDashboard();
   if(id==='factures')renderFactures();
@@ -4896,7 +4906,7 @@ async function renderMicroEntreprise(){
   if(caTbody)caTbody.innerHTML=caTriee.map(c=>`
     <tr>
       <td>${fmtDate(c.date)}</td>
-      <td>${(c.origine||'—')}</td>
+      <td>${(c.origine||'—')}${c.auto?' <span style="font-size:9px;font-weight:700;color:#635bff;background:rgba(99,91,255,.12);padding:2px 7px;border-radius:100px;vertical-align:middle">🔗 auto Stripe</span>':''}</td>
       <td style="text-align:right;font-weight:600">${fmt(c.montant)}</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn-icon" onclick="ouvrirEditCA_ME('${c.id}')" title="Modifier">✏️</button>
@@ -4940,11 +4950,15 @@ async function renderMicroEntreprise(){
     </tr>`).join('');
   const chargesEmpty=document.getElementById('me-charges-empty');
   if(chargesEmpty)chargesEmpty.style.display=data.charges.length?'none':'block';
+}
 
-  // ── Aide à la déclaration 2042-C-PRO ──────────────────────────────────
-  // Micro-BIC prestations de services : abattement forfaitaire 50%.
-  // Case CA brut : 5TB (avec versement libératoire) ou 5KP (sans) — déclarant unique.
-  const anneeSelectEl=document.getElementById('me-fiscal-annee');
+// ── FISCALITÉ (aide visuelle 2042-C-PRO, style "feuille d'impôts") ─────
+// Micro-BIC prestations de services : abattement forfaitaire 50%.
+// Case CA brut : 5TB (avec versement libératoire) ou 5KP (sans) — déclarant unique.
+async function renderFiscalite(){
+  const data=await loadDataME();
+
+  const anneeSelectEl=document.getElementById('fisc-annee');
   if(anneeSelectEl && !anneeSelectEl.dataset.init){
     const anneesConnues=new Set(data.ca.map(c=>(c.date||'').slice(0,4)).filter(Boolean));
     const anneeCiv=new Date().getFullYear();
@@ -4954,42 +4968,68 @@ async function renderMicroEntreprise(){
     anneeSelectEl.innerHTML=anneesTriees.map(a=>`<option value="${a}">${a}</option>`).join('');
     anneeSelectEl.value=String(anneeCiv-1); // par défaut, l'année écoulée (celle qu'on déclare au printemps)
     anneeSelectEl.dataset.init='1';
-    anneeSelectEl.onchange=()=>renderMicroEntreprise();
+    anneeSelectEl.onchange=()=>renderFiscalite();
   }
-  const vlSelectEl=document.getElementById('me-fiscal-vl');
+  const vlSelectEl=document.getElementById('fisc-vl');
   if(vlSelectEl && !vlSelectEl.dataset.init){
     vlSelectEl.value=data.avecVL;
     vlSelectEl.dataset.init='1';
-    vlSelectEl.onchange=()=>{maj_ME({avecVL:vlSelectEl.value});renderMicroEntreprise();};
+    vlSelectEl.onchange=()=>{maj_ME({avecVL:vlSelectEl.value});renderFiscalite();};
   }
-  if(anneeSelectEl && vlSelectEl){
-    const anneeChoisie=anneeSelectEl.value;
-    const avecVL=vlSelectEl.value==='oui';
-    const caAnneeChoisie=data.ca.filter(c=>(c.date||'').startsWith(anneeChoisie)).reduce((s,c)=>s+(+c.montant||0),0);
-    const ABATTEMENT=0.5;
-    const revenuNet=caAnneeChoisie*(1-ABATTEMENT);
-    const numCase=avecVL?'5TB':'5KP';
+  const wrap=document.getElementById('fisc-sheet-wrap');
+  if(!anneeSelectEl || !vlSelectEl || !wrap) return;
 
-    const fiscalKpi=document.getElementById('me-fiscal-kpi-grid');
-    if(fiscalKpi)fiscalKpi.innerHTML=`
-      <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">CA brut encaissé ${anneeChoisie}</div><div class="kpi-val">${fmt(caAnneeChoisie)}</div><div class="kpi-sub">montant à reporter tel quel</div></div>
-      <div class="kpi" style="--kpi-color:var(--purple)"><div class="kpi-label">Revenu net après abattement</div><div class="kpi-val">${fmt(revenuNet)}</div><div class="kpi-sub">50% — calculé automatiquement par les impôts</div></div>
-    `;
+  const anneeChoisie=anneeSelectEl.value;
+  const avecVL=vlSelectEl.value==='oui';
+  const caAnneeChoisie=data.ca.filter(c=>(c.date||'').startsWith(anneeChoisie)).reduce((s,c)=>s+(+c.montant||0),0);
+  const revenuNet=caAnneeChoisie*0.5;
+  const montantFmt=caAnneeChoisie.toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';
 
-    const caseBox=document.getElementById('me-fiscal-case-box');
-    if(caseBox)caseBox.innerHTML=`
-      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-        <div style="font-size:32px;font-weight:800;color:var(--accent);background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.3);border-radius:12px;padding:10px 20px;flex-shrink:0">${numCase}</div>
-        <div style="flex:1;min-width:200px">
-          <div style="font-size:13px;font-weight:600;color:var(--text)">Case « Prestations de services${avecVL?" — micro-entrepreneur ayant opté pour le versement libératoire de l'impôt sur le revenu":""} »</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">Montant à y reporter : <strong style="color:var(--text2)">${fmt(caAnneeChoisie)}</strong> (le CA brut encaissé, jamais le montant après abattement)</div>
+  const caseRow=(code,label,filled)=>`
+    <div style="display:flex;align-items:stretch;margin-bottom:5px">
+      <div style="border:1.5px solid #1a1a1a;border-right:none;background:${filled?'#efe9d8':'#f2f2ec'};font-size:11px;padding:7px 10px;display:flex;align-items:center;flex:1;color:#1a1a1a">${label}</div>
+      <div style="border:1.5px solid #1a1a1a;border-right:none;background:#ddd8c4;font-size:13px;font-weight:800;padding:7px 10px;display:flex;align-items:center;justify-content:center;min-width:50px;color:#1a1a1a">${code}</div>
+      <div style="border:1.5px solid #1a1a1a;min-width:130px;padding:7px 12px;display:flex;align-items:center;justify-content:flex-end;font-family:'Courier New',monospace;font-size:14px;font-weight:${filled?'800':'400'};background:${filled?'#fff':'#fafafa'};color:${filled?'#0a5c8a':'#999'}">${filled?montantFmt:''}</div>
+    </div>`;
+
+  const lignesVL=[
+    caseRow('5TA','Vente de marchandises et assimilées',false),
+    caseRow('5TB','Prestations de services commerciales et artisanales (ou locations meublées)',avecVL),
+    caseRow('5TE','Prestations de services libérales',false)
+  ].join('');
+  const lignesSansVL=[
+    caseRow('5KO','Vente de marchandises et assimilées',false),
+    caseRow('5KP','Prestations de services (BIC) et locations meublées professionnelles',!avecVL),
+    caseRow('5HQ','Prestations de services libérales (BNC)',false)
+  ].join('');
+
+  wrap.innerHTML=`
+    <div style="background:#f7f5ec;border:1px solid #c9c4b0;border-radius:4px;padding:28px 32px;color:#1a1a1a;font-family:Georgia,'Times New Roman',serif;min-width:600px;max-width:760px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a1a1a;padding-bottom:10px;margin-bottom:20px">
+        <div>
+          <div style="font-size:10px;letter-spacing:1px;color:#555">DIRECTION GÉNÉRALE DES FINANCES PUBLIQUES</div>
+          <div style="font-size:19px;font-weight:700;margin-top:3px">N° 2042 C PRO</div>
+          <div style="font-size:11px;color:#555;margin-top:2px">DÉCLARATION COMPLÉMENTAIRE DE REVENUS — PROFESSIONS NON SALARIÉES</div>
         </div>
+        <div style="font-size:11px;color:#555;text-align:right;white-space:nowrap">Revenus de<br><span style="font-size:20px;font-weight:800;color:#1a1a1a">${anneeChoisie}</span></div>
       </div>
-      <div style="font-size:10px;color:var(--text3);margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-        Déclarant unique supposé (case 1). En cas de déclaration commune où tu n'es pas le déclarant principal, la case équivalente change (ex: 5UB/5VB au lieu de 5TB). Numéros de case indicatifs pour la campagne en cours — recoupe toujours avec la notice officielle sur impots.gouv.fr avant de valider.
+
+      ${avecVL?`
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;margin-bottom:14px">
+          <span style="width:15px;height:15px;border:1.5px solid #1a1a1a;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">✓</span>
+          <span>Micro-entrepreneur (auto-entrepreneur) ayant opté pour le versement libératoire de l'impôt sur le revenu</span>
+        </div>
+      `:`
+        <div style="font-size:12px;font-weight:700;margin-bottom:14px">Revenus industriels et commerciaux professionnels</div>
+      `}
+
+      ${avecVL?lignesVL:lignesSansVL}
+
+      <div style="margin-top:20px;padding-top:14px;border-top:1px dashed #999;font-size:10px;color:#666">
+        Revenu net imposable estimé après abattement de 50&nbsp;% (non reporté sur le formulaire, calculé automatiquement par l'administration) : <strong style="color:#1a1a1a">${revenuNet.toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0})} €</strong>
       </div>
-    `;
-  }
+    </div>
+  `;
 }
 
 async function maj_ME(patch){
