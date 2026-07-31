@@ -66,6 +66,7 @@ import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs, que
 // UID Firebase du compte personnel de Valentin — sert UNIQUEMENT à verrouiller l'onglet
 // "Micro-entreprise" (strictement privé, jamais visible par un abonné Novimmo).
 const NOVIMMO_ME_UID = 'dFhEx33SAKfKvcRCUt1ZABTsLfv2';
+window.NOVIMMO_ME_UID = NOVIMMO_ME_UID; // le bloc <script> principal (non-module) plus bas dans le fichier ne peut pas voir un const de module — il passe par window
 
 const firebaseConfig = {
   apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
@@ -3425,7 +3426,7 @@ function getTabGroups(){
   // Onglet strictement personnel : suivi de la micro-entreprise Novimmo. Verrouillé sur l'UID
   // réel de la personne connectée (window._authUid), jamais sur un rôle ou un paramètre visible —
   // aucun autre utilisateur (y compris un abonné admin de sa propre structure) ne peut le voir.
-  if(window._authUid===NOVIMMO_ME_UID) groups.push({id:'microentreprise',label:'🧾 Micro-entreprise',tabs:['microentreprise']});
+  if(window._authUid===window.NOVIMMO_ME_UID) groups.push({id:'microentreprise',label:'🧾 Micro-entreprise',tabs:['microentreprise']});
   groups.push(paramGroup);
   return groups;
 }
@@ -4777,7 +4778,7 @@ async function exporterSelectionBanque(){
 // Stockage totalement indépendant des structures/factures : un seul document Firestore,
 // rattaché à l'UID personnel, jamais scopé par structureId ni synchronisé vers un collaborateur.
 function meDocRef(){
-  return window._doc(window._db, 'users', NOVIMMO_ME_UID, 'prive', 'microentreprise');
+  return window._doc(window._db, 'users', window.NOVIMMO_ME_UID, 'prive', 'microentreprise');
 }
 let _meCache=null;
 let _meEditCAId=null;
