@@ -11,6 +11,12 @@ setGlobalOptions({ region: "europe-west3", maxInstances: 10 });
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// UID Firebase Auth personnel de Valentin (compte valentin.giliane@gmail.com) — sert à écrire
+// automatiquement les encaissements Stripe dans son suivi "Micro-entreprise" privé, quel que
+// soit l'utilisateur/abonné à l'origine du paiement. Ne JAMAIS écrire dans ce document pour
+// un autre UID que celui-ci.
+const NOVIMMO_ME_UID = "dFhEx33SAKfKvcRCUt1ZABTsLfv2";
+
 // Fait le lien entre l'identifiant de tarif Stripe et le nom du palier Novimmo.
 // Les valeurs viennent des secrets GitHub (PRICE_ESSENTIEL / PRICE_PRO / PRICE_EXPERT /
 // PRICE_IA_ILLIMITEE), injectées dans functions/.env au moment du déploiement — jamais
@@ -31,6 +37,51 @@ function getPlanFromPriceId(priceId) {
 // écrire selon le plan concerné.
 function isAddon(plan) {
   return plan === "ia_illimitee";
+}
+
+// ── Enregistre automatiquement un encaissement Stripe réel dans le suivi Micro-entreprise ──
+// Appelée uniquement sur "invoice.paid" (facture Stripe réellement encaissée — couvre aussi
+// bien le premier paiement à la fin de l'essai gratuit que les renouvellements annuels).
+// Dédoublonnage par id de facture Stripe (une facture ne peut jamais être ajoutée deux fois,
+// même si Stripe retente l'envoi du webhook).
+async function enregistrerEncaissementME(invoice) {
+  if (!invoice.paid || !invoice.amount_paid) return; // rien de réellement encaissé, on ignore
+  const meRef = db.collection("users").doc(NOVIMMO_ME_UID).collection("prive").doc("microentreprise");
+
+  // Les métadonnées {uid, plan} sont posées sur l'abonnement (subscription_data.metadata),
+  // pas systématiquement propagées sur la facture — on va donc les chercher sur l'abonnement.
+  let uid = invoice.metadata?.uid || null;
+  let plan = invoice.metadata?.plan || null;
+  if ((!uid || !plan) && invoice.subscription) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+      uid = uid || subscription.metadata?.uid || null;
+      plan = plan || subscription.metadata?.plan || getPlanFromPriceId(subscription.items.data[0]?.price?.id);
+    } catch (e) {
+      console.error("Impossible de récupérer l'abonnement pour la facture", invoice.id, e.message);
+    }
+  }
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(meRef);
+    const data = snap.exists ? snap.data() : {};
+    const ca = Array.isArray(data.ca) ? data.ca : [];
+    if (ca.some((c) => c.stripeInvoiceId === invoice.id)) return; // déjà enregistré, on ignore
+
+    const dateEncaissement = invoice.status_transitions?.paid_at
+      ? new Date(invoice.status_transitions.paid_at * 1000).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+
+    ca.push({
+      id: "stripe_" + invoice.id,
+      date: dateEncaissement,
+      montant: invoice.amount_paid / 100,
+      origine: "Abonnement Stripe" + (plan ? " — " + plan : "") + (uid ? " (uid " + uid.slice(0, 8) + "…)" : ""),
+      stripeInvoiceId: invoice.id,
+      auto: true, // ajouté automatiquement — distingue des lignes saisies à la main
+    });
+    tx.set(meRef, { ca }, { merge: true });
+  });
 }
 
 // ── Créer une session de paiement Stripe (appelée depuis l'app) ────────────
@@ -189,14 +240,12 @@ exports.stripeWebhook = onRequest(
           }
           break;
         }
-        default:
-          // Événement non géré, on ignore silencieusement.
+        case "invoice.paid": {
+          // Paiement réellement encaissé (premier paiement à la fin de l'essai gratuit, ou
+          // renouvellement annuel) — alimente automatiquement le suivi Micro-entreprise.
+          const invoice = event.data.object;
+          await enregistrerEncaissementME(invoice);
           break;
-      }
-      res.status(200).send("ok");
-    } catch (err) {
-      console.error("Erreur traitement webhook:", err);
-      res.status(500).send("Erreur interne");
-    }
-  }
-);
+        }
+        default:
+          // Événement non
