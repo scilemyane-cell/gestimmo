@@ -7499,6 +7499,7 @@ function renderParametres(){
   const logs=loadLogements();
   const cfg=CTX_CONFIG[CTX];
   const mods=getModulesConfig();
+  const estMicro = window._structureInfo && window._structureInfo.type==='MICRO';
 
   container.innerHTML=`
     <div class="section-title">⚙️ Paramètres — ${cfg.nom}</div>
@@ -7543,6 +7544,7 @@ function renderParametres(){
     </div>
     ` : ''}
 
+    ${estMicro ? '' : `
     <!-- Logements -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
@@ -7577,6 +7579,7 @@ function renderParametres(){
         `).join('')}
       </div>
     </div>
+    `}
 
     <!-- Infos contexte -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
@@ -7587,6 +7590,7 @@ function renderParametres(){
       </div>
     </div>
 
+    ${estMicro ? '' : `
     <!-- Modules activables -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
       <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">🧩 Modules de l'application</div>
@@ -7613,6 +7617,7 @@ function renderParametres(){
         `).join('')}
       </div>
     </div>
+    `}
 
     <!-- Logo et tampon -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
