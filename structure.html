@@ -7690,8 +7690,15 @@ async function verifierCoherenceDrive(){
   const labels={mismatch:'⚠ Lien croisé',corbeille:'🗑 Dans la corbeille',introuvable:'❌ Fichier introuvable',lien_invalide:'❌ Lien invalide',erreur:'⚠ Erreur de vérification',erreur_acces:'⚠ Vérification impossible'};
   const couleurBordure={erreur_acces:'rgba(224,161,94,.25)',erreur:'rgba(224,161,94,.25)'};
   const couleurFond={erreur_acces:'rgba(224,161,94,.06)',erreur:'rgba(224,161,94,.06)'};
+  // Mémorisé pour que "Délier tout" agisse sur exactement ce qui est affiché à l'écran,
+  // sans avoir à re-scanner Drive.
+  window._derniersProblemesDrive=anomalies.filter(a=>a.type!=='erreur_acces'&&a.type!=='erreur');
+  const nbDeliables=window._derniersProblemesDrive.length;
   el.innerHTML=`
-    <div style="font-size:12px;color:var(--red);margin-bottom:10px">⚠ ${anomalies.length} problème(s) détecté(s) sur ${liees.length} facture(s) vérifiée(s) :</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--red)">⚠ ${anomalies.length} problème(s) détecté(s) sur ${liees.length} facture(s) vérifiée(s) :</div>
+      ${nbDeliables>1?`<button class="btn btn-sm" onclick="delierToutesAnomaliesDrive()" style="background:rgba(224,113,107,.15);border-color:rgba(224,113,107,.4);color:var(--red);flex-shrink:0">🔓 Délier tout (${nbDeliables})</button>`:''}
+    </div>
     <div style="display:flex;flex-direction:column;gap:6px">
       ${anomalies.map(a=>`
         <div style="padding:10px 12px;background:${couleurFond[a.type]||'rgba(224,113,107,.06)'};border:1px solid ${couleurBordure[a.type]||'rgba(224,113,107,.25)'};border-radius:8px;font-size:12px">
@@ -7708,6 +7715,21 @@ async function verifierCoherenceDrive(){
     </div>
     <div style="font-size:10px;color:var(--text3);margin-top:12px">"Délier" retire uniquement le lien Drive incorrect (aucune facture n'est supprimée) — la facture réapparaîtra ensuite dans "Factures sans PDF ni lien Drive" ci-dessous, où tu pourras rattacher le bon fichier via "🔗 Lier Drive" si tu le retrouves.</div>
   `;
+}
+
+// Retire en une fois le lien Drive de toutes les factures repérées par le dernier scan
+// (hors cas "Vérification impossible", jamais touchés automatiquement par prudence).
+async function delierToutesAnomaliesDrive(){
+  const liste=window._derniersProblemesDrive||[];
+  if(!liste.length)return;
+  if(!confirm('Retirer le lien Drive de '+liste.length+' facture(s) d\'un coup ?\n\nAucune facture n\'est supprimée — seuls les liens incorrects sont retirés. Ensuite, lance "☁ Sync Drive" pour retrouver automatiquement les bons fichiers quand ils existent séparément sur Drive.')) return;
+  const indices=liste.map(a=>a.f._ri);
+  await queueFacturesUpdate((factures)=>{
+    indices.forEach(idx=>{ if(factures[idx]) factures[idx].driveLink=null; });
+  });
+  window._derniersProblemesDrive=null;
+  verifierCoherenceDrive();
+  renderFacturesOrphelines();
 }
 
 // Retire uniquement le lien Drive d'une facture (ex: après détection d'un lien croisé/corrompu
