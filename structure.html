@@ -1834,6 +1834,17 @@ const CATEGORIES=[
 const CAT_TRAVAUX=CATEGORIES.filter(c=>c.type==='travaux').map(c=>c.name);
 const CAT_FONCTIONNEMENT=CATEGORIES.filter(c=>c.type==='fonctionnement').map(c=>c.name);
 const CAT_HORS_RENTABILITE=CATEGORIES.filter(c=>c.type==='hors_rentabilite').map(c=>c.name);
+// Catégories dédiées aux dépenses de la structure "Micro-entreprise" (toutes classées 'fonctionnement'
+// pour rester simples — aucune notion de travaux/investissement n'a de sens ici).
+const CATEGORIES_MICRO=[
+  {name:"Hébergement & infrastructure",color:"#63b3ed",type:"fonctionnement"},
+  {name:"Logiciels & abonnements",color:"#68d391",type:"fonctionnement"},
+  {name:"Marketing & communication",color:"#f6ad55",type:"fonctionnement"},
+  {name:"Frais bancaires",color:"#a0aec0",type:"fonctionnement"},
+  {name:"Prestataires & sous-traitance",color:"#b794f4",type:"fonctionnement"},
+  {name:"Matériel",color:"#4fd1c5",type:"fonctionnement"},
+  {name:"Autres",color:"#cbd5e0",type:"fonctionnement"},
+];
 function getCatType(name){const c=CATEGORIES.find(x=>x.name===name);return c?c.type:'travaux';}
 let LOGS=[];
 function refreshLOGS(){
@@ -3423,10 +3434,22 @@ function getTabGroups(){
   if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['saisie','devis','factures','annuel','charges-recurrentes','banque','compte-courant']});
   if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']});
   if(mods.financement) groups.push({id:'financement',label:'💰 Financement',tabs:['projection','financement']});
-  // Onglet strictement personnel : suivi de la micro-entreprise Novimmo. Verrouillé sur l'UID
-  // réel de la personne connectée (window._authUid), jamais sur un rôle ou un paramètre visible —
-  // aucun autre utilisateur (y compris un abonné admin de sa propre structure) ne peut le voir.
-  if(window._authUid===window.NOVIMMO_ME_UID) groups.push({id:'microentreprise',label:'🧾 Micro-entreprise',tabs:['microentreprise']});
+  // Structure spéciale "Micro-entreprise" : réutilise le module Comptabilité existant (Saisir,
+  // Factures, Par année, Charges récurrentes — mêmes fonctionnalités que la SCI/LMNP : OCR IA,
+  // lecture Factur-X, sync Google Drive) pour enregistrer les dépenses professionnelles, plus
+  // l'onglet personnalisé de suivi CA/cotisations URSSAF. On exclut Devis, Banque et Compte
+  // courant, sans objet ici. Double vérification : le type de structure ET l'UID doivent
+  // correspondre, pour qu'aucun autre utilisateur ne puisse jamais y accéder même en devinant
+  // l'URL d'une structure.
+  const estStructureMicroEntreprise = window._structureInfo && window._structureInfo.type==='MICRO';
+  if(estStructureMicroEntreprise){
+    if(window._authUid!==window.NOVIMMO_ME_UID) return [paramGroup]; // sécurité : accès refusé, seuls les paramètres restent visibles
+    return [
+      {id:'comptabilite',label:'🧾 Dépenses',tabs:['saisie','factures','annuel','charges-recurrentes']},
+      {id:'microentreprise',label:'📊 Micro-entreprise',tabs:['microentreprise']},
+      paramGroup
+    ];
+  }
   groups.push(paramGroup);
   return groups;
 }
@@ -3486,6 +3509,14 @@ function showTab(id){
     if(numField&&!numField.value){ numField.value=getNextFactureNum(); _lastAutoFactureNum=numField.value; }
     const devisNumField=document.getElementById('devis-num');
     if(devisNumField&&!devisNumField.value){ devisNumField.value=getNextDevisNum(); _lastAutoDevisNum=devisNumField.value; }
+    // Structure Micro-entreprise : pas de liste "Devis" pour consulter ce qu'on aurait créé —
+    // on cache le bouton de bascule pour éviter la confusion, on reste toujours en mode Facture.
+    const devisToggleBtn=document.getElementById('saisie-toggle-devis');
+    if(devisToggleBtn){
+      const estMicro = window._structureInfo && window._structureInfo.type==='MICRO';
+      devisToggleBtn.style.display = estMicro ? 'none' : '';
+      if(estMicro) toggleSaisieType('facture');
+    }
   }
 }
 
@@ -15445,15 +15476,28 @@ async function corrigerNumerosMalAlignesDevis(){
 }
 
 function initSelects(){
+  const estMicro = window._structureInfo && window._structureInfo.type==='MICRO';
+  const listeCategories = estMicro ? CATEGORIES_MICRO : CATEGORIES;
   [document.getElementById('f-cat'),document.getElementById('e-cat'),document.getElementById('filter-cat'),document.getElementById('sv-cat'),document.getElementById('devis-cat'),document.getElementById('devis-filter-cat')].forEach((sel,i)=>{
     if(!sel)return;
+    if(estMicro){
+      // Structure Micro-entreprise : une seule liste plate de catégories de dépenses, pas de
+      // découpage travaux/fonctionnement/hors-rentabilité qui n'a pas de sens ici.
+      sel.innerHTML='';
+      listeCategories.forEach(cat=>{
+        const o=document.createElement('option');
+        o.value=cat.name;o.textContent=cat.name;
+        sel.appendChild(o);
+      });
+      return;
+    }
     const ogTravaux=document.createElement('optgroup');
     ogTravaux.label='🔨 Travaux (investissement)';
     const ogFonct=document.createElement('optgroup');
     ogFonct.label='📋 Fonctionnement (charges récurrentes)';
     const ogHors=document.createElement('optgroup');
     ogHors.label='⛔ Hors rentabilité (exclu du calcul)';
-    CATEGORIES.forEach(cat=>{
+    listeCategories.forEach(cat=>{
       const o=document.createElement('option');
       o.value=cat.name;o.textContent=cat.name;
       if(cat.type==='fonctionnement')ogFonct.appendChild(o);
@@ -15475,15 +15519,19 @@ window._authReady.then(async () => {
   // Construit la config de la structure dynamiquement (remplace l'ancien CTX_CONFIG sci/lmnp figé)
   const info = window._structureInfo || {};
   window._isMeuble = ['LMNP','LMP'].includes(info.type);
+  const estStructureMicro = info.type==='MICRO';
   CTX_CONFIG[CTX] = {
     nom: info.nom || 'Ma structure',
     sousTitre: info.adresse || '',
     couleur: '#5AC8D8',
     gmail: window._currentUserEmail || '',
     driveFolderName: (info.nom || 'Structure') + ' Factures',
-    hasBudgetTravaux: info.hasBudgetTravaux !== false, // activé par défaut, désactivable dans Paramètres (rétrocompatibilité)
+    hasBudgetTravaux: estStructureMicro ? false : (info.hasBudgetTravaux !== false), // désactivé d'office pour la Micro-entreprise (pas de notion de travaux)
     modules: info.modules || {},
-    defaultLogements: []
+    // Micro-entreprise : un seul "logement" fixe et invisible en pratique — sert uniquement à
+    // ce que les formulaires/tableaux de facture (conçus pour répartir entre plusieurs biens)
+    // fonctionnent sans adaptation lourde du code existant.
+    defaultLogements: estStructureMicro ? [{key:'general',label:'Général',color:'#5AC8D8',actif:true}] : []
   };
 
   document.getElementById('badge-date').textContent=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});

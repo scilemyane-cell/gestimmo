@@ -273,6 +273,7 @@ window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform &
         <div class="type-option" data-type="NU_IR" onclick="selectionnerType(this)"><div class="type-icon">📋</div>Location nue</div>
         <div class="type-option" data-type="NOM_PROPRE" onclick="selectionnerType(this)"><div class="type-icon">👤</div>Nom propre</div>
         <div class="type-option" data-type="HOLDING" onclick="selectionnerType(this)"><div class="type-icon">🏛️</div>Holding</div>
+        <div class="type-option" id="type-option-micro" data-type="MICRO" onclick="selectionnerType(this)" style="display:none"><div class="type-icon">🧾</div>Micro-entreprise</div>
       </div>
     </div>
 
@@ -346,6 +347,10 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const functions = getFunctions(app, 'europe-west3');
 
+// UID Firebase du compte personnel de Valentin — sert UNIQUEMENT à révéler l'option de création
+// "Micro-entreprise" dans la modale (strictement privée, jamais visible par un abonné Novimmo).
+const NOVIMMO_ME_UID = 'dFhEx33SAKfKvcRCUt1ZABTsLfv2';
+
 window.testerAbonnementEssentiel = async function () {
   const btn = document.getElementById('btn-test-abonnement');
   const texteInitial = btn.innerHTML;
@@ -386,6 +391,10 @@ onAuthStateChanged(auth, async user => {
     return;
   }
   currentUser = user;
+  if(user.uid === NOVIMMO_ME_UID){
+    const optMicro = document.getElementById('type-option-micro');
+    if(optMicro) optMicro.style.display = '';
+  }
   await accepterInvitationsEnAttente(user);
   await chargerDashboard(user);
 });
@@ -664,7 +673,7 @@ async function uploadBackupToDrive(blob, fileName){
 
 const TYPE_LABELS = {
   LMNP:'LMNP', SCI_IR:'SCI-IR', SCI_IS:'SCI-IS',
-  LMP:'LMP', NU_IR:'Location nue', NOM_PROPRE:'Nom propre', HOLDING:'Holding'
+  LMP:'LMP', NU_IR:'Location nue', NOM_PROPRE:'Nom propre', HOLDING:'Holding', MICRO:'Micro-entreprise'
 };
 
 function todayStrLocal(){
@@ -723,6 +732,20 @@ async function chargerStatsHolding(uid, structureId){
   } catch(e){
     console.warn('Stats holding indisponibles pour', structureId, e);
     return { participations: 0, solde_cca: 0, dividendes: 0 };
+  }
+}
+async function chargerStatsMicro(uid, structureId){
+  try {
+    const snap = await getDoc(doc(db, 'users', uid, 'structures', structureId, 'appdata', 'data'));
+    if(!snap.exists()) return { factures: 0, depensesMois: 0 };
+    const ad = snap.data();
+    const factures = Array.isArray(ad.factures) ? ad.factures : [];
+    const mk = monthKeyLocal(new Date());
+    const depensesMois = factures.filter(f => (f.date||'').startsWith(mk)).reduce((s,f)=>s+(+f.ttc||0),0);
+    return { factures: factures.length, depensesMois };
+  } catch(e){
+    console.warn('Stats micro indisponibles pour', structureId, e);
+    return { factures: 0, depensesMois: 0 };
   }
 }
 
@@ -800,11 +823,12 @@ async function chargerStructures(uid){
     window._currentStructuresOrder = structures.filter(s=>!s._partagee).map(s=>s.id);
     renderOrbit(structures);
 
-    const statsList = await Promise.all(structures.map(s => s.type === 'HOLDING' ? chargerStatsHolding(s._ownerUid||uid, s.id) : chargerStatsStructure(s._ownerUid||uid, s.id)));
+    const statsList = await Promise.all(structures.map(s => s.type === 'HOLDING' ? chargerStatsHolding(s._ownerUid||uid, s.id) : s.type === 'MICRO' ? chargerStatsMicro(s._ownerUid||uid, s.id) : chargerStatsStructure(s._ownerUid||uid, s.id)));
 
     let html = '';
     structures.forEach((s, i) => {
       const isHolding = s.type === 'HOLDING';
+      const isMicro = s.type === 'MICRO';
       const stats = statsList[i] || {};
       const statsBlock = isHolding ? `
             <div class="structure-stat">
@@ -818,6 +842,14 @@ async function chargerStructures(uid){
             <div class="structure-stat">
               <div class="structure-stat-val" style="color:${s.couleur}">${Math.round(stats.dividendes||0).toLocaleString('fr-FR')} €</div>
               <div class="structure-stat-label">Dividendes</div>
+            </div>` : isMicro ? `
+            <div class="structure-stat">
+              <div class="structure-stat-val" style="color:${s.couleur}">${stats.factures||0}</div>
+              <div class="structure-stat-label">Factures</div>
+            </div>
+            <div class="structure-stat">
+              <div class="structure-stat-val" style="color:${s.couleur}">${Math.round(stats.depensesMois||0).toLocaleString('fr-FR')} €</div>
+              <div class="structure-stat-label">Dépenses/mois</div>
             </div>` : `
             <div class="structure-stat">
               <div class="structure-stat-val" style="color:${s.couleur}">${stats.logements||0}</div>
