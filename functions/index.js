@@ -248,4 +248,13 @@ exports.stripeWebhook = onRequest(
           break;
         }
         default:
-          // Événement non
+          // Événement non géré, on ignore silencieusement.
+          break;
+      }
+      res.status(200).send("ok");
+    } catch (err) {
+      console.error("Erreur traitement webhook:", err);
+      res.status(500).send("Erreur interne");
+    }
+  }
+);
