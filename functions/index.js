@@ -11,16 +11,26 @@ setGlobalOptions({ region: "europe-west3", maxInstances: 10 });
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Fait le lien entre l'identifiant de tarif Stripe et le nom du palier GestImmo.
-// Les 3 valeurs viennent des secrets GitHub (PRICE_ESSENTIEL / PRICE_PRO / PRICE_EXPERT),
-// injectées dans functions/.env au moment du déploiement — jamais commitées dans le repo.
+// Fait le lien entre l'identifiant de tarif Stripe et le nom du palier Novimmo.
+// Les valeurs viennent des secrets GitHub (PRICE_ESSENTIEL / PRICE_PRO / PRICE_EXPERT /
+// PRICE_IA_ILLIMITEE), injectées dans functions/.env au moment du déploiement — jamais
+// commitées dans le repo.
 function getPlanFromPriceId(priceId) {
   const map = {
     [process.env.PRICE_ESSENTIEL]: "essentiel",
     [process.env.PRICE_PRO]: "pro",
     [process.env.PRICE_EXPERT]: "expert",
+    [process.env.PRICE_IA_ILLIMITEE]: "ia_illimitee",
   };
   return map[priceId] || null;
+}
+
+// L'add-on "Lecture IA illimitée" est un abonnement séparé, cumulable avec n'importe quel
+// palier principal — on ne veut donc jamais écraser le statut de l'abonnement principal
+// avec celui de l'add-on (et inversement). Ce champ détermine dans quelle clé Firestore
+// écrire selon le plan concerné.
+function isAddon(plan) {
+  return plan === "ia_illimitee";
 }
 
 // ── Créer une session de paiement Stripe (appelée depuis l'app) ────────────
@@ -56,12 +66,14 @@ exports.createCheckoutSession = onCall(async (request) => {
     client_reference_id: uid,
     line_items: [{ price: priceId, quantity: 1 }],
     subscription_data: {
-      trial_period_days: 30,
+      // L'add-on Lecture IA illimitée n'a pas d'essai gratuit (contrairement aux paliers
+      // principaux) — c'est un complément payant dès le départ.
+      ...(isAddon(plan) ? {} : { trial_period_days: 30 }),
       metadata: { uid, plan },
     },
     metadata: { uid, plan },
-    success_url: "https://scilemyane-cell.github.io/gestimmo/dashboard.html?abonnement=succes",
-    cancel_url: "https://scilemyane-cell.github.io/gestimmo/dashboard.html?abonnement=annule",
+    success_url: "https://novimmo.immo/dashboard.html?abonnement=succes",
+    cancel_url: "https://novimmo.immo/dashboard.html?abonnement=annule",
     allow_promotion_codes: true,
   });
 
@@ -81,7 +93,7 @@ exports.createPortalSession = onCall(async (request) => {
   }
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: stripeCustomerId,
-    return_url: "https://scilemyane-cell.github.io/gestimmo/dashboard.html",
+    return_url: "https://novimmo.immo/dashboard.html",
   });
   return { url: portalSession.url };
 });
@@ -112,17 +124,18 @@ exports.stripeWebhook = onRequest(
           const plan = session.metadata?.plan;
           if (uid) {
             const subscription = await stripe.subscriptions.retrieve(session.subscription);
+            const champ = isAddon(plan) ? "subscriptionAddonIA" : "subscription";
             await db.collection("users").doc(uid).set(
               {
                 stripeCustomerId: session.customer,
-                subscription: {
+                [champ]: {
                   status: subscription.status,
                   plan: plan || null,
                   priceId: subscription.items.data[0]?.price?.id || null,
                   stripeSubscriptionId: subscription.id,
-                 currentPeriodEnd: subscription.current_period_end || null,
-trialEnd: subscription.trial_end || null,
-cancelAtPeriodEnd: subscription.cancel_at_period_end || null,
+                  currentPeriodEnd: subscription.current_period_end || null,
+                  trialEnd: subscription.trial_end || null,
+                  cancelAtPeriodEnd: subscription.cancel_at_period_end || null,
                 },
               },
               { merge: true }
@@ -136,16 +149,17 @@ cancelAtPeriodEnd: subscription.cancel_at_period_end || null,
           const uid = subscription.metadata?.uid;
           if (uid) {
             const plan = subscription.metadata?.plan || getPlanFromPriceId(subscription.items.data[0]?.price?.id);
+            const champ = isAddon(plan) ? "subscriptionAddonIA" : "subscription";
             await db.collection("users").doc(uid).set(
               {
-                subscription: {
+                [champ]: {
                   status: subscription.status,
                   plan: plan || null,
                   priceId: subscription.items.data[0]?.price?.id || null,
                   stripeSubscriptionId: subscription.id,
                   currentPeriodEnd: subscription.current_period_end || null,
-trialEnd: subscription.trial_end || null,
-cancelAtPeriodEnd: subscription.cancel_at_period_end || null,
+                  trialEnd: subscription.trial_end || null,
+                  cancelAtPeriodEnd: subscription.cancel_at_period_end || null,
                 },
               },
               { merge: true }
@@ -157,14 +171,16 @@ cancelAtPeriodEnd: subscription.cancel_at_period_end || null,
           const subscription = event.data.object;
           const uid = subscription.metadata?.uid;
           if (uid) {
+            const plan = subscription.metadata?.plan || getPlanFromPriceId(subscription.items.data[0]?.price?.id);
+            const champ = isAddon(plan) ? "subscriptionAddonIA" : "subscription";
             await db.collection("users").doc(uid).set(
               {
-                subscription: {
+                [champ]: {
                   status: "canceled",
                   plan: null,
                   priceId: null,
                   stripeSubscriptionId: subscription.id,
-            currentPeriodEnd: subscription.current_period_end || null,
+                  currentPeriodEnd: subscription.current_period_end || null,
                   cancelAtPeriodEnd: true,
                 },
               },
