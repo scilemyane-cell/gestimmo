@@ -1898,6 +1898,22 @@ function saveBudget(budget){
     return false;
   }
 }
+// File d'attente pour les écritures qui suivent un appel réseau (upload Drive, quelques
+// secondes) : sans ça, deux opérations lancées presque en même temps peuvent lire un instantané
+// des factures chacune de leur côté, puis s'écraser mutuellement en écrivant l'une après l'autre
+// (saveFactures remplace tout le tableau, il ne fusionne rien). queueFacturesUpdate() garantit
+// qu'aucune autre écriture ne peut s'intercaler entre la relecture "fraîche" et l'écriture finale
+// d'une opération donnée.
+let _facturesSaveQueue = Promise.resolve();
+function queueFacturesUpdate(mutatorFn){
+  const run = _facturesSaveQueue.then(async ()=>{
+    const d = loadData();
+    await mutatorFn(d.factures);
+    return saveFactures(d.factures);
+  });
+  _facturesSaveQueue = run.catch(e=>{console.error('queueFacturesUpdate error:',e);});
+  return run;
+}
 function saveFactures(factures){
   try{
     localStorage.setItem(ctxKey('factures3'),JSON.stringify(factures));
@@ -4136,6 +4152,16 @@ async function ajouterFacture(){
   const baseNum=document.getElementById('f-num').value.trim();
   const baseCmd=document.getElementById('f-cmd').value.trim();
   const baseDesc=document.getElementById('f-desc').value.trim();
+  // Aucune structure de données n'empêchait jusqu'ici deux factures de porter le même numéro —
+  // ça a déjà causé un vrai problème (rattachement Drive automatique refusant de choisir entre
+  // deux fichiers correspondant au même numéro). On avertit maintenant avant l'enregistrement,
+  // sans bloquer complètement (un cas légitime, même rare, ne doit pas être impossible).
+  if(baseNum){
+    const doublon=d.factures.some(f=>(f.num||'').trim().toLowerCase()===baseNum.toLowerCase());
+    if(doublon && !confirm('⚠ Le numéro "'+baseNum+'" est déjà utilisé par une autre facture.\n\nContinuer quand même risque de créer des confusions (notamment pour le rattachement automatique des PDF sur Google Drive, qui ne saura plus lequel des deux fichiers correspond à quelle facture).\n\nContinuer quand même ?')){
+      return;
+    }
+  }
   const ht=+(ttcInput/(1+tva/100)).toFixed(2);
   const newIdx=d.factures.length;
 
@@ -4710,6 +4736,7 @@ async function exporterSelectionBanque(){
   const filtered=ids.map(idx=>({...factures[idx],_idx:idx}));
 
   const aBesoinDrive=filtered.some(f=>!loadPdf(f._idx)&&f.driveLink);
+  await ensureDriveConnected();
   if(aBesoinDrive&&!driveAccessToken){
     if(!confirm('Certaines factures sélectionnées n\'ont pas de PDF sur cet appareil, mais existent sur Drive.\nConnecte d\'abord Google Drive (bouton de connexion) pour les récupérer, sinon elles apparaîtront en "PDF manquant".\n\nContinuer sans Drive ?'))return;
   }
@@ -5290,9 +5317,21 @@ function saveEdit(){
   const ht=+(ttcEdit/(1+tva/100)).toFixed(2);
   const d=loadData();
   const hadPdf=!!loadPdf(editIdx);
-  const ancienNum=d.factures[editIdx]?d.factures[editIdx].num:null;
+  const original=d.factures[editIdx]||{};
+  const ancienNum=original.num;
   const nouveauNum=document.getElementById('e-num').value.trim();
+  if(nouveauNum){
+    const doublon=d.factures.some((f,i)=>i!==editIdx&&(f.num||'').trim().toLowerCase()===nouveauNum.toLowerCase());
+    if(doublon && !confirm('⚠ Le numéro "'+nouveauNum+'" est déjà utilisé par une autre facture.\n\nContinuer quand même risque de créer des confusions (notamment pour le rattachement automatique des PDF sur Google Drive, qui ne saura plus lequel des deux fichiers correspond à quelle facture).\n\nContinuer quand même ?')){
+      return;
+    }
+  }
+  // On préserve tout ce que le formulaire d'édition ne touche pas (driveLink, sourceCertifiee,
+  // siretFournisseur, repartition...) via le spread de l'ancien objet — sans ça, chaque
+  // modification recréait la facture de zéro et effaçait silencieusement son lien Drive existant
+  // dès qu'aucun nouveau PDF n'était joint à la modification. Même précaution que saveEditAsSplit().
   d.factures[editIdx]={
+    ...original,
     num:nouveauNum,
     date:document.getElementById('e-date').value,
     four:document.getElementById('e-four').value.trim(),
@@ -6248,6 +6287,7 @@ async function exportZipFactures(){
   // Si certaines factures n'ont pas de PDF en local mais ont un lien Drive, et que Drive
   // n'est pas connecté, on prévient avant de se lancer plutôt que d'échouer en silence.
   const aBesoinDrive=filtered.some(f=>!loadPdf(f._idx)&&f.driveLink);
+  await ensureDriveConnected();
   if(aBesoinDrive&&!driveAccessToken){
     if(!confirm('Certaines factures de cette année n\'ont pas de PDF sur cet appareil, mais existent sur Drive.\nConnecte d\'abord Google Drive (bouton de connexion) pour les récupérer, sinon elles apparaîtront en "PDF manquant".\n\nContinuer sans Drive ?'))return;
   }
@@ -11586,6 +11626,7 @@ function genererIdQuittancePublique(){
 // Archive privée de la quittance dans le Drive du bailleur (pour son propre suivi/comptabilité) —
 // distincte de la publication publique ci-dessous : ce fichier-là reste privé, jamais partagé.
 async function archiverQuittanceDrivePrive(locId, mk, html){
+  await ensureDriveConnected();
   if(!driveAccessToken)return;
   try{
     const locs=loadLocataires();
@@ -11799,7 +11840,8 @@ function renderGestionLocativeDetail(){
 // du fichier (dans glOnFileChange), pas avant.
 let _glPendingDoc=null;
 
-function glOpenDocModal(docId,logKeyDefault,catDefault){
+async function glOpenDocModal(docId,logKeyDefault,catDefault){
+  await ensureDriveConnected();
   if(!driveAccessToken){
     alert('Connecte d\'abord Google Drive (bouton de connexion) avant d\'ajouter un document : le fichier est envoyé directement sur Drive, jamais stocké dans l\'app.');
     return;
@@ -11888,6 +11930,7 @@ function toBase64Std(str){
 // Construit un message MIME multipart (texte + 0 ou 1 pièce jointe PDF) et crée un
 // brouillon Gmail via l'API. attachment = {filename, base64Data} ou null.
 async function createGmailDraft(destinataire,sujet,corps,attachment){
+  await ensureDriveConnected();
   if(!driveAccessToken){
     alert('Connecte d\'abord Google (bouton de connexion Gmail/Drive) pour pouvoir créer un brouillon.');
     return false;
@@ -13877,7 +13920,7 @@ function initGoogleDrive(){
     if(expiry && Date.now() > parseInt(expiry) - (5*60*1000)){
       reconnectDriveSilent();
     }
-  }, 4*60*1000);
+  }, 60*1000);
 }
 
 // Le script https://accounts.google.com/gsi/client est chargé en async/defer :
@@ -13908,25 +13951,62 @@ function waitForGoogleGSI(timeoutMs){
 async function reconnectDriveSilent(){
   try{
     await waitForGoogleGSI();
-    const knownEmail = localStorage.getItem(CTX+'_drive_email') || '';
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: DRIVE_SCOPE,
-      prompt: '', // Pas de popup si déjà autorisé
-      hint: knownEmail || undefined, // Cible directement le compte déjà associé à cette structure, plus fiable qu'une reconnexion "à l'aveugle"
-      callback: (response) => {
-        if(response.access_token){
-          driveAccessToken = response.access_token;
-          localStorage.setItem(CTX+'_drive_token', driveAccessToken);
-          localStorage.setItem(CTX+'_drive_token_expiry', Date.now() + (response.expires_in * 1000));
-          updateDriveUI(true);
-        }
-      }
-    });
-    client.requestAccessToken({prompt:'', hint: knownEmail || undefined});
   }catch(e){
-    console.log('Reconnexion Drive silencieuse échouée:', e);
+    console.log('Reconnexion Drive silencieuse échouée (script Google non chargé):', e);
+    return false;
   }
+  const knownEmail = localStorage.getItem(CTX+'_drive_email') || '';
+  return new Promise((resolve)=>{
+    let settled = false;
+    // Google n'appelle jamais le callback en cas d'échec silencieux (pas d'erreur explicite) —
+    // sans ce filet, on resterait bloqué indéfiniment à croire qu'une reconnexion est en cours.
+    const timeout = setTimeout(()=>{
+      if(!settled){ settled = true; console.log('Reconnexion Drive silencieuse : pas de réponse (timeout).'); resolve(false); }
+    }, 6000);
+    try{
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: DRIVE_SCOPE,
+        prompt: '', // Pas de popup si déjà autorisé
+        hint: knownEmail || undefined, // Cible directement le compte déjà associé à cette structure, plus fiable qu'une reconnexion "à l'aveugle"
+        callback: (response) => {
+          if(settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          if(response && response.access_token){
+            driveAccessToken = response.access_token;
+            localStorage.setItem(CTX+'_drive_token', driveAccessToken);
+            localStorage.setItem(CTX+'_drive_token_expiry', Date.now() + (response.expires_in * 1000));
+            updateDriveUI(true);
+            resolve(true);
+          } else {
+            console.log('Reconnexion Drive silencieuse : réponse sans jeton.', response);
+            resolve(false);
+          }
+        }
+      });
+      client.requestAccessToken({prompt:'', hint: knownEmail || undefined});
+    }catch(e){
+      if(!settled){ settled = true; clearTimeout(timeout); console.log('Reconnexion Drive silencieuse échouée:', e); resolve(false); }
+    }
+  });
+}
+
+// Tente une reconnexion Drive à la volée juste avant une action qui en a besoin (upload,
+// lecture...), au lieu de se contenter du jeton déjà en mémoire. C'est ce qui corrige les
+// échecs "irréguliers" : avant, si le rafraîchissement automatique en arrière-plan avait
+// raté son créneau (page ouverte au mauvais moment, onglet resté en arrière-plan, etc.), on
+// abandonnait Drive pour toute la session sans jamais retenter. Un seul essai par appel —
+// si ça échoue aussi, updateDriveUI(false) reste affiché et l'utilisateur voit le badge
+// "Connecter Drive" au lieu d'un échec muet.
+let _driveReconnectEnCours = null;
+async function ensureDriveConnected(){
+  if(driveAccessToken) return true;
+  if(_driveReconnectEnCours) return _driveReconnectEnCours; // évite les tentatives en parallèle si plusieurs uploads déclenchent l'appel en même temps
+  _driveReconnectEnCours = reconnectDriveSilent().finally(()=>{ _driveReconnectEnCours = null; });
+  const ok = await _driveReconnectEnCours;
+  if(!ok) updateDriveUI(false);
+  return ok;
 }
 
 function disconnectDrive(){
@@ -13997,6 +14077,7 @@ window._gapiLoadedImpl=function(){
 if(window._gapiScriptLoaded)window._gapiLoadedImpl();
 
 window.openDrivePicker = function(cible){
+  await ensureDriveConnected();
   if(!driveAccessToken){
     alert("Connecte d'abord Google Drive (bouton \"📁 Connecter Drive\" en haut à droite) avant d'importer un fichier existant.");
     return;
@@ -14074,6 +14155,7 @@ function updateDriveWarnings(connected){
 }
 
 async function uploadToDrive(b64, fileName, anneeFacture){
+  await ensureDriveConnected();
   if(!driveAccessToken) return null;
   try{
     // Convertir base64 en blob
@@ -14165,6 +14247,7 @@ async function uploadToDrive(b64, fileName, anneeFacture){
 // dossier racine (nom dérivé du dossier factures, ex: "SCI Lemyane Devis"), sous-dossier par
 // année, anti-doublon par nom de fichier, retourne le webViewLink.
 async function uploadToDriveDevis(b64, fileName, anneeDevis){
+  await ensureDriveConnected();
   if(!driveAccessToken) return null;
   try{
     const base64Data = b64.split(',')[1];
@@ -14263,6 +14346,7 @@ async function saveDevisPdfWithDrive(idx, b64, fileName){
 }
 
 async function uploadToDriveGestionLocative(b64, fileName, logKey){
+  await ensureDriveConnected();
   if(!driveAccessToken) return null;
   try{
     const base64Data = b64.split(',')[1];
@@ -14335,11 +14419,9 @@ async function savePdfWithDrive(idx, b64, fileName){
       const anneeFacture = (d0.factures[idx]?.date||'').slice(0,4);
       driveLink = await uploadToDrive(b64, fileName, anneeFacture);
       if(driveLink){
-        const d = loadData();
-        if(d.factures[idx]){
-          d.factures[idx].driveLink = driveLink;
-          saveFactures(d.factures);
-        }
+        await queueFacturesUpdate((factures)=>{
+          if(factures[idx]) factures[idx].driveLink = driveLink;
+        });
         console.log('PDF uploadé sur Drive:', driveLink);
       }
     }catch(e){console.error('Upload Drive facture échoué:',e);}
@@ -14509,6 +14591,7 @@ async function getOrCreateGmailLabel(name){
 // et se limite à poser un label visible sans retirer le mail de l'INBOX.
 
 async function applyGmailLabels(messages){
+  await ensureDriveConnected();
   if(!driveAccessToken)return;
   _gmailLabelsCache=null;
   await getOrCreateGmailLabel('Factures');
@@ -14541,6 +14624,7 @@ async function applyGmailLabels(messages){
 // Quand la vérification Google Gmail sera faite, il faudra une connexion OAuth séparée avec
 // GMAIL_SCOPE (voir plus haut) avant de réactiver cette fonction.
 async function scanGmail(){
+  await ensureDriveConnected();
   if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
   document.getElementById('gmail-modal-overlay').classList.add('open');
   document.getElementById('gmail-loading').style.display='block';
@@ -14593,6 +14677,7 @@ async function scanGmail(){
 
 // ── TRIER TOUTE LA BOITE GMAIL ────────────────────────────────────────────
 async function trierTouteBoite(){
+  await ensureDriveConnected();
   if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
   if(!confirm('Trier TOUS les emails de la boîte par expéditeur ?\nCela peut prendre quelques minutes selon le nombre d\'emails.')){return;}
 
@@ -14774,6 +14859,7 @@ function initContexteUI(){
 async function ouvrirDossierDrive(){
   const year=document.getElementById('annuel-year')?.value||new Date().getFullYear().toString();
   
+  await ensureDriveConnected();
   if(!driveAccessToken){
     alert('Connectez d\'abord Google Drive via le bouton en haut à droite.');
     return;
@@ -14868,6 +14954,7 @@ async function deleteDriveFile(driveLink){
 // regroupe les fichiers par nom identique, et met à la corbeille tous les
 // exemplaires sauf le plus ancien (createdTime le plus petit).
 async function nettoyerDoublonsDrive(){
+  await ensureDriveConnected();
   if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
   if(!confirm('Rechercher et mettre à la corbeille les fichiers en double sur Drive (même nom, on garde le plus ancien) ?'))return;
 
@@ -14973,6 +15060,7 @@ async function nettoyerDoublonsDrive(){
 // (utile notamment si un devis a été ré-uploadé sous un nom différent, ex: fournisseur
 // modifié entre deux enregistrements — ça laisse un fichier orphelin sur Drive).
 async function nettoyerDoublonsDriveDevis(){
+  await ensureDriveConnected();
   if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
   if(!confirm('Rechercher et mettre à la corbeille les devis en double sur Drive (même nom, on garde le plus ancien) ?'))return;
 
@@ -15069,6 +15157,7 @@ async function nettoyerDoublonsDriveDevis(){
 
 // ── OUVRIR LE DOSSIER DRIVE D'UNE ANNÉE DONNÉE (DEVIS) ────────────────────
 async function ouvrirDossierDriveAnneeDevis(){
+  await ensureDriveConnected();
   if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
   const yearSel=document.getElementById('drive-year-select-devis');
   const year=yearSel&&yearSel.value?yearSel.value:new Date().getFullYear().toString();
@@ -15129,6 +15218,7 @@ function libererEspaceLocalDevisPDF(){
   renderDevis();
 }
 async function syncAllDevisPdfsToDrive(){
+  await ensureDriveConnected();
   if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
   if(_syncDriveDevisEnCours){alert('Une synchronisation est déjà en cours, patiente qu\'elle se termine.');return;}
   _syncDriveDevisEnCours=true;
@@ -15171,6 +15261,7 @@ async function syncAllDevisPdfsToDrive(){
 // Réutilise la même structure de dossiers que uploadToDrive :
 // "SCI Lemyane Factures" / <année> / fichiers.pdf
 async function ouvrirDossierDriveAnnee(){
+  await ensureDriveConnected();
   if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
   const yearSel=document.getElementById('drive-year-select');
   const year=yearSel&&yearSel.value?yearSel.value:new Date().getFullYear().toString();
@@ -15238,6 +15329,7 @@ function libererEspaceLocalPDF(){
   renderFactures();
 }
 async function syncAllPdfsToDrive(){
+  await ensureDriveConnected();
   if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
   if(_syncDriveEnCours){alert('Une synchronisation est déjà en cours, patiente qu\'elle se termine.');return;}
   _syncDriveEnCours=true;
@@ -15264,9 +15356,9 @@ async function syncAllPdfsToDrive(){
       try{
         const link=await uploadToDrive(b64,fname,anneeFacture);
         if(link){
-          const dNow=loadData();
-          dNow.factures[i].driveLink=link;
-          saveFactures(dNow.factures);
+          await queueFacturesUpdate((factures)=>{
+            if(factures[i]) factures[i].driveLink = link;
+          });
           removePdf(i); // le fichier est désormais sur Drive : la copie locale est redondante, on la libère
           uploaded++;
         } else {errors++;}
@@ -15422,7 +15514,22 @@ async function renumeroterFactures(){
   const counters={};
   let count=0;
   const driveRenames=[];
-  
+
+  // En mode partiel ("Annuler" = numéroter uniquement celles sans numéro), il faut repartir du
+  // plus grand numéro DÉJÀ utilisé dans chaque année — sinon on recommence à 001 alors que des
+  // factures portent déjà ce numéro, créant des doublons. En mode complet ("OK"), toutes les
+  // factures de l'année sont renumérotées ensemble donc ce risque n'existe pas, mais on initialise
+  // quand même correctement dans les deux cas pour rester cohérent.
+  if(!mode){
+    d.factures.forEach(f=>{
+      const m=(f.num||'').match(/FAC-?(\d{4})-?(\d+)/i);
+      if(m){
+        const y=m[1];
+        counters[y]=Math.max(counters[y]||0, parseInt(m[2]));
+      }
+    });
+  }
+
   sorted.forEach(f=>{
     const hasNum=f.num&&f.num.trim()!==''&&f.num.match(/FAC-\d{4}-\d+/i);
     if(mode||!hasNum){
@@ -15483,6 +15590,18 @@ async function renumeroterDevis(){
   const counters={};
   let count=0;
   const driveRenames=[];
+
+  // Même correctif que renumeroterFactures() : en mode partiel, repartir du plus grand
+  // numéro déjà utilisé par année pour éviter les collisions avec les devis déjà numérotés.
+  if(!mode){
+    devis.forEach(d=>{
+      const m=(d.num||'').match(/DEV-?(\d{4})-?(\d+)/i);
+      if(m){
+        const y=m[1];
+        counters[y]=Math.max(counters[y]||0, parseInt(m[2]));
+      }
+    });
+  }
 
   sorted.forEach(d=>{
     const hasNum=d.num&&d.num.trim()!==''&&d.num.match(/DEV-\d{4}-\d+/i);
