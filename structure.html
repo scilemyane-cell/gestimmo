@@ -994,6 +994,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllPdfsToDrive()" id="btn-sync-drive" title="Uploader tous les PDF locaux vers Google Drive">☁ Sync Drive</button>
       <button class="btn-export" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="libererEspaceLocalPDF()" id="btn-liberer-espace" title="Supprime les copies locales des PDF déjà présents sur Drive (le fichier reste accessible via Drive)">🧹 Libérer l'espace local</button>
       <button class="btn-export" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)" onclick="nettoyerDoublonsDrive()" id="btn-clean-drive" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
+      <button class="btn-export" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="verifierCoherenceDrive()" id="btn-check-drive" title="Vérifie que chaque facture liée à Drive pointe bien vers SON PROPRE fichier (détecte les liens croisés/corrompus)">🔍 Vérifier cohérence Drive</button>
       <select class="filter-select" id="drive-year-select" title="Année du dossier Drive à ouvrir" style="font-weight:600"></select>
       <button class="btn-export" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.4);color:var(--accent)" onclick="ouvrirDossierDriveAnnee()" id="btn-open-drive" title="Ouvrir le dossier Drive de l'année sélectionnée">📂 Ouvrir dossier Drive</button>
       <button class="btn-export" style="display:none;background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="syncPennylaneFactures()" id="btn-sync-pennylane" title="Récupérer les nouvelles factures fournisseurs depuis Pennylane">🟢 Sync Pennylane</button>
@@ -7617,6 +7618,98 @@ function renderFacturesOrphelines(){
     </div>`;
 }
 
+// ── Vérificateur de cohérence Drive ─────────────────────────────────────────
+// Pour chaque facture ayant un driveLink, va vérifier sur Drive que le fichier existe
+// toujours (pas dans la corbeille) ET que son NOM correspond bien au numéro de CETTE
+// facture — détecte les liens croisés/corrompus (ex: la facture X pointe en fait vers
+// le fichier de la facture Y, suite à un ancien bug de numérotation/synchro).
+// Appel réseau par facture liée : lancé à la demande, jamais automatiquement.
+async function verifierCoherenceDrive(){
+  await ensureDriveConnected();
+  if(!driveAccessToken){alert('Connecte d\'abord Google Drive.');return;}
+  const btn1=document.getElementById('btn-check-drive');
+  const btn2=document.getElementById('btn-check-drive-2');
+  [btn1,btn2].forEach(b=>{if(b){b.disabled=true;b.dataset.orig=b.innerHTML;b.innerHTML='⏳ Vérification...';}});
+  const el=document.getElementById('drive-coherence-contenu');
+  if(el)el.innerHTML='<div style="font-size:12px;color:var(--text3)">⏳ Vérification en cours, ça peut prendre une minute selon le nombre de factures liées...</div>';
+
+  const{factures}=loadData();
+  const liees=factures.map((f,i)=>({...f,_ri:i})).filter(f=>f.driveLink);
+  const anomalies=[];
+  let verifiees=0;
+
+  for(const f of liees){
+    const match=(f.driveLink||'').match(/\/d\/([a-zA-Z0-9_-]+)/)||(f.driveLink||'').match(/id=([a-zA-Z0-9_-]+)/);
+    if(!match){anomalies.push({f,type:'lien_invalide',detail:'Le lien enregistré n\'a pas un format Drive reconnu.'});continue;}
+    const fileId=match[1];
+    try{
+      const resp=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?fields=name,trashed',{
+        headers:{'Authorization':'Bearer '+driveAccessToken}
+      });
+      if(resp.status===404){
+        anomalies.push({f,type:'introuvable',detail:'Le fichier n\'existe plus sur Drive (supprimé définitivement ou jamais existé).'});
+        continue;
+      }
+      const data=await resp.json();
+      if(data.trashed){
+        anomalies.push({f,type:'corbeille',detail:'Le fichier est dans la corbeille Drive : "'+(data.name||'?')+'"',driveFileName:data.name});
+        continue;
+      }
+      const numAttendu=(f.num||'').trim().toUpperCase();
+      const nomFichier=(data.name||'').toUpperCase();
+      if(numAttendu && !nomFichier.startsWith(numAttendu)){
+        anomalies.push({f,type:'mismatch',detail:'Le lien pointe vers un fichier d\'une AUTRE facture : "'+(data.name||'?')+'"',driveFileName:data.name});
+      }
+    }catch(e){
+      anomalies.push({f,type:'erreur',detail:'Erreur réseau pendant la vérification : '+e.message});
+    }
+    verifiees++;
+    if(el)el.innerHTML='<div style="font-size:12px;color:var(--text3)">⏳ '+verifiees+'/'+liees.length+' factures vérifiées...</div>';
+  }
+
+  [btn1,btn2].forEach(b=>{if(b){b.disabled=false;b.innerHTML=b.dataset.orig||'🔍 Vérifier cohérence Drive';}});
+
+  if(!el)return;
+  if(!liees.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--text3)">Aucune facture n\'a de lien Drive à vérifier pour l\'instant.</div>';
+    return;
+  }
+  if(!anomalies.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--green)">✅ '+liees.length+' facture(s) liée(s) vérifiée(s) — tous les liens Drive sont corrects.</div>';
+    return;
+  }
+  const labels={mismatch:'⚠ Lien croisé',corbeille:'🗑 Dans la corbeille',introuvable:'❌ Fichier introuvable',lien_invalide:'❌ Lien invalide',erreur:'⚠ Erreur de vérification'};
+  el.innerHTML=`
+    <div style="font-size:12px;color:var(--red);margin-bottom:10px">⚠ ${anomalies.length} problème(s) détecté(s) sur ${liees.length} facture(s) vérifiée(s) :</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${anomalies.map(a=>`
+        <div style="padding:10px 12px;background:rgba(224,113,107,.06);border:1px solid rgba(224,113,107,.25);border-radius:8px;font-size:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <div><span style="color:var(--accent);font-weight:500">${a.f.num||'—'}</span> · ${a.f.four||'—'} · ${a.f.date||'—'} · ${fmt(a.f.ttc)} <span style="color:var(--red);font-weight:600;margin-left:6px">${labels[a.type]||a.type}</span></div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              <a href="${a.f.driveLink}" target="_blank" class="btn btn-sm" style="text-decoration:none;font-size:10px;padding:4px 9px">👁 Voir le lien actuel</a>
+              <button class="btn btn-sm" onclick="delierFactureDrive(${a.f._ri})" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.35);color:var(--red);font-size:10px;padding:4px 9px">🔓 Délier</button>
+            </div>
+          </div>
+          <div style="color:var(--text3);margin-top:4px">${a.detail}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:12px">"Délier" retire uniquement le lien Drive incorrect (aucune facture n'est supprimée) — la facture réapparaîtra ensuite dans "Factures sans PDF ni lien Drive" ci-dessous, où tu pourras rattacher le bon fichier via "🔗 Lier Drive" si tu le retrouves.</div>
+  `;
+}
+
+// Retire uniquement le lien Drive d'une facture (ex: après détection d'un lien croisé/corrompu
+// par verifierCoherenceDrive) — ne touche à aucune autre donnée de la facture.
+async function delierFactureDrive(idx){
+  if(!confirm('Retirer le lien Drive de cette facture ?\n\nLa facture elle-même n\'est pas supprimée — seul le lien vers le (mauvais) fichier Drive est retiré. Tu pourras en rattacher un correct ensuite via "🔗 Lier Drive".')) return;
+  await queueFacturesUpdate((factures)=>{
+    if(factures[idx]) factures[idx].driveLink=null;
+  });
+  verifierCoherenceDrive();
+  renderFacturesOrphelines();
+}
+
 // Équivalent devis de renderFacturesOrphelines().
 function renderDevisOrphelins(){
   const devis=loadDevis();
@@ -7799,6 +7892,16 @@ function renderParametres(){
         </div>
       </div>
       <div style="font-size:10px;color:var(--text3);margin-top:12px;font-style:italic">Formats acceptés : PNG, JPG. Compression et redimensionnement automatiques — importe l'image telle quelle, on s'occupe du reste.</div>
+    </div>
+
+    <!-- Vérificateur de cohérence Drive (liens croisés/corrompus entre factures) -->
+    <div class="table-wrap" style="padding:24px;margin-bottom:24px" id="panel-drive-coherence">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px;flex-wrap:wrap">
+        <div style="font-size:14px;font-weight:700;color:var(--text)">🔍 Cohérence des liens Drive</div>
+        <button class="btn btn-sm" onclick="verifierCoherenceDrive()" id="btn-check-drive-2" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.35);color:var(--purple);flex-shrink:0">Lancer la vérification</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Vérifie que chaque facture ayant un lien Drive pointe bien vers SON PROPRE fichier (et pas celui d'une autre facture, ou un fichier supprimé). Pas automatique — ça fait un appel réseau par facture liée, lance-la quand tu veux.</div>
+      <div id="drive-coherence-contenu"><div style="font-size:12px;color:var(--text3)">Pas encore vérifié dans cette session.</div></div>
     </div>
 
     <!-- Détecteur de factures orphelines (sans PDF ni lien Drive) -->
