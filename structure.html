@@ -1809,15 +1809,27 @@ const CATEGORIES=[
   {name:"Étude de sol",color:"#38bdf8",type:"travaux"},
   {name:"Assurance dommage-ouvrage",color:"#0ea5e9",type:"travaux"},
   {name:"Raccordements",color:"#68d391",type:"travaux"},
+  {name:"Raccordement électricité (ENEDIS)",color:"#48bb78",type:"travaux"},
+  {name:"Raccordement eau potable",color:"#38a169",type:"travaux"},
+  {name:"Raccordement assainissement / tout-à-l'égout",color:"#2f855a",type:"travaux"},
+  {name:"Raccordement gaz",color:"#276749",type:"travaux"},
+  {name:"Raccordement télécom / fibre",color:"#22543d",type:"travaux"},
   {name:"Gros Œuvre / Maçonnerie",color:"#f6ad55",type:"travaux"},
+  {name:"Fondations",color:"#dd6b20",type:"travaux"},
+  {name:"Dallage / Chape",color:"#c05621",type:"travaux"},
+  {name:"Planchers",color:"#9c4221",type:"travaux"},
   {name:"Charpente / Couverture / Zinguerie",color:"#b794f4",type:"travaux"},
   {name:"Enduit / Façade",color:"#fc8181",type:"travaux"},
   {name:"Isolation",color:"#fca5a5",type:"travaux"},
   {name:"Menuiseries extérieures",color:"#4fd1c5",type:"travaux"},
+  {name:"Menuiseries intérieures",color:"#38b2ac",type:"travaux"},
+  {name:"Serrurerie / Métallerie",color:"#2c7a7b",type:"travaux"},
   {name:"Aménagement intérieur",color:"#f687b3",type:"travaux"},
   {name:"Peinture / Revêtements sols et murs",color:"#f9a8d4",type:"travaux"},
   {name:"Cuisine équipée",color:"#fbcfe8",type:"travaux"},
+  {name:"Électricité — Installation intérieure",color:"#facc15",type:"travaux"},
   {name:"Domotique / Électroménager",color:"#e9d5ff",type:"travaux"},
+  {name:"Panneaux photovoltaïques / Énergie renouvelable",color:"#eab308",type:"travaux"},
   {name:"Sanitaire — Plomberie",color:"#38bdf8",type:"travaux"},
   {name:"Sanitaire — Salle de bain",color:"#818cf8",type:"travaux"},
   {name:"Sanitaire — WC",color:"#34d399",type:"travaux"},
@@ -1856,6 +1868,41 @@ const CATEGORIES=[
   {name:"Distribution de dividendes / résultat (SCI-IS)",color:"#94a3b8",type:"hors_rentabilite"},
 ];
 const CAT_TRAVAUX=CATEGORIES.filter(c=>c.type==='travaux').map(c=>c.name);
+// Sous-catégories ("postes") suggérées par défaut pour chaque catégorie de travaux — apparaissent
+// dans le sélecteur même avant toute saisie dans le Budget prévisionnel. Fusionnées avec les lignes
+// déjà saisies par l'utilisateur (populatePosteSelect) : jamais remplacées, jamais perdues.
+const POSTES_SUGGERES={
+  "Administratif / Honoraires":["Maîtrise d'œuvre","Architecte","Bureau d'études structure","Bureau de contrôle (Consuel, Qualibat...)","Coordination SPS","Géomètre","Permis de construire / taxes d'urbanisme"],
+  "Étude de sol":["Étude G1 (préalable)","Étude G2 (conception)"],
+  "Raccordements":["Raccordement électricité (ENEDIS)","Raccordement eau potable","Raccordement assainissement","Raccordement gaz","Raccordement télécom / fibre"],
+  "Gros Œuvre / Maçonnerie":["Fondations","Dallage / Chape","Élévation des murs","Planchers","Murs de soutènement"],
+  "Fondations":["Semelles filantes","Radier","Plots / pieux"],
+  "Dallage / Chape":["Dallage béton","Chape traditionnelle","Chape fluide anhydrite"],
+  "Planchers":["Plancher béton","Plancher bois","Plancher poutrelles-hourdis"],
+  "Charpente / Couverture / Zinguerie":["Charpente traditionnelle","Charpente industrielle (fermettes)","Couverture tuiles","Couverture ardoises","Couverture bac acier","Zinguerie / Gouttières","Isolation combles"],
+  "Enduit / Façade":["Enduit monocouche","Enduit à la chaux","Bardage bois","Bardage composite","Peinture de façade"],
+  "Isolation":["Isolation combles","Isolation murs extérieurs (ITE)","Isolation murs intérieurs (ITI)","Isolation sol / dalle","Pare-vapeur"],
+  "Menuiseries extérieures":["Fenêtres PVC","Fenêtres alu","Fenêtres bois","Porte d'entrée","Portail","Volets roulants","Volets battants"],
+  "Menuiseries intérieures":["Portes intérieures","Escalier","Placards / Dressing","Plinthes"],
+  "Serrurerie / Métallerie":["Garde-corps","Portail motorisé","Structures métalliques","Serrurerie diverse"],
+  "Aménagement intérieur":["Cloisons","Faux-plafonds","Isolation phonique","Placards intégrés"],
+  "Peinture / Revêtements sols et murs":["Peinture murs/plafonds","Carrelage","Parquet","Sol souple / PVC","Faïence"],
+  "Cuisine équipée":["Meubles de cuisine","Plan de travail","Crédence","Électroménager cuisine"],
+  "Électricité — Installation intérieure":["Tableau électrique","Câblage / Prises","Éclairage","Interphone / Visiophone","Alarme"],
+  "Domotique / Électroménager":["Système domotique","Volets connectés","Chauffage connecté","Électroménager"],
+  "Panneaux photovoltaïques / Énergie renouvelable":["Panneaux solaires","Onduleur","Pompe à chaleur","Chauffe-eau thermodynamique","Chauffe-eau solaire"],
+  "Sanitaire — Plomberie":["Alimentation eau","Évacuations","Robinetterie"],
+  "Sanitaire — Salle de bain":["Douche / Baignoire","Meuble vasque","Miroir / Éclairage SdB"],
+  "Sanitaire — WC":["WC suspendu","WC au sol","Broyeur"],
+  "Sanitaire — Chauffage":["Chaudière","Radiateurs","Plancher chauffant","Poêle à bois/granulés"],
+  "Sanitaire — VMC / Ventilation":["VMC simple flux","VMC double flux","Grilles de ventilation"],
+  "Aménagement extérieur — Terrassement":["Terrassement général","Nivellement","Évacuation des terres"],
+  "Aménagement extérieur — Clôtures / Portails":["Clôture grillagée","Clôture pleine","Portail piéton","Portail véhicule"],
+  "Aménagement extérieur — Voirie / Allées":["Enrobé","Pavés / Dallage extérieur","Gravier stabilisé"],
+  "Aménagement extérieur — Réseaux enterrés":["Tranchées","Fourreaux","Regards"],
+  "Aménagement extérieur — Espaces verts":["Engazonnement","Plantations","Arrosage automatique"],
+};
+
 const CAT_FONCTIONNEMENT=CATEGORIES.filter(c=>c.type==='fonctionnement').map(c=>c.name);
 const CAT_HORS_RENTABILITE=CATEGORIES.filter(c=>c.type==='hors_rentabilite').map(c=>c.name);
 // Catégories dédiées aux dépenses de la structure "Micro-entreprise" (toutes classées 'fonctionnement'
@@ -2259,8 +2306,16 @@ function populatePosteSelect(catSelId,posteSelId,keepValue){
   if(!catSel||!posteSel)return;
   const catName=catSel.value;
   const val=keepValue!==undefined?keepValue:posteSel.value;
-  const rows=((loadData().budget||{})[catName]||[]).map(r=>(r.desc||'').trim()).filter(Boolean);
-  const uniques=[...new Set(rows)];
+  const saisis=((loadData().budget||{})[catName]||[]).map(r=>(r.desc||'').trim()).filter(Boolean);
+  const suggeres=POSTES_SUGGERES[catName]||[];
+  // Fusion sans doublon (comparaison insensible à la casse) — les lignes déjà saisies par
+  // l'utilisateur passent en premier (plus pertinentes pour lui), les suggestions comblent le reste.
+  const vues=new Set();
+  const uniques=[];
+  [...saisis,...suggeres].forEach(p=>{
+    const k=p.toLowerCase();
+    if(!vues.has(k)){vues.add(k);uniques.push(p);}
+  });
   posteSel.innerHTML='<option value="">— Ligne générale (toute la catégorie) —</option>'+uniques.map(p=>`<option value="${p.replace(/"/g,'&quot;')}">${p}</option>`).join('');
   if(uniques.includes(val))posteSel.value=val;
 }
@@ -4792,7 +4847,7 @@ async function exporterSelectionBanque(){
       const isImage=b64.startsWith('data:image');
       const images=isImage?[f.pagesRetouchees?b64:await imageToPortrait(b64)]:await pdfToImages(b64);
       if(images.length>0){
-        const firstPage='<img src="'+images[0]+'" style="width:100%;max-height:calc(100vh - 140px);object-fit:contain;display:block;border:1px solid #e2e8f0;border-radius:6px">';
+        const firstPage='<img src="'+images[0]+'" style="width:100%;max-height:250mm;object-fit:contain;display:block;border:1px solid #e2e8f0;border-radius:6px">';
         const restPages=images.slice(1).map(img=>
           '<div style="page-break-before:always"><img src="'+img+'" style="width:100%;display:block;border:1px solid #e2e8f0;border-radius:6px"></div>'
         ).join('');
@@ -6469,7 +6524,7 @@ async function exportZipFactures(){
         const cmdInfo=f.cmd?` — N° commande : <span style="color:#2c5282;font-weight:700">${f.cmd}</span>`:'';
         const datepayInfo=f.datepay?` — Payée le : <span style="color:#2c5282;font-weight:700">${f.datepay}</span>`:'';
         const labelHtml='<div style="font-family:Arial;font-size:12px;font-weight:700;color:#2b6cb0;padding:6px 0 5px;border-bottom:2px solid #2b6cb0;margin-bottom:8px">'+nom+' — <span style="color:'+sc+'">'+f.statut+'</span> — '+montant+reglePar+cmdInfo+datepayInfo+'</div>';
-        const firstPage='<img src="'+images[0]+'" style="width:100%;max-height:calc(100vh - 80px);object-fit:contain;display:block">';
+        const firstPage='<img src="'+images[0]+'" style="width:100%;max-height:250mm;object-fit:contain;display:block">';
         const restPages=images.slice(1).map(img=>
           '<div style="page-break-before:always"><img src="'+img+'" style="width:100%;display:block"></div>'
         ).join('');
