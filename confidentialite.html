@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Conditions générales d'utilisation et de vente — Novimmo</title>
+<title>Politique de confidentialité — Novimmo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -31,6 +31,9 @@ p,li{color:var(--text2);margin-bottom:12px}
 ul,ol{padding-left:22px;margin-bottom:16px}
 strong{color:var(--text);font-weight:600}
 a{color:var(--accent)}
+table{width:100%;border-collapse:collapse;margin:16px 0 24px;font-size:13.5px}
+th{text-align:left;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);padding:8px 10px;border-bottom:1px solid var(--border2)}
+td{padding:10px;border-bottom:1px solid var(--border);color:var(--text2)}
 em{color:var(--text3);font-style:italic}
 .doc-footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:11px;color:var(--text3)}
 </style>
@@ -41,84 +44,175 @@ em{color:var(--text3);font-style:italic}
   <a href="index.html">← Retour à l'accueil</a>
 </nav>
 <div class="wrap">
-<div class="doc-title">Conditions générales d'utilisation et de vente — Novimmo</div><span class="doc-updated">Dernière mise à jour : [à compléter à la publication]</span>
-
-<h2>Article 1 — Objet</h2>
-<p>Les présentes conditions générales d'utilisation et de vente (« CGU/CGV ») ont pour objet de définir les modalités et conditions dans lesquelles Valentin Barreteau, entrepreneur individuel (ci-après « Novimmo » ou « l'Éditeur »), met à disposition des utilisateurs (ci-après « l'Utilisateur » ou « le Client ») son application de gestion locative et de suivi de projets immobiliers, accessible via navigateur web et application mobile (ci-après « le Service »).</p>
-<p>Toute inscription ou utilisation du Service implique l'acceptation sans réserve des présentes CGU/CGV par l'Utilisateur.</p>
-
-<h2>Article 2 — Description du Service</h2>
-<p>Novimmo est un outil en ligne permettant notamment :</p>
+<div class="doc-title">Politique de confidentialité — Novimmo</div><span class="doc-updated">Dernière mise à jour : [à compléter à la publication]</span>
+<p>La présente politique de confidentialité décrit comment Novimmo, édité par Valentin Barreteau, entrepreneur individuel (21 chemin du Vieux Renard, 85300 Challans — contact : contact@novimmo.immo), collecte, utilise et protège les données personnelles des utilisateurs du Service, conformément au Règlement général sur la protection des données (RGPD) et à la loi Informatique et Libertés.</p>
+<h2>1. Qui est responsable du traitement ?</h2>
+<p>Pour les données relatives à <strong>votre propre compte</strong> (identité, email, données d'abonnement, contenu que vous saisissez pour votre propre usage), Novimmo agit en qualité de <strong>responsable du traitement</strong>.</p>
+<p>Pour les données relatives à des <strong>tiers que vous renseignez</strong> dans l'application (locataires, colocataires, associés), c'est <strong>vous</strong> qui êtes responsable du traitement, et Novimmo agit en qualité de <strong>sous-traitant</strong>, sur vos instructions, pour les seuls besoins techniques de fourniture du Service.</p>
+<h2>2. Quelles données sont collectées ?</h2>
+<h3>2.1 Données de compte</h3>
+<p>Nom, adresse email, mot de passe (chiffré) ou identifiant Google (si connexion via Google Sign-In).</p>
+<h3>2.2 Données de facturation et d'abonnement</h3>
+<p>Historique d'abonnement, formule souscrite. Les données bancaires elles-mêmes ne sont ni collectées ni conservées par Novimmo : elles sont traitées directement par Stripe (voir section 5).</p>
+<h3>2.3 Données que vous saisissez dans le Service</h3>
+<p>Selon votre usage : informations sur vos structures et biens immobiliers, factures et devis (y compris les pièces jointes PDF/images), données de locataires (nom, coordonnées, montants de loyers, historique de paiement), données comptables et financières relatives à vos biens.</p>
+<h3>2.4 Données techniques</h3>
+<p>Journaux de connexion, informations de session, données de diagnostic technique en cas d'erreur (via l'outil de surveillance Sentry), à des fins de sécurité et d'amélioration du Service.</p>
+<h2>3. Pour quelles finalités ?</h2>
+<p>Vos données sont traitées pour :</p>
 <ul>
-<li>le suivi budgétaire et comptable de projets de construction ou de rénovation immobilière ;</li>
-<li>la gestion locative (locataires, quittances, baux, révisions IRL) ;</li>
-<li>la gestion de factures et devis, avec lecture automatique assistée par intelligence artificielle ;</li>
-<li>le suivi de rentabilité locative et de patrimoine ;</li>
-<li>la synchronisation optionnelle avec Google Drive et d'autres services tiers connectés par l'Utilisateur.</li>
+<li>fournir et faire fonctionner le Service (création de compte, sauvegarde de vos données, génération de documents) ;</li>
+<li>gérer votre abonnement et la facturation associée ;</li>
+<li>assurer la sécurité du Service et prévenir la fraude ;</li>
+<li>vous contacter en cas de nécessité (support, information sur le Service) ;</li>
+<li>améliorer le Service, notamment en identifiant et corrigeant les anomalies techniques.</li>
 </ul>
-<p>Le Service est destiné aux particuliers et professionnels gérant un patrimoine immobilier (SCI, LMNP, propriétaires en nom propre) et n'est pas réservé aux professionnels de l'immobilier réglementés.</p>
-
-<h2>Article 3 — Accès au Service et création de compte</h2>
-<p>L'accès au Service nécessite la création d'un compte utilisateur, via une adresse email et un mot de passe ou via un compte Google (authentification tierce). L'Utilisateur s'engage à fournir des informations exactes et à maintenir la confidentialité de ses identifiants.</p>
-<p>L'Utilisateur est seul responsable de l'usage fait de son compte. Toute action réalisée depuis son compte est présumée avoir été effectuée par lui ou par une personne qu'il a autorisée.</p>
-
-<h2>Article 4 — Offres, tarifs et abonnement</h2>
-<h3>4.1 Formules</h3>
-<p>Le Service est proposé sous forme d'abonnement, selon plusieurs formules dont le détail (fonctionnalités incluses, tarifs) est présenté sur la page « Tarifs » du site, susceptible d'évoluer. Les tarifs applicables sont ceux en vigueur au moment de la souscription ou du renouvellement.</p>
-<h3>4.2 Essai gratuit</h3>
-<p>Un essai gratuit de 30 jours est proposé aux nouveaux utilisateurs, sans obligation de renseigner de moyen de paiement, sauf mention contraire indiquée au moment de l'inscription. À l'issue de la période d'essai, l'accès aux fonctionnalités payantes est suspendu en l'absence de souscription à une formule payante ; les données déjà saisies restent accessibles en lecture selon les conditions décrites à l'article 8.</p>
-<h3>4.3 Paiement</h3>
-<p>Les paiements sont traités par l'intermédiaire du prestataire Stripe. L'Éditeur ne collecte ni ne conserve aucune donnée bancaire de l'Utilisateur ; celles-ci sont directement gérées par Stripe conformément à sa propre politique de confidentialité et aux standards de sécurité PCI-DSS.</p>
-<p>Les abonnements sont facturés par avance, selon la périodicité choisie (mensuelle ou annuelle). Sauf résiliation avant la date de renouvellement, l'abonnement est reconduit tacitement pour une durée identique.</p>
-<h3>4.4 Résiliation</h3>
-<p>L'Utilisateur peut résilier son abonnement à tout moment depuis son espace de gestion d'abonnement ou en en faisant la demande à l'adresse de contact. La résiliation prend effet à la fin de la période déjà payée ; aucun remboursement au prorata n'est effectué sauf disposition légale contraire.</p>
-
-<h2>Article 4bis — Droit de rétractation (consommateurs)</h2>
-<p>Conformément à l'article L221-18 du Code de la consommation, l'Utilisateur agissant en qualité de consommateur (personne physique n'agissant pas dans le cadre de son activité professionnelle) dispose d'un délai de 14 jours à compter de la souscription pour exercer son droit de rétractation, sans avoir à justifier de motif.</p>
-<p>Conformément à l'article L221-28 du Code de la consommation, l'Utilisateur qui demande expressément à bénéficier du Service dès la souscription (accès immédiat aux fonctionnalités) reconnaît que son droit de rétractation ne pourra plus être exercé une fois l'exécution du Service commencée avec son accord exprès. Cette information est rappelée au moment de la souscription.</p>
-<p>Pour exercer ce droit avant tout commencement d'exécution du Service, l'Utilisateur peut adresser sa demande à l'adresse de contact indiquée à l'article 12.</p>
-
-<h2>Article 5 — Obligations de l'Utilisateur</h2>
-<p>L'Utilisateur s'engage à :</p>
+<p>Novimmo <strong>ne revend ni ne partage vos données à des fins publicitaires ou commerciales avec des tiers</strong>, en dehors des sous-traitants strictement nécessaires au fonctionnement du Service, listés ci-dessous.</p>
+<h2>4. Sur quelle base légale ?</h2>
 <ul>
-<li>utiliser le Service conformément à sa destination et à la réglementation en vigueur ;</li>
-<li>ne pas tenter de porter atteinte à la sécurité ou au bon fonctionnement du Service ;</li>
-<li>ne saisir dans le Service que des données qu'il est légalement autorisé à traiter, notamment s'agissant des données personnelles de tiers (locataires, colocataires, associés) qu'il y renseigne — voir article 7 ;</li>
-<li>vérifier l'exactitude des données saisies et des documents générés avant toute utilisation à valeur contractuelle, comptable ou fiscale.</li>
+<li><strong>Exécution du contrat</strong> : fourniture du Service auquel vous avez souscrit (CGU/CGV) ;</li>
+<li><strong>Intérêt légitime</strong> : sécurité du Service, prévention de la fraude, amélioration technique ;</li>
+<li><strong>Consentement</strong> : le cas échéant, pour les connexions optionnelles à des services tiers (Google Drive, Gmail, API Gemini, Pennylane), que vous activez et révoquez librement.</li>
 </ul>
-
-<h2>Article 6 — Fonctionnalités reposant sur des services tiers</h2>
-<p>Certaines fonctionnalités du Service reposent sur des services tiers auxquels l'Utilisateur choisit librement de se connecter avec son propre compte, notamment :</p>
+<h2>5. Qui a accès à vos données ? (sous-traitants et hébergeurs)</h2>
+<p>Vos données sont hébergées et traitées par les prestataires suivants, dans le cadre strict de la fourniture du Service :</p>
+<table>
+<thead>
+<tr>
+<th>Prestataire</th>
+<th>Rôle</th>
+<th>Localisation des données</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Google Firebase (Google Ireland Ltd.)</td>
+<td>Hébergement de la base de données et de l'authentification</td>
+<td>Union européenne</td>
+</tr>
+<tr>
+<td>GitHub Pages (GitHub, Inc. / Microsoft)</td>
+<td>Hébergement du site et de l'application (code, pas de données personnelles)</td>
+<td>États-Unis (clauses contractuelles types)</td>
+</tr>
+<tr>
+<td>Stripe Payments Europe, Ltd.</td>
+<td>Traitement des paiements d'abonnement</td>
+<td>Union européenne</td>
+</tr>
+<tr>
+<td>Sentry (Functional Software, Inc.)</td>
+<td>Journalisation des erreurs techniques (diagnostic, sans donnée financière)</td>
+<td>États-Unis (clauses contractuelles types)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Services connectés à votre initiative</strong>, activés et révocables à tout moment depuis l'application :</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Ce qui y transite</th>
+<th>Qui en garde le contrôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Google Drive</td>
+<td>Copie de vos pièces justificatives (factures, devis) si vous choisissez de synchroniser</td>
+<td>Votre propre compte Google</td>
+</tr>
+<tr>
+<td>Gmail</td>
+<td>Envoi de quittances et courriers depuis votre messagerie</td>
+<td>Votre propre compte Google</td>
+</tr>
+<tr>
+<td>API Gemini (Google AI)</td>
+<td>Contenu des documents soumis à la lecture automatique, transmis avec votre propre clé d'accès API</td>
+<td>Votre propre compte Google AI Studio</td>
+</tr>
+<tr>
+<td>Pennylane (le cas échéant)</td>
+<td>Synchronisation de vos factures fournisseurs</td>
+<td>Votre propre compte Pennylane</td>
+</tr>
+</tbody>
+</table>
+<p>Ces services tiers sont soumis à leurs propres politiques de confidentialité, que nous vous invitons à consulter.</p>
+<p>Nous ne transférons vos données hors de l'Union européenne que vers des prestataires ayant mis en place des garanties appropriées (clauses contractuelles types de la Commission européenne, ou certification équivalente).</p>
+<h2>6. Combien de temps vos données sont-elles conservées ?</h2>
+<table>
+<thead>
+<tr>
+<th>Type de donnée</th>
+<th>Durée de conservation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Compte actif (profil, structures, données saisies)</td>
+<td>Toute la durée de votre abonnement</td>
+</tr>
+<tr>
+<td>Compte supprimé — données personnelles (nom, email, documents importés)</td>
+<td>30 jours après la demande, puis suppression définitive</td>
+</tr>
+<tr>
+<td>Factures et pièces comptables</td>
+<td>10 ans (obligation légale — article L.123-22 du Code de commerce)</td>
+</tr>
+<tr>
+<td>Historique de paiement d'abonnement</td>
+<td>10 ans (obligation comptable), données bancaires elles-mêmes gérées uniquement par Stripe</td>
+</tr>
+<tr>
+<td>Journaux techniques et de connexion</td>
+<td>12 mois maximum</td>
+</tr>
+<tr>
+<td>Messages de support / retours utilisateur</td>
+<td>3 ans après la dernière interaction</td>
+</tr>
+</tbody>
+</table>
+<p>Passé le délai légal de conservation, les données restantes (factures, historique de paiement) sont anonymisées plutôt que supprimées, lorsque leur conservation reste requise à des fins comptables.</p>
+<h2>7. Suppression de votre compte</h2>
+<p>Vous pouvez demander la suppression définitive de votre compte et des données associées à tout moment.</p>
+<p><strong>Comment faire :</strong></p>
+<ol>
+<li>Envoyez un email à <strong>contact@novimmo.immo</strong> depuis l'adresse associée à votre compte, avec pour objet « Suppression de mon compte Novimmo ».</li>
+<li>Précisez le nom de la ou des structures concernées par la demande.</li>
+<li>Vous recevez une confirmation sous 72 heures ouvrées.</li>
+<li>Votre compte et vos données personnelles sont supprimés sous 30 jours.</li>
+</ol>
+<p><strong>Ce qui est supprimé :</strong> votre profil, vos identifiants, les documents importés, vos préférences.</p>
+<p><strong>Ce qui est conservé malgré la suppression</strong> (obligation légale, voir tableau ci-dessus) : les pièces comptables et l'historique de facturation, conservés 10 ans puis anonymisés — votre nom est alors remplacé par un identifiant technique.</p>
+<p><strong>Conséquences :</strong> votre abonnement Stripe est automatiquement résilié (aucun prélèvement futur), et l'accès à l'application est immédiatement coupé. Pensez à télécharger vos documents importants (quittances, exports comptables) avant votre demande de suppression.</p>
+<p>Vous pouvez également demander la suppression d'une donnée spécifique (par exemple une fiche locataire ou un document) sans supprimer l'ensemble de votre compte, directement depuis l'application ou par email à l'adresse ci-dessus.</p>
+<h2>8. Vos droits</h2>
+<p>Conformément au RGPD, vous disposez des droits suivants sur vos données personnelles :</p>
 <ul>
-<li><strong>Google Drive</strong> : sauvegarde optionnelle des pièces justificatives (factures, devis) sur l'espace de stockage personnel de l'Utilisateur ;</li>
-<li><strong>Gmail</strong> : envoi de quittances et de courriers depuis la messagerie de l'Utilisateur ;</li>
-<li><strong>API Gemini (Google)</strong> : lecture automatique de factures et devis par intelligence artificielle, à l'aide d'une clé d'accès personnelle fournie par l'Utilisateur ;</li>
-<li><strong>Pennylane</strong> (le cas échéant) : synchronisation de factures fournisseurs.</li>
+<li><strong>droit d'accès</strong> : obtenir une copie des données vous concernant ;</li>
+<li><strong>droit de rectification</strong> : corriger des données inexactes ;</li>
+<li><strong>droit à l'effacement</strong> : demander la suppression de vos données, sous réserve des obligations légales de conservation (voir section 7) ;</li>
+<li><strong>droit à la portabilité</strong> : recevoir vos données dans un format structuré et couramment utilisé ;</li>
+<li><strong>droit d'opposition et de limitation</strong> du traitement, dans les cas prévus par la réglementation ;</li>
+<li><strong>droit de définir des directives relatives au sort de vos données après votre décès</strong>.</li>
 </ul>
-<p>L'Éditeur n'est pas responsable de la disponibilité, du fonctionnement ou des conditions d'utilisation de ces services tiers, qui demeurent régis par leurs propres conditions générales. L'Utilisateur reste seul titulaire des comptes tiers qu'il connecte et responsable des autorisations qu'il accorde.</p>
-
-<h2>Article 7 — Données relatives aux tiers (locataires, associés)</h2>
-<p>Dans le cadre de l'utilisation du Service, l'Utilisateur peut être amené à saisir des données personnelles concernant des tiers (locataires, colocataires, associés, prestataires). L'Utilisateur agit alors en qualité de responsable du traitement de ces données au sens du Règlement général sur la protection des données (RGPD), et l'Éditeur intervient en qualité de sous-traitant au sens de ce même règlement.</p>
-<p>Il appartient à l'Utilisateur de s'assurer qu'il dispose d'une base légale pour traiter ces données (notamment l'exécution du contrat de bail) et d'informer les personnes concernées conformément à ses propres obligations RGPD. Le détail des engagements de l'Éditeur en tant que sous-traitant figure dans la <a href="confidentialite.html">Politique de confidentialité</a>.</p>
-
-<h2>Article 8 — Disponibilité, sauvegarde et perte de données</h2>
-<p>L'Éditeur s'efforce d'assurer la disponibilité du Service mais ne garantit pas un accès ininterrompu, notamment en cas de maintenance, de panne ou de dysfonctionnement d'un service tiers dont dépend le Service (Google Firebase, GitHub Pages, Stripe).</p>
-<p><strong>Important — Stockage des pièces jointes.</strong> Sauf connexion active de l'Utilisateur à son propre compte Google Drive, certains fichiers (notamment les PDF de factures et devis) peuvent n'être conservés que localement sur l'appareil utilisé au moment de leur import, et ne sont alors pas synchronisés entre appareils ni sauvegardés par l'Éditeur. Il est vivement recommandé à l'Utilisateur de connecter un compte Google Drive pour sécuriser la conservation de ses pièces justificatives. L'Éditeur ne pourra être tenu responsable de la perte de fichiers non synchronisés sur un espace de stockage externe.</p>
-<p>En cas de résiliation ou de suspension du compte, l'Éditeur conserve les données de l'Utilisateur pendant une durée raisonnable permettant leur récupération, avant suppression définitive, selon les modalités précisées dans la <a href="confidentialite.html">Politique de confidentialité</a>.</p>
-
-<h2>Article 9 — Limitation de responsabilité</h2>
-<p>Le Service est fourni « en l'état ». L'Éditeur ne garantit pas que le Service soit exempt d'anomalies ou d'erreurs. Les documents générés par le Service (quittances, baux, exports comptables, calculs de rentabilité) sont fournis à titre indicatif et ne dispensent pas l'Utilisateur de faire valider, le cas échéant, ses documents et déclarations par un professionnel compétent (comptable, avocat, notaire).</p>
-<p>Dans la limite de ce qui est permis par la loi applicable, la responsabilité de l'Éditeur ne saurait être engagée qu'au titre des dommages directs et prévisibles causés par une faute prouvée de l'Éditeur, et ne pourra excéder le montant des sommes versées par l'Utilisateur au titre de son abonnement au cours des douze derniers mois.</p>
-
-<h2>Article 10 — Modification des CGU/CGV</h2>
-<p>L'Éditeur se réserve le droit de modifier les présentes CGU/CGV à tout moment. Les Utilisateurs seront informés de toute modification substantielle par tout moyen approprié (notification dans l'application, email). La poursuite de l'utilisation du Service après notification vaut acceptation des nouvelles conditions.</p>
-
-<h2>Article 11 — Droit applicable et litiges</h2>
-<p>Les présentes CGU/CGV sont soumises au droit français. En cas de litige, l'Utilisateur consommateur est informé qu'il peut recourir à une médiation de la consommation dans les conditions prévues par le Code de la consommation, avant toute action judiciaire. À défaut d'accord amiable, les tribunaux français seront seuls compétents, sous réserve des règles impératives de protection des consommateurs.</p>
-
-<h2>Article 12 — Contact</h2>
-<p>Pour toute question relative aux présentes CGU/CGV : <strong>novimmo.contact@gmail.com</strong></p>
-
+<p>Pour exercer ces droits, contactez-nous à <strong>contact@novimmo.immo</strong>. Nous nous engageons à répondre dans un délai d'un mois.</p>
+<p>Vous disposez également du droit d'introduire une réclamation auprès de la Commission nationale de l'informatique et des libertés (CNIL) — <a href="https://www.cnil.fr">www.cnil.fr</a>.</p>
+<h2>9. Sécurité</h2>
+<p>Nous mettons en œuvre des mesures techniques et organisationnelles raisonnables pour protéger vos données contre l'accès non autorisé, la perte ou l'altération, notamment : chiffrement des mots de passe, connexions sécurisées (HTTPS), et règles d'accès restreignant chaque utilisateur à ses propres données au sein de l'infrastructure Firebase.</p>
+<p>Comme indiqué dans les CGU/CGV, certaines pièces jointes peuvent n'être stockées que localement sur votre appareil si vous n'activez pas la synchronisation Google Drive — nous vous recommandons cette synchronisation pour sécuriser vos documents.</p>
+<h2>10. Cookies et traceurs</h2>
+<p>Le Service utilise uniquement des cookies et technologies de stockage local strictement nécessaires à son fonctionnement (maintien de votre session de connexion, préférences d'affichage telles que le thème clair/sombre). Aucun cookie publicitaire ou de traçage à des fins commerciales n'est utilisé.</p>
+<h2>11. Mineurs</h2>
+<p>Le Service n'est pas destiné aux personnes de moins de 18 ans. Nous ne collectons pas sciemment de données concernant des mineurs.</p>
+<h2>12. Modification de la présente politique</h2>
+<p>Cette politique de confidentialité peut être mise à jour pour refléter des évolutions du Service ou de la réglementation. Toute modification substantielle vous sera notifiée par un moyen approprié (notification dans l'application ou par email).</p>
+<h2>13. Contact</h2>
+<p>Pour toute question relative à vos données personnelles : <strong>contact@novimmo.immo</strong></p>
 <div class="doc-footer">NOVIMMO — VALENTIN BARRETEAU, ENTREPRENEUR INDIVIDUEL — 21 CHEMIN DU VIEUX RENARD, 85300 CHALLANS</div>
 </div>
 </body>
