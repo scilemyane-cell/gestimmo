@@ -15674,14 +15674,24 @@ async function syncAllPdfsToDrive(){
             if(!f||f.driveLink)continue; // déjà lié → skip
             if(!f.num||(f.date||'').slice(0,4)!==annee)continue;
             // Fichiers Drive dont le nom commence par le numéro de facture
-            const matches=driveFiles.filter(df=>df.name&&df.name.toUpperCase().startsWith(f.num.toUpperCase()));
+            let matches=driveFiles.filter(df=>df.name&&df.name.toUpperCase().startsWith(f.num.toUpperCase()));
+            if(matches.length>1){
+              // Plusieurs fichiers partagent le même numéro (doublon) : on tente de départager
+              // avec le nom du fournisseur avant de renoncer — un seul des fichiers candidats
+              // doit normalement contenir le fournisseur de CETTE facture dans son nom.
+              const fourSlug=(f.four||'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase();
+              if(fourSlug){
+                const matchesAvecFour=matches.filter(df=>df.name.toUpperCase().includes(fourSlug));
+                if(matchesAvecFour.length>=1)matches=matchesAvecFour;
+              }
+            }
             if(matches.length===1){
               d2.factures[i].driveLink=matches[0].webViewLink;
               linked++;
               changed=true;
             } else if(matches.length>1){
-              // Plusieurs fichiers Drive correspondent au même numéro (doublon probable) :
-              // on ne choisit pas au hasard, on le signale pour que ce soit vérifié à la main.
+              // Toujours ambigu même après départage par fournisseur : on ne choisit pas au hasard,
+              // on le signale pour que ce soit vérifié à la main.
               ambigues.push(f.num+' ('+matches.length+' fichiers correspondants sur Drive)');
             }
           }
