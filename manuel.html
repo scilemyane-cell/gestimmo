@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manuel d'utilisation — Novimmo</title>
+<style>
+  :root{
+    --bg:#0a0e1a; --bg2:#0f1420; --bg3:#151b2b;
+    --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.12);
+    --text:#eef1f6; --text2:#a9b2c3; --text3:#6b7688;
+    --accent:#5AC8D8; --accent2:rgba(90,200,216,.4); --accent3:rgba(90,200,216,.12);
+    --green:#7FBF9E; --orange:#E0A15E; --purple:#B98ED4; --teal:#4fd1c5; --red:#E0716B;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.6}
+  a{color:var(--accent)}
+  .layout{display:flex;min-height:100vh}
+  nav{width:270px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto}
+  nav .brand{font-size:15px;font-weight:800;letter-spacing:.3px;margin-bottom:4px}
+  nav .brand small{display:block;font-size:11px;font-weight:400;color:var(--text3);margin-top:2px}
+  nav .grp{margin-top:22px}
+  nav .grp-title{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);font-weight:700;margin-bottom:8px;padding:0 10px}
+  nav a.tab-link{display:block;padding:7px 10px;border-radius:8px;color:var(--text2);text-decoration:none;font-size:12.5px;margin-bottom:2px}
+  nav a.tab-link:hover{background:rgba(255,255,255,.05);color:var(--text)}
+  main{flex:1;min-width:0;padding:40px 56px 120px;max-width:920px}
+  .intro{background:var(--accent3);border:1px solid var(--accent2);border-radius:14px;padding:20px 24px;margin-bottom:40px;font-size:13px;color:var(--text2)}
+  h1{font-size:26px;margin:0 0 6px}
+  .subtitle{color:var(--text3);font-size:13px;margin-bottom:36px}
+  .group-header{margin:56px 0 22px;padding-bottom:10px;border-bottom:2px solid var(--border2)}
+  .group-header h2{font-size:20px;margin:0}
+  .group-header .badge{display:inline-block;font-size:10px;font-weight:700;color:var(--orange);background:rgba(224,161,94,.1);border:1px solid rgba(224,161,94,.35);padding:2px 9px;border-radius:100px;margin-left:10px;vertical-align:middle}
+  .group-header p{color:var(--text3);font-size:12.5px;margin:6px 0 0}
+  section.tab{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:24px 28px;margin-bottom:22px;scroll-margin-top:20px}
+  section.tab h3{font-size:16px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+  section.tab .path{font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px}
+  section.tab h4{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin:18px 0 8px}
+  section.tab h4:first-of-type{margin-top:16px}
+  section.tab ul{margin:0;padding-left:20px}
+  section.tab li{margin-bottom:6px;font-size:13px;color:var(--text2)}
+  section.tab li b{color:var(--text)}
+  .info{background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.25);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--text2);margin-top:14px}
+  .warn{background:rgba(224,113,107,.08);border:1px solid rgba(224,113,107,.3);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--red);margin-top:14px}
+  .tip{background:rgba(127,191,158,.08);border:1px solid rgba(127,191,158,.3);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--green);margin-top:14px}
+  code{background:var(--bg2);padding:1px 6px;border-radius:4px;font-size:11.5px}
+  footer{color:var(--text3);font-size:11px;margin-top:60px;padding-top:20px;border-top:1px solid var(--border)}
+  @media(max-width:900px){.layout{flex-direction:column}nav{position:relative;width:100%;height:auto}main{padding:28px 20px 80px}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav>
+  <div class="brand">Novimmo<small>Manuel d'utilisation</small></div>
+
+  <div class="grp">
+    <div class="grp-title">🏗️ Construction prévisionnelle</div>
+    <a class="tab-link" href="#synthese">Synthèse</a>
+    <a class="tab-link" href="#logements">Par logement</a>
+    <a class="tab-link" href="#budget">Budget prévisionnel</a>
+    <a class="tab-link" href="#dashboard">Dashboard Prév.</a>
+  </div>
+
+  <div class="grp">
+    <div class="grp-title">🧾 Comptabilité</div>
+    <a class="tab-link" href="#saisir">+ Saisir</a>
+    <a class="tab-link" href="#devis">Devis</a>
+    <a class="tab-link" href="#factures">Factures</a>
+    <a class="tab-link" href="#annuel">Par année</a>
+    <a class="tab-link" href="#charges-recurrentes">Charges récurrentes</a>
+    <a class="tab-link" href="#banque">Banque</a>
+    <a class="tab-link" href="#compte-courant">Compte courant</a>
+  </div>
+
+  <div class="grp">
+    <div class="grp-title">🏠 Locataires</div>
+    <a class="tab-link" href="#fiches-loyers">Fiches & loyers</a>
+    <a class="tab-link" href="#gestion-locative">Gestion locative</a>
+    <a class="tab-link" href="#rentabilite">Rentabilité</a>
+  </div>
+
+  <div class="grp">
+    <div class="grp-title">💰 Financement</div>
+    <a class="tab-link" href="#projection">Projection 20 ans</a>
+    <a class="tab-link" href="#credit-charges">Crédit & charges</a>
+  </div>
+
+  <div class="grp">
+    <div class="grp-title">⚙️ Paramètres</div>
+    <a class="tab-link" href="#parametres">Tous les réglages</a>
+  </div>
+</nav>
+
+<main>
+  <h1>Manuel d'utilisation Novimmo</h1>
+  <div class="subtitle">Un guide pour chaque onglet de l'application, et pour l'écran Paramètres.</div>
+
+  <div class="intro">
+    Novimmo est organisé en <b>4 blocs de fonctionnalités</b> (Construction prévisionnelle, Comptabilité, Locataires, Financement), chacun activable ou désactivable indépendamment selon vos besoins — voir <a href="#parametres">Paramètres → Modules de l'application</a>. Chaque bloc regroupe plusieurs onglets accessibles via le sous-menu qui apparaît quand vous cliquez dessus dans le menu principal.
+  </div>
+
+  <!-- ============ CONSTRUCTION ============ -->
+  <div class="group-header">
+    <h2>🏗️ Construction prévisionnelle<span class="badge">module activable</span></h2>
+    <p>Pour suivre un chantier de construction ou de rénovation : budget prévisionnel, avancement des dépenses, financement par logement.</p>
+  </div>
+
+  <section class="tab" id="synthese">
+    <h3>📊 Synthèse</h3>
+    <div class="path">Construction prévisionnelle → Synthèse</div>
+    <p>La vue d'ensemble du projet : à ouvrir en premier pour un état des lieux rapide.</p>
+    <h4>Ce que vous y trouvez</h4>
+    <ul>
+      <li>Les <b>indicateurs clés</b> (KPI) du projet en un coup d'œil</li>
+      <li>La <b>jauge d'avancement financier global</b>, avec la distinction entre montant déjà <b>dépensé</b> (factures) et montant <b>engagé</b> (devis validés pas encore facturés)</li>
+      <li>Une <b>carte par logement</b> résumant son avancement</li>
+      <li>Des <b>alertes</b> automatiques (dépassements, points de vigilance)</li>
+      <li>Le graphique des <b>dépenses cumulées par mois</b> et la <b>répartition par logement</b></li>
+      <li>Les <b>5 dernières factures</b> enregistrées</li>
+      <li>Le tableau <b>Prévisionnel vs Réel</b> par catégorie de dépense, avec l'écart et un statut visuel</li>
+    </ul>
+  </section>
+
+  <section class="tab" id="logements">
+    <h3>🏠 Par logement</h3>
+    <div class="path">Construction prévisionnelle → Par logement</div>
+    <p>Le même type de suivi que la Synthèse, mais détaillé logement par logement.</p>
+    <h4>Ce que vous y trouvez</h4>
+    <ul>
+      <li>Une <b>fiche par logement</b> avec ses propres indicateurs</li>
+      <li>Le graphique des <b>dépenses réelles</b> par logement (TTC)</li>
+      <li>Le graphique du <b>budget prévu</b> par logement (TTC)</li>
+    </ul>
+  </section>
+
+  <section class="tab" id="budget">
+    <h3>📐 Budget prévisionnel</h3>
+    <div class="path">Construction prévisionnelle → Budget prévisionnel</div>
+    <p>C'est ici que vous définissez, poste par poste, ce que vous prévoyez de dépenser.</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li>Les <b>catégories de travaux</b> sont proposées par défaut</li>
+      <li><b>Ajouter une charge de fonctionnement future</b> (ex : taxe foncière, assurance) via le sélecteur en haut de l'onglet, puis <b>+ Ajouter cette charge</b></li>
+      <li>Saisir un <b>montant prévisionnel par poste et par logement</b> dans la grille</li>
+    </ul>
+    <div class="info">Le budget saisi ici sert de référence pour le suivi Prévisionnel vs Réel affiché dans Synthèse et dans le Dashboard Prév.</div>
+  </section>
+
+  <section class="tab" id="dashboard">
+    <h3>📊 Dashboard Prév.</h3>
+    <div class="path">Construction prévisionnelle → Dashboard Prév.</div>
+    <p>Une vue analytique complète du budget prévisionnel, orientée financement.</p>
+    <h4>Ce que vous y trouvez</h4>
+    <ul>
+      <li>Le <b>financement du projet</b>, par logement</li>
+      <li>La <b>jauge globale</b> de répartition du budget TTC, avec le détail par logement</li>
+      <li>Les graphiques <b>Prévisionnel par catégorie</b> et <b>Répartition par logement</b></li>
+      <li>Le <b>Top dépenses prévisionnelles</b></li>
+      <li>Un tableau détaillé des <b>postes budgétés</b>, colonne par logement (Log. A, B, C, Commun) et total</li>
+    </ul>
+  </section>
+
+  <!-- ============ COMPTABILITÉ ============ -->
+  <div class="group-header">
+    <h2>🧾 Comptabilité<span class="badge">module activable</span></h2>
+    <p>La saisie et le suivi de toutes les factures et devis, quelle que soit la structure (SCI, LMNP...).</p>
+  </div>
+
+  <section class="tab" id="saisir">
+    <h3>➕ Saisir</h3>
+    <div class="path">Comptabilité → + Saisir</div>
+    <p>Le point d'entrée unique pour enregistrer une facture ou un devis. Basculez entre les deux avec les boutons <b>🧾 Facture</b> / <b>📝 Devis</b> en haut de l'onglet.</p>
+    <h4>Enregistrer une facture</h4>
+    <ul>
+      <li><b>Importer le document</b> : sélectionner un fichier, prendre une photo, ou aller le chercher directement dans Google Drive. Les champs se <b>préremplissent automatiquement</b> grâce à la lecture IA (Gemini) ou à la lecture native Factur-X pour les factures électroniques certifiées</li>
+      <li>Cocher <b>« plusieurs lignes pour plusieurs logements »</b> avant l'import si la facture doit être répartie ligne par ligne</li>
+      <li>Compléter/vérifier : n° de document, date, fournisseur, catégorie, ligne de budget (poste), logement</li>
+      <li><b>Répartir la facture sur plusieurs logements</b> (égale ou manuelle) via la case à cocher dédiée</li>
+      <li>Lier un <b>devis associé</b> : le devis passe alors automatiquement au statut « Facturé »</li>
+      <li>Renseigner statut de paiement, qui a réglé (« Réglé par »), date de paiement, montant TTC, n° de commande, description</li>
+      <li>Bouton <b>Enregistrer la facture</b></li>
+    </ul>
+    <h4>Enregistrer un devis</h4>
+    <ul>
+      <li>Même logique d'import assisté, puis n° de devis, date, fournisseur, catégorie, poste, logement, montant TTC, statut (En attente / Accepté / Refusé), description</li>
+      <li>Répartition possible sur plusieurs logements comme pour les factures</li>
+    </ul>
+    <div class="info">Si Google Drive n'est pas connecté, un bandeau vous prévient que les documents importés resteront uniquement sur cet appareil.</div>
+  </section>
+
+  <section class="tab" id="devis">
+    <h3>📝 Devis</h3>
+    <div class="path">Comptabilité → Devis</div>
+    <p>La liste de tous les devis enregistrés, avec leur statut et leur lien éventuel vers une facture.</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li><b>Rechercher / filtrer</b> par fournisseur, n°, statut, logement, catégorie</li>
+      <li><b>Exporter</b> en CSV ou en PDF</li>
+      <li><b>Renuméroter</b> les devis, ou <b>corriger les numéros mal alignés</b> avec leur année</li>
+      <li><b>Synchroniser</b> les PDF vers Google Drive, <b>libérer l'espace local</b> une fois synchronisés, ou <b>nettoyer les doublons</b> sur Drive</li>
+      <li><b>Ouvrir le dossier Drive</b> de l'année sélectionnée</li>
+    </ul>
+    <div class="info">Statuts possibles : En attente, Accepté, Refusé, Facturé (automatique dès qu'une facture est liée).</div>
+  </section>
+
+  <section class="tab" id="factures">
+    <h3>📋 Factures</h3>
+    <div class="path">Comptabilité → Factures</div>
+    <p>La liste complète des factures, avec recherche, filtres et outils d'export/synchronisation.</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li><b>Rechercher / filtrer</b> par fournisseur, n°, description, année, catégorie, logement, statut de paiement, réglé par, présence d'un PDF</li>
+      <li><b>Exporter</b> en CSV ou PDF</li>
+      <li><b>Renuméroter</b> les factures ou corriger les numéros mal alignés avec leur date</li>
+      <li><b>Synchroniser vers Drive</b>, <b>libérer l'espace local</b>, <b>nettoyer les doublons Drive</b></li>
+      <li><b>Vérifier la cohérence des liens Drive</b> : détecte si une facture pointe par erreur vers le fichier d'une autre</li>
+      <li><b>Ouvrir le dossier Drive</b> de l'année sélectionnée</li>
+      <li>Si un connecteur comptable est activé (ex. Pennylane), <b>synchroniser les nouvelles factures fournisseurs</b> en un clic</li>
+    </ul>
+  </section>
+
+  <section class="tab" id="annuel">
+    <h3>📅 Par année</h3>
+    <div class="path">Comptabilité → Par année</div>
+    <p>Le récapitulatif comptable d'une année complète.</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li>Choisir l'<b>année</b> et le mode de tri (par date de réception ou de paiement)</li>
+      <li>Consulter le <b>récapitulatif par catégorie</b> (nombre de factures, total TTC, % du total)</li>
+      <li>Voir le <b>détail de chaque facture</b> de l'année</li>
+      <li><b>Exporter en PDF comptable</b>, <b>ouvrir le dossier Drive</b> de l'année, ou <b>imprimer toutes les factures</b> en un seul PDF groupé</li>
+    </ul>
+  </section>
+
+  <section class="tab" id="charges-recurrentes">
+    <h3>🔁 Charges récurrentes</h3>
+    <div class="path">Comptabilité → Charges récurrentes</div>
+    <p>Pour les charges sans facture papier (assurance annuelle, frais bancaires mensuels, abonnements…) : à définir une seule fois, elles s'intègrent ensuite automatiquement au calcul de rentabilité chaque mois ou chaque année.</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li>Ajouter une charge : libellé, catégorie, logement, montant, fréquence (mensuel / trimestriel / annuel), date de début et de fin optionnelle</li>
+      <li>Consulter la liste des <b>charges récurrentes actives</b></li>
+      <li>Voir l'<b>impact estimé sur l'année en cours</b></li>
+    </ul>
+    <div class="warn">Ne jamais saisir ici les mensualités de prêt immobilier : les intérêts d'emprunt sont calculés automatiquement depuis l'onglet Crédit & charges. Pour un virement personnel entre associés, utilisez la catégorie « Virement interne / rééquilibrage personnel », exclue du calcul de rentabilité.</div>
+  </section>
+
+  <section class="tab" id="banque">
+    <h3>🏦 Banque</h3>
+    <div class="path">Comptabilité → Banque</div>
+    <p>Pour préparer les justificatifs à transmettre à la banque (appels de fonds de crédit).</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li>Voir le <b>suivi par crédit</b> (montant transmis / payé)</li>
+      <li><b>Filtrer</b> par fournisseur, année, logement, ou afficher aussi les factures déjà transmises</li>
+      <li><b>Sélectionner plusieurs factures</b> pour les marquer transmises en une fois, ou exporter un <b>PDF groupé</b> de la sélection</li>
+    </ul>
+  </section>
+
+  <section class="tab" id="compte-courant">
+    <h3>🤝 Compte courant</h3>
+    <div class="path">Comptabilité → Compte courant</div>
+    <p>Le suivi de ce que la structure vous doit (compte courant d'associé).</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li>Indiquer <b>quel(s) nom(s)</b> vous représentent dans le champ « Réglé par » des factures</li>
+      <li>Consulter les <b>factures que vous avez réglées vous-même</b> et les <b>virements</b> faits vers le compte de la structure</li>
+      <li>Cocher <b>Remboursé</b> une fois qu'une ligne vous est remboursée — le solde se recalcule automatiquement</li>
+      <li><b>Exporter en PDF comptable</b></li>
+    </ul>
+  </section>
+
+  <!-- ============ LOCATAIRES ============ -->
+  <div class="group-header">
+    <h2>🏠 Locataires<span class="badge">module activable</span></h2>
+    <p>Fiches locataires, loyers, quittances, documents de gestion locative, et rentabilité locative.</p>
+  </div>
+
+  <section class="tab" id="fiches-loyers">
+    <h3>🏠 Fiches & loyers</h3>
+    <div class="path">Locataires → Fiches & loyers</div>
+    <p>Le cœur de la gestion locative au quotidien, organisé en sous-onglets : une <b>Synthèse</b> globale, puis un onglet par logement.</p>
+    <h4>Vue Synthèse</h4>
+    <ul>
+      <li>Indicateurs du mois en cours : loyers encaissés, attendus, impayés cumulés, nombre de logements occupés</li>
+      <li>Section <b>« Ce mois-ci »</b> avec les loyers en attente</li>
+      <li>Alertes de <b>révision IRL</b> à venir dans les 60 jours (indices récupérés automatiquement depuis l'INSEE)</li>
+    </ul>
+    <h4>Onglet par logement</h4>
+    <ul>
+      <li>Fiche du <b>locataire en cours</b> avec statut d'occupation</li>
+      <li><b>Calendrier annuel des paiements</b> (payé / impayé / futur / vacant)</li>
+      <li><b>Historique</b> des locataires successifs (chronologie)</li>
+      <li>Saisie et suivi des <b>paiements mensuels</b></li>
+      <li>Génération des <b>quittances de loyer</b>, avec QR code de consultation publique et révocation automatique si le paiement associé est supprimé ou corrigé</li>
+    </ul>
+  </section>
+
+  <section class="tab" id="gestion-locative">
+    <h3>📁 Gestion locative</h3>
+    <div class="path">Locataires → Gestion locative</div>
+    <p>Le classement des documents administratifs liés à la location, stockés sur Google Drive (dossier dédié, distinct de celui des factures).</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li>Consulter la <b>synthèse</b> tous logements confondus</li>
+      <li>Choisir un <b>logement</b> dans le sélecteur pour voir son détail, organisé par catégorie : <b>Bail</b>, <b>État des lieux</b>, <b>Assurance</b>, <b>DPE</b>, <b>Autre</b></li>
+      <li><b>Ajouter un document</b> et lui donner une <b>date d'expiration</b> pour être alerté automatiquement quand elle approche</li>
+      <li>Pour chaque document : l'<b>ouvrir</b>, l'<b>envoyer par mail</b>, le <b>modifier</b> ou le <b>supprimer</b></li>
+    </ul>
+    <div class="info">Statuts d'expiration affichés automatiquement : ✓ Valide, ⚡ À renouveler, ⚠ Expiré.</div>
+  </section>
+
+  <section class="tab" id="rentabilite">
+    <h3>📈 Rentabilité</h3>
+    <div class="path">Locataires → Rentabilité</div>
+    <p>L'analyse financière de la location : loyers perçus, charges, rentabilité par logement et par année.</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li><b>Filtrer</b> par années et par logements (multi-sélection), avec « Tout sélectionner » et « Réinitialiser »</li>
+      <li>Consulter le <b>bilan par logement</b> et le détail annuel</li>
+      <li><b>Exporter les loyers</b> (PDF ou CSV), sur une sélection d'années et de logements</li>
+      <li>Générer un <b>récapitulatif fiscal</b></li>
+      <li>Générer un rapport de <b>rentabilité nette</b> (cumul multi-années possible avec détail année par année)</li>
+    </ul>
+  </section>
+
+  <!-- ============ FINANCEMENT ============ -->
+  <div class="group-header">
+    <h2>💰 Financement<span class="badge">module activable</span></h2>
+    <p>Le suivi des crédits immobiliers et la projection financière à long terme.</p>
+  </div>
+
+  <section class="tab" id="projection">
+    <h3>🔭 Projection 20 ans</h3>
+    <div class="path">Financement → Projection 20 ans</div>
+    <p>Une simulation de la rentabilité du projet sur le long terme.</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li>Choisir un <b>scénario</b> : Optimiste, Réaliste, Pessimiste</li>
+      <li>Ajuster les hypothèses : <b>loyer mensuel de référence</b>, <b>charges annuelles</b>, <b>augmentation annuelle des loyers</b>, <b>taux de vacance estimé</b>, <b>évolution annuelle des charges</b></li>
+      <li>Consulter le <b>tableau de projection sur 20 ans</b> et le graphique de <b>cash-flow cumulé</b></li>
+    </ul>
+  </section>
+
+  <section class="tab" id="credit-charges">
+    <h3>💳 Crédit & charges</h3>
+    <div class="path">Financement → Crédit & charges</div>
+    <p>Le détail de chaque crédit immobilier, logement par logement, ainsi que la fiscalité applicable.</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li>Pour chaque logement (ou le terrain / commun en SCI) : saisir le <b>capital emprunté</b>, le <b>type de taux</b> (fixe/variable), le <b>taux</b>, la <b>durée</b>, la <b>date de début</b>, l'<b>apport personnel</b>, les <b>assurances</b> (PNO, emprunteur), les <b>frais de dossier</b> et les <b>montants sans facture</b> (ex : terrain payé par acte notarié)</li>
+      <li>Suivre le <b>déblocage des fonds</b> : montant transmis à la banque vs montant réellement payé, avec barres de progression</li>
+      <li><b>Importer une photo</b> du contrat de crédit</li>
+      <li>Choisir le <b>régime fiscal</b> (IR/IS pour une SCI, LMNP/LMP en meublé)</li>
+    </ul>
+    <div class="tip">Les frais de comptable, d'assurance ou de gestion locative se saisissent désormais dans Charges récurrentes pour être intégrés automatiquement à la rentabilité nette.</div>
+  </section>
+
+  <!-- ============ PARAMÈTRES ============ -->
+  <div class="group-header">
+    <h2>⚙️ Paramètres</h2>
+    <p>Tous les réglages de la structure en cours : accès, logements, apparence, sécurité des données, intégrations.</p>
+  </div>
+
+  <section class="tab" id="parametres">
+    <h3>⚙️ Paramètres</h3>
+    <div class="path">Menu principal → Paramètres</div>
+
+    <h4>☁️ Compte Google Drive associé</h4>
+    <ul>
+      <li>Connecter le compte Drive qui stockera les documents de cette structure — une fois fait, la reconnexion est automatique à chaque ouverture</li>
+      <li>Possibilité de <b>changer de compte</b> ou de <b>déconnecter</b></li>
+    </ul>
+
+    <h4>👥 Utilisateurs & droits d'accès <span style="font-weight:400;color:var(--text3)">(administrateurs uniquement)</span></h4>
+    <ul>
+      <li><b>Inviter</b> une personne par email, avec un niveau d'accès : Lecture seule, Peut saisir des factures, ou Administrateur</li>
+      <li>L'accès est donné automatiquement à la première connexion de la personne invitée avec cet email — uniquement sur cette structure</li>
+      <li>Gérer la liste des <b>collaborateurs</b> et des <b>invitations</b> en attente</li>
+    </ul>
+
+    <h4>🏠 Logements</h4>
+    <ul>
+      <li><b>Ajouter un logement</b>, avec nom, adresse, couleur, référence PDL (électricité) et compteur d'eau</li>
+      <li><b>Modifier</b>, <b>réordonner</b> (monter/descendre), <b>masquer</b> ou <b>supprimer</b> un logement</li>
+      <li>Un logement masqué garde ses données mais disparaît des listes actives</li>
+    </ul>
+
+    <h4>🧩 Modules de l'application</h4>
+    <ul>
+      <li>Activer ou désactiver indépendamment : <b>Construction prévisionnelle</b>, <b>Comptabilité</b>, <b>Locataires</b>, <b>Financement</b></li>
+      <li>Désactiver un module ne supprime aucune donnée déjà saisie — il peut être réactivé à tout moment</li>
+    </ul>
+
+    <h4>🖼️ Logo et tampon de la structure</h4>
+    <ul>
+      <li>Importer un <b>logo</b> (en-tête de l'appli et des documents) et un <b>tampon</b> (signature apposée sur les quittances)</li>
+      <li>Formats acceptés : PNG, JPG — redimensionnement automatique</li>
+    </ul>
+
+    <h4>🔍 Vérifications & nettoyage</h4>
+    <ul>
+      <li><b>Cohérence des liens Drive</b> : vérifie qu'aucune facture ne pointe par erreur vers le fichier d'une autre</li>
+      <li><b>Factures / devis sans PDF ni lien Drive</b> : détecte les pièces jointes manquantes, vérifié automatiquement à l'ouverture de l'onglet</li>
+    </ul>
+
+    <h4>🤖 Lecture automatique des factures (OCR)</h4>
+    <ul>
+      <li>Ajouter une ou plusieurs <b>clés API Gemini</b> (gratuites, obtenues sur <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>) pour activer la lecture automatique des factures</li>
+      <li>Un <b>guide pas à pas</b> est intégré pour créer sa clé</li>
+      <li>Ajouter plusieurs clés permet à l'appli de basculer automatiquement sur la suivante en cas de limite atteinte</li>
+      <li>Un bouton <b>Tester la lecture IA</b> permet de vérifier que ça fonctionne</li>
+    </ul>
+
+    <h4>📊 Indices IRL (révision des loyers)</h4>
+    <ul>
+      <li>Les indices INSEE sont récupérés automatiquement chaque semaine ; un bouton permet de <b>forcer une actualisation immédiate</b></li>
+    </ul>
+
+    <h4>🔗 Intégrations comptables</h4>
+    <ul>
+      <li>Connecter le logiciel de votre comptable (ex. <b>Pennylane</b>) pour récupérer automatiquement les factures fournisseurs, sans avoir à les réimporter à la main</li>
+      <li>Le jeton d'accès reste stocké uniquement sur cet appareil</li>
+    </ul>
+
+    <h4>⚠ Zone dangereuse</h4>
+    <ul>
+      <li><b>Réinitialiser les logements par défaut</b></li>
+      <li><b>Purger toutes les données</b> de la structure</li>
+    </ul>
+    <div class="warn">Ces deux actions sont irréversibles — à utiliser avec précaution.</div>
+  </section>
+
+  <footer>Manuel généré pour Novimmo — à adapter et intégrer directement dans l'application (ex. comme page ou modale d'aide accessible depuis chaque onglet).</footer>
+</main>
+</div>
+</body>
+</html>
