@@ -528,6 +528,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div style="width:10px;height:10px;border:2px solid rgba(224,161,94,.3);border-top-color:var(--orange);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
       <span>Tri en cours...</span>
     </div>
+    <a href="manuel.html" target="_blank" class="badge" style="color:var(--accent);cursor:pointer;text-decoration:none" title="Ouvrir le manuel d'utilisation dans un nouvel onglet">❓ Aide</a>
     <div class="badge" onclick="logout()" style="color:var(--text3);cursor:pointer;font-size:10px" title="Se déconnecter">🔒 Déconnexion</div>
   </div>
 </div>
@@ -7934,6 +7935,10 @@ function renderParametres(){
 
   container.innerHTML=`
     <div class="section-title">⚙️ Paramètres — ${cfg.nom}</div>
+
+    <div style="margin:-8px 0 24px">
+      <a href="manuel.html" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:var(--accent3);border:1px solid var(--accent2);border-radius:10px;padding:9px 16px;color:var(--accent);text-decoration:none;font-size:12px;font-weight:600">❓ Consulter le manuel d'utilisation</a>
+    </div>
 
     <!-- Compte Google Drive associé -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
