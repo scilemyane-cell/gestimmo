@@ -7787,6 +7787,22 @@ async function verifierCoherenceDrive(){
   const labels={mismatch:'⚠ Lien croisé',corbeille:'🗑 Dans la corbeille',introuvable:'❌ Fichier introuvable',lien_invalide:'❌ Lien invalide',erreur:'⚠ Erreur de vérification',erreur_acces:'⚠ Vérification impossible'};
   const couleurBordure={erreur_acces:'rgba(224,161,94,.25)',erreur:'rgba(224,161,94,.25)'};
   const couleurFond={erreur_acces:'rgba(224,161,94,.06)',erreur:'rgba(224,161,94,.06)'};
+  // Détection des paires réciproques : deux factures "mismatch" dont chacune tient exactement
+  // le fichier attendu de l'autre (échange croisé simple). Dans ce cas précis, pas besoin de
+  // délier puis rechercher sur Drive — on peut proposer un échange direct en un clic.
+  const fourSlug=four=>(four||'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase();
+  for(let i=0;i<anomalies.length;i++){
+    const a=anomalies[i];
+    if(a.type!=='mismatch'||a.pairIdx!==undefined)continue;
+    for(let j=i+1;j<anomalies.length;j++){
+      const b=anomalies[j];
+      if(b.type!=='mismatch'||b.pairIdx!==undefined)continue;
+      const nomA=(a.driveFileName||'').toUpperCase(), nomB=(b.driveFileName||'').toUpperCase();
+      const aTientB=nomA.startsWith((b.f.num||'').toUpperCase())&&nomA.includes(fourSlug(b.f.four));
+      const bTientA=nomB.startsWith((a.f.num||'').toUpperCase())&&nomB.includes(fourSlug(a.f.four));
+      if(aTientB&&bTientA){ a.pairIdx=j; b.pairIdx=i; break; }
+    }
+  }
   // Mémorisé pour que "Délier tout" agisse sur exactement ce qui est affiché à l'écran,
   // sans avoir à re-scanner Drive.
   window._derniersProblemesDrive=anomalies.filter(a=>a.type!=='erreur_acces'&&a.type!=='erreur');
@@ -7802,6 +7818,7 @@ async function verifierCoherenceDrive(){
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
             <div><span style="color:var(--accent);font-weight:500">${a.f.num||'—'}</span> · ${a.f.four||'—'} · ${a.f.date||'—'} · ${fmt(a.f.ttc)} <span style="color:${(a.type==='erreur_acces'||a.type==='erreur')?'var(--orange)':'var(--red)'};font-weight:600;margin-left:6px">${labels[a.type]||a.type}</span></div>
             <div style="display:flex;gap:6px;flex-shrink:0">
+              ${a.pairIdx!==undefined?`<button class="btn btn-sm" onclick="echangerLiensDrive(${a.f._ri},${anomalies[a.pairIdx].f._ri})" style="background:rgba(127,191,158,.12);border-color:rgba(127,191,158,.4);color:var(--green);font-size:10px;padding:4px 9px">🔁 Échanger avec ${anomalies[a.pairIdx].f.num||'?'}</button>`:''}
               <a href="${a.f.driveLink}" target="_blank" class="btn btn-sm" style="text-decoration:none;font-size:10px;padding:4px 9px">👁 Voir le lien actuel</a>
               ${(a.type==='erreur_acces'||a.type==='erreur')?'':`<button class="btn btn-sm" onclick="delierFactureDrive(${a.f._ri})" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.35);color:var(--red);font-size:10px;padding:4px 9px">🔓 Délier</button>`}
             </div>
@@ -7838,6 +7855,24 @@ async function delierFactureDrive(idx){
   });
   verifierCoherenceDrive();
   renderFacturesOrphelines();
+}
+
+// Cas particulier détecté par verifierCoherenceDrive : deux factures dont les liens Drive sont
+// exactement croisés l'un avec l'autre (chacune a le fichier de l'autre). Plutôt que de délier
+// puis rattacher à la main, on échange directement les deux liens en un clic.
+async function echangerLiensDrive(idxA, idxB){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
+  const{factures}=loadData();
+  const fa=factures[idxA], fb=factures[idxB];
+  if(!fa||!fb)return;
+  if(!confirm('Échanger les liens Drive entre '+(fa.num||'?')+' ('+(fa.four||'?')+') et '+(fb.num||'?')+' ('+(fb.four||'?')+') ?\n\nChacune récupère alors son propre fichier.')) return;
+  await queueFacturesUpdate((factures)=>{
+    if(!factures[idxA]||!factures[idxB])return;
+    const tmp=factures[idxA].driveLink;
+    factures[idxA].driveLink=factures[idxB].driveLink;
+    factures[idxB].driveLink=tmp;
+  });
+  verifierCoherenceDrive();
 }
 
 // Équivalent devis de renderFacturesOrphelines().
