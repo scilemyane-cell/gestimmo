@@ -7818,6 +7818,7 @@ async function verifierCoherenceDrive(){
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
             <div><span style="color:var(--accent);font-weight:500">${a.f.num||'—'}</span> · ${a.f.four||'—'} · ${a.f.date||'—'} · ${fmt(a.f.ttc)} <span style="color:${(a.type==='erreur_acces'||a.type==='erreur')?'var(--orange)':'var(--red)'};font-weight:600;margin-left:6px">${labels[a.type]||a.type}</span></div>
             <div style="display:flex;gap:6px;flex-shrink:0">
+              ${a.type==='mismatch'&&a.driveFileName?(()=>{const nouveauFour=extraireFournisseurDuNomFichier(a.driveFileName,a.f.num);return `<button class="btn btn-sm" onclick='corrigerFournisseurDepuisFichier(${a.f._ri}, ${JSON.stringify(nouveauFour)})' style="background:rgba(90,200,216,.12);border-color:rgba(90,200,216,.4);color:var(--accent);font-size:10px;padding:4px 9px" title="Le lien Drive n'est pas touché — seul le champ fournisseur de la fiche est corrigé">✏️ Corriger fournisseur → ${nouveauFour}</button>`;})():''}
               ${a.pairIdx!==undefined?`<button class="btn btn-sm" onclick="echangerLiensDrive(${a.f._ri},${anomalies[a.pairIdx].f._ri})" style="background:rgba(127,191,158,.12);border-color:rgba(127,191,158,.4);color:var(--green);font-size:10px;padding:4px 9px">🔁 Échanger avec ${anomalies[a.pairIdx].f.num||'?'}</button>`:''}
               <a href="${a.f.driveLink}" target="_blank" class="btn btn-sm" style="text-decoration:none;font-size:10px;padding:4px 9px">👁 Voir le lien actuel</a>
               ${(a.type==='erreur_acces'||a.type==='erreur')?'':`<button class="btn btn-sm" onclick="delierFactureDrive(${a.f._ri})" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.35);color:var(--red);font-size:10px;padding:4px 9px">🔓 Délier</button>`}
@@ -7855,6 +7856,32 @@ async function delierFactureDrive(idx){
   });
   verifierCoherenceDrive();
   renderFacturesOrphelines();
+}
+
+// Déduit un nom de fournisseur lisible à partir du nom de fichier Drive (ex.
+// "FAC-2026-007_CHAUSSON.pdf" → "CHAUSSON"), en retirant le numéro de facture et
+// l'éventuel numéro de commande (BCxxx) du préfixe.
+function extraireFournisseurDuNomFichier(nomFichier, num){
+  let base=(nomFichier||'').replace(/\.pdf$/i,'');
+  if(num) base=base.replace(new RegExp('^'+num.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'_?','i'),'');
+  base=base.replace(/^BC[^_]*_/i,'');
+  return base.replace(/_/g,' ').trim();
+}
+
+// Cas le plus fréquent en pratique (confirmé en ouvrant le PDF) : le lien Drive et le fichier
+// sont CORRECTS pour cette facture — c'est le champ "Fournisseur" de la fiche qui est faux.
+// On le corrige à partir du nom du fichier (source fiable, jamais modifiée après l'upload),
+// sans toucher au lien Drive.
+async function corrigerFournisseurDepuisFichier(idx, nouveauFour){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
+  const{factures}=loadData();
+  const f=factures[idx];
+  if(!f)return;
+  if(!confirm('Corriger le fournisseur de '+(f.num||'?')+' ?\n\nActuel : "'+(f.four||'')+'"\nNouveau (déduit du nom du fichier Drive, à vérifier) : "'+nouveauFour+'"\n\nLe lien Drive n\'est pas modifié — seul le champ fournisseur est corrigé.'))return;
+  await queueFacturesUpdate((factures)=>{
+    if(factures[idx]) factures[idx].four=nouveauFour;
+  });
+  verifierCoherenceDrive();
 }
 
 // Cas particulier détecté par verifierCoherenceDrive : deux factures dont les liens Drive sont
