@@ -7755,8 +7755,15 @@ async function verifierCoherenceDrive(){
         continue;
       }
       const numAttendu=(f.num||'').trim().toUpperCase();
+      // Comparé en plus du numéro : le seul numéro ne suffit pas à détecter un lien croisé
+      // quand deux factures partagent le même numéro en doublon (ex. deux "FAC-2026-015" pour
+      // deux fournisseurs différents) — dans ce cas le fichier de l'AUTRE facture commence aussi
+      // par le bon numéro et passait donc à tort pour cohérent.
+      const fourAttendu=(f.four||'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase();
       const nomFichier=(data.name||'').toUpperCase();
-      if(numAttendu && nomFichier && !nomFichier.startsWith(numAttendu)){
+      const numOk=!numAttendu||!nomFichier||nomFichier.startsWith(numAttendu);
+      const fourOk=!fourAttendu||!nomFichier||nomFichier.includes(fourAttendu);
+      if(nomFichier && (!numOk || !fourOk)){
         anomalies.push({f,type:'mismatch',detail:'Le lien pointe vers un fichier d\'une AUTRE facture : "'+data.name+'"',driveFileName:data.name});
       }
     }catch(e){
