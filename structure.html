@@ -170,7 +170,9 @@ onAuthStateChanged(auth, async (user) => {
       const d = snap.data();
       const k = (key) => window._structureId + '_' + key;
       const lastSyncedAt = localStorage.getItem(k('last_synced_at')) || '';
-      if(!(d.updated && lastSyncedAt && d.updated<=lastSyncedAt)){
+      const bloque = d.updated && lastSyncedAt && d.updated<=lastSyncedAt;
+      console.log('[onSnapshot] reçu — d.updated='+d.updated+' | lastSyncedAt local='+lastSyncedAt+' | '+(bloque?'IGNORÉ (pas plus récent)':'APPLIQUÉ (écrase le local)')+' | fromCache='+snap.metadata.fromCache+' | pendingWrites='+snap.metadata.hasPendingWrites);
+      if(!bloque){
         if(d.budget) localStorage.setItem(k('budget3'), JSON.stringify(d.budget));
         if(d.factures) localStorage.setItem(k('factures3'), JSON.stringify(d.factures));
         if(d.fin) localStorage.setItem(k('fin4'), JSON.stringify(d.fin));
@@ -179,6 +181,10 @@ onAuthStateChanged(auth, async (user) => {
         if(d.projection) localStorage.setItem(k('projection'), JSON.stringify(d.projection));
         if(d.fc) localStorage.setItem(k('fc'), JSON.stringify(d.fc));
         if(d.updated) localStorage.setItem(k('last_synced_at'), d.updated);
+        // Si l'onglet Factures est affiché au moment où le cloud écrase le local, on le
+        // re-rafraîchit tout de suite — sinon l'écran continue d'afficher les anciennes
+        // données déjà rendues, même si localStorage vient de changer sous le capot.
+        if(typeof renderFactures==='function'&&document.getElementById('factures-list')) renderFactures();
       }
       window._remoteUpdate = false;
     }
