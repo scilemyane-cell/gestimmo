@@ -6599,7 +6599,20 @@ async function exportZipFactures(){
 }
 
 // ── FIREBASE SYNC ─────────────────────────────────────────────────────────
-async function syncToCloud(){
+// syncToCloud() est appelée à chaque sauvegarde locale (saveFactures, saveBudget, saveDevis...),
+// potentiellement plusieurs fois en rafale (ex: plusieurs "Lier Drive" à la suite). Sans
+// sérialisation, ces envois partent en parallèle et peuvent ARRIVER DANS LE DÉSORDRE sur
+// Firestore : un envoi parti tôt mais plus lent peut atterrir après un envoi plus récent et plus
+// rapide, écrasant le serveur avec des données périmées — qui redescendent ensuite via
+// onSnapshot et écrasent aussi l'affichage local avec l'ancienne valeur. En file d'attente, un
+// envoi ne démarre que lorsque le précédent est totalement terminé, et lit toujours le
+// localStorage à cet instant précis (donc toujours les toutes dernières données).
+let _cloudSyncQueue = Promise.resolve();
+function syncToCloud(){
+  _cloudSyncQueue = _cloudSyncQueue.then(()=>syncToCloudNow()).catch(e=>console.error('File de sync cloud, erreur:',e));
+  return _cloudSyncQueue;
+}
+async function syncToCloudNow(){
   if(!window._db)return;
   try{
     const{budget,factures}=loadData();
