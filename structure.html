@@ -528,7 +528,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div style="width:10px;height:10px;border:2px solid rgba(224,161,94,.3);border-top-color:var(--orange);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
       <span>Tri en cours...</span>
     </div>
-    <a href="manuel.html" target="_blank" class="badge" style="color:var(--accent);cursor:pointer;text-decoration:none" title="Ouvrir le manuel d'utilisation dans un nouvel onglet">❓ Aide</a>
     <div class="badge" onclick="logout()" style="color:var(--text3);cursor:pointer;font-size:10px" title="Se déconnecter">🔒 Déconnexion</div>
   </div>
 </div>
@@ -990,8 +989,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div style="flex:1"></div>
       <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
       <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="exportPDF()">Exporter PDF</button>
-      <button class="btn-export" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="renumeroterFactures()">🔢 Renuméroter</button>
-      <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="corrigerNumerosMalAlignes()" title="Corrige uniquement les factures dont le numéro ne correspond pas à l'année de leur date">🔧 Corriger numéros/dates</button>
+      <!-- Boutons "🔢 Renuméroter" et "🔧 Corriger numéros/dates" retirés à la demande de l'utilisateur :
+           ils changent le numéro des factures et tentent de renommer les fichiers Drive en conséquence,
+           mais ce renommage échoue silencieusement pour les fichiers non créés par l'app (permission
+           Drive drive.file), laissant des liens qui semblent "croisés" et un ménage manuel à faire.
+           Les fonctions renumeroterFactures() et corrigerNumerosMalAlignes() restent dans le code
+           mais ne sont plus accessibles depuis l'interface. -->
       <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllPdfsToDrive()" id="btn-sync-drive" title="Uploader tous les PDF locaux vers Google Drive">☁ Sync Drive</button>
       <button class="btn-export" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="libererEspaceLocalPDF()" id="btn-liberer-espace" title="Supprime les copies locales des PDF déjà présents sur Drive (le fichier reste accessible via Drive)">🧹 Libérer l'espace local</button>
       <button class="btn-export" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)" onclick="nettoyerDoublonsDrive()" id="btn-clean-drive" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
@@ -1045,8 +1048,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div style="flex:1"></div>
     <button class="btn-export" onclick="exportDevisCSV()">Exporter CSV</button>
     <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="exportDevisPDF()">Exporter PDF</button>
-    <button class="btn-export" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="renumeroterDevis()">🔢 Renuméroter</button>
-    <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="corrigerNumerosMalAlignesDevis()" title="Corrige uniquement les devis dont le numéro ne correspond pas à l'année de leur date">🔧 Corriger numéros/dates</button>
+    <!-- Boutons "🔢 Renuméroter" / "🔧 Corriger numéros/dates" retirés — voir commentaire équivalent
+         du côté Factures. -->
     <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllDevisPdfsToDrive()" id="btn-sync-drive-devis" title="Uploader tous les PDF de devis locaux vers Google Drive">☁ Sync Drive</button>
     <button class="btn-export" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="libererEspaceLocalDevisPDF()" id="btn-liberer-espace-devis" title="Supprime les copies locales des PDF de devis déjà présents sur Drive">🧹 Libérer l'espace local</button>
     <button class="btn-export" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)" onclick="nettoyerDoublonsDriveDevis()" id="btn-clean-drive-devis" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
@@ -7731,7 +7734,7 @@ async function verifierCoherenceDrive(){
 
   for(const f of liees){
     const match=(f.driveLink||'').match(/\/d\/([a-zA-Z0-9_-]+)/)||(f.driveLink||'').match(/id=([a-zA-Z0-9_-]+)/);
-    if(!match){anomalies.push({f,type:'lien_invalide',detail:'Le lien enregistré n\'a pas un format Drive reconnu.'});continue;}
+    if(!match){anomalies.push({f,type:'lien_invalide',detail:'Le lien enregistré n\'a pas un format Drive reconnu : "'+(f.driveLink||'')+'"'});continue;}
     const fileId=match[1];
     try{
       const resp=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?fields=name,trashed',{
@@ -7811,6 +7814,7 @@ async function verifierCoherenceDrive(){
   el.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
       <div style="font-size:12px;color:var(--red)">⚠ ${anomalies.length} problème(s) détecté(s) sur ${liees.length} facture(s) vérifiée(s) :</div>
+      ${nbDeliables>1?`<button class="btn btn-sm" onclick="renommerToutesAnomaliesDrive()" style="background:rgba(90,200,216,.15);border-color:rgba(90,200,216,.4);color:var(--accent);flex-shrink:0">🔧 Renommer tout (${anomalies.filter(a=>a.type==='mismatch').length})</button>` : ''}
       ${nbDeliables>1?`<button class="btn btn-sm" onclick="delierToutesAnomaliesDrive()" style="background:rgba(224,113,107,.15);border-color:rgba(224,113,107,.4);color:var(--red);flex-shrink:0">🔓 Délier tout (${nbDeliables})</button>`:''}
     </div>
     <div style="display:flex;flex-direction:column;gap:6px">
@@ -7819,7 +7823,7 @@ async function verifierCoherenceDrive(){
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
             <div><span style="color:var(--accent);font-weight:500">${a.f.num||'—'}</span> · ${a.f.four||'—'} · ${a.f.date||'—'} · ${fmt(a.f.ttc)} <span style="color:${(a.type==='erreur_acces'||a.type==='erreur')?'var(--orange)':'var(--red)'};font-weight:600;margin-left:6px">${labels[a.type]||a.type}</span></div>
             <div style="display:flex;gap:6px;flex-shrink:0">
-              ${a.type==='mismatch'&&a.driveFileName?(()=>{const nouveauFour=extraireFournisseurDuNomFichier(a.driveFileName,a.f.num);return `<button class="btn btn-sm" onclick='corrigerFournisseurDepuisFichier(${a.f._ri}, ${JSON.stringify(nouveauFour)})' style="background:rgba(90,200,216,.12);border-color:rgba(90,200,216,.4);color:var(--accent);font-size:10px;padding:4px 9px" title="Le lien Drive n'est pas touché — seul le champ fournisseur de la fiche est corrigé">✏️ Corriger fournisseur → ${nouveauFour}</button>`;})():''}
+              ${a.type==='mismatch'?`<button class="btn btn-sm" onclick="renommerFichierDriveDepuisFacture(${a.f._ri})" style="background:rgba(90,200,216,.12);border-color:rgba(90,200,216,.4);color:var(--accent);font-size:10px;padding:4px 9px" title="Renomme le fichier sur Drive pour qu'il corresponde au numéro/fournisseur actuel de la fiche — le contenu du fichier n'est pas touché">🔧 Renommer le fichier Drive</button>`:''}
               ${a.pairIdx!==undefined?`<button class="btn btn-sm" onclick="echangerLiensDrive(${a.f._ri},${anomalies[a.pairIdx].f._ri})" style="background:rgba(127,191,158,.12);border-color:rgba(127,191,158,.4);color:var(--green);font-size:10px;padding:4px 9px">🔁 Échanger avec ${anomalies[a.pairIdx].f.num||'?'}</button>`:''}
               <a href="${a.f.driveLink}" target="_blank" class="btn btn-sm" style="text-decoration:none;font-size:10px;padding:4px 9px">👁 Voir le lien actuel</a>
               ${(a.type==='erreur_acces'||a.type==='erreur')?'':`<button class="btn btn-sm" onclick="delierFactureDrive(${a.f._ri})" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.35);color:var(--red);font-size:10px;padding:4px 9px">🔓 Délier</button>`}
@@ -7857,6 +7861,56 @@ async function delierFactureDrive(idx){
   });
   verifierCoherenceDrive();
   renderFacturesOrphelines();
+}
+
+// Traite en une fois tous les "Lien croisé" affichés par verifierCoherenceDrive en renommant
+// chaque fichier Drive pour qu'il corresponde à sa fiche — équivalent en masse du bouton
+// individuel "🔧 Renommer le fichier Drive".
+async function renommerToutesAnomaliesDrive(){
+  const liste=(window._derniersProblemesDrive||[]).filter(a=>a.type==='mismatch');
+  if(!liste.length)return;
+  if(!confirm('Renommer les '+liste.length+' fichier(s) Drive concernés pour qu\'ils correspondent à leur fiche ?\n\nAucun contenu de fichier n\'est modifié, seuls les noms sont corrigés.'))return;
+  await ensureDriveConnected();
+  if(!driveAccessToken){ alert('Impossible de se connecter à Google Drive — reconnecte-toi (bouton Drive en haut de page) puis réessaie.'); return; }
+  const{factures}=loadData();
+  let renommes=0;
+  const echecs=[];
+  for(const a of liste){
+    const f=factures[a.f._ri];
+    if(!f||!f.driveLink)continue;
+    const ok=await renameDriveFile(f.driveLink,nomFichierAttenduPourFacture(f));
+    if(ok)renommes++;
+    else echecs.push(f.num||'?');
+  }
+  let msg='✓ '+renommes+'/'+liste.length+' fichier(s) renommés sur Drive.';
+  if(echecs.length)msg+='\n\n⚠ Échec pour : '+echecs.join(', ')+' — essaie "🔓 Délier" puis "🔗 Lier Drive" pour ceux-là.';
+  alert(msg);
+  verifierCoherenceDrive();
+}
+
+// que celle utilisée à la création/renumérotation (num + éventuel n° de commande + fournisseur).
+function nomFichierAttenduPourFacture(f){
+  const four=(f.four||'facture').replace(/[^a-zA-Z0-9]/g,'_');
+  const cmd=f.cmd||'';
+  return (f.num||'')+(cmd?'_BC'+cmd.replace(/[^a-zA-Z0-9]/g,'_'):'')+'_'+four+'.pdf';
+}
+
+// Cas le plus fréquent en pratique (ex. après une renumérotation dont le renommage Drive a été
+// sauté) : le lien Drive est CORRECT, seul le NOM du fichier sur Drive est resté périmé. On le
+// renomme directement pour qu'il corresponde à la fiche actuelle — rien n'est modifié côté
+// données de la facture, seul le nom du fichier sur Drive change.
+async function renommerFichierDriveDepuisFacture(idx){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
+  const{factures}=loadData();
+  const f=factures[idx];
+  if(!f||!f.driveLink)return;
+  const nouveauNom=nomFichierAttenduPourFacture(f);
+  if(!confirm('Renommer le fichier Drive de '+(f.num||'?')+' pour qu\'il corresponde à la fiche ?\n\nNouveau nom : "'+nouveauNom+'"\n\nLe fichier n\'est pas déplacé ni modifié dans son contenu — seul son nom est corrigé.'))return;
+  await ensureDriveConnected();
+  if(!driveAccessToken){ alert('Impossible de se connecter à Google Drive — reconnecte-toi (bouton Drive en haut de page) puis réessaie.'); return; }
+  const ok=await renameDriveFile(f.driveLink,nouveauNom);
+  if(!ok){ alert('Échec du renommage (fichier introuvable, supprimé, ou déjà en double). Essaie "🔓 Délier" puis "🔗 Lier Drive" à la place.'); return; }
+  verifierCoherenceDrive();
 }
 
 // Déduit un nom de fournisseur lisible à partir du nom de fichier Drive (ex.
@@ -7935,10 +7989,6 @@ function renderParametres(){
 
   container.innerHTML=`
     <div class="section-title">⚙️ Paramètres — ${cfg.nom}</div>
-
-    <div style="margin:-8px 0 24px">
-      <a href="manuel.html" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:var(--accent3);border:1px solid var(--accent2);border-radius:10px;padding:9px 16px;color:var(--accent);text-decoration:none;font-size:12px;font-weight:600">❓ Consulter le manuel d'utilisation</a>
-    </div>
 
     <!-- Compte Google Drive associé -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
@@ -15202,12 +15252,16 @@ async function ouvrirDossierDrive(){
   }
 }
 
-async function renameDriveFile(driveLink, newName){
-  if(!driveAccessToken||!driveLink) return false;
+async function renameDriveFile(driveLink, newName, _retried){
+  if(!driveLink) return false;
+  if(!driveAccessToken){
+    console.error('Drive rename: pas de token Drive en mémoire.');
+    return false;
+  }
   try{
     // Extraire l'ID du fichier depuis le lien Drive
     const match=driveLink.match(/\/d\/([a-zA-Z0-9_-]+)/)||driveLink.match(/id=([a-zA-Z0-9_-]+)/);
-    if(!match) return false;
+    if(!match){ console.error('Drive rename: impossible d\'extraire l\'ID du fichier depuis',driveLink); return false; }
     const fileId=match[1];
     
     const resp=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{
@@ -15218,7 +15272,19 @@ async function renameDriveFile(driveLink, newName){
       },
       body:JSON.stringify({name:newName})
     });
-    return resp.ok;
+    if(!resp.ok){
+      const detail=await resp.text().catch(()=>'');
+      console.error('Drive rename échoué ('+resp.status+') pour',fileId,':',detail);
+      // Token expiré ou invalide : on tente une reconnexion silencieuse puis UN seul nouvel essai,
+      // pour éviter de faire échouer tout un lot de renommages juste parce que le token a expiré
+      // entre le chargement de la page et le clic sur le bouton.
+      if(resp.status===401 && !_retried){
+        const reconnected=await reconnectDriveSilent();
+        if(reconnected) return renameDriveFile(driveLink,newName,true);
+      }
+      return false;
+    }
+    return true;
   }catch(e){
     console.error('Drive rename error:',e);
     return false;
@@ -15865,23 +15931,22 @@ async function renumeroterFactures(){
   saveFactures(d.factures);
   renderFactures();
   
-  // Renommer sur Drive si connecté
+  // Renommer sur Drive si connecté — automatique, sans confirmation séparée : sauter cette
+  // étape (ex. en cliquant trop vite sur les popups) laissait auparavant les noms de fichiers
+  // Drive périmés après chaque renumérotation, provoquant de faux "liens croisés" en cascade.
   if(driveRenames.length>0&&driveAccessToken){
-    const doRename=confirm(count+' factures renumérotées !\n\n'+driveRenames.length+' fichier(s) à renommer sur Google Drive.\nVoulez-vous les renommer maintenant ?');
-    if(doRename){
-      let renamed=0;
-      const echecs=[];
-      for(const r of driveRenames){
-        const ok=await renameDriveFile(r.driveLink,r.newName);
-        if(ok)renamed++;
-        else echecs.push(r.newName);
-      }
-      let msg='✓ '+renamed+'/'+driveRenames.length+' fichiers renommés sur Drive !';
-      if(echecs.length){
-        msg+='\n\n⚠ Échec pour '+echecs.length+' fichier(s) (lien Drive cassé, fichier supprimé/déplacé ou déjà en double) :\n'+echecs.join('\n')+'\n\nVérifie ces factures manuellement sur Drive, ou lance "🧹 Nettoyer doublons Drive" puis "☁ Sync Drive" pour retenter.';
-      }
-      alert(msg);
+    let renamed=0;
+    const echecs=[];
+    for(const r of driveRenames){
+      const ok=await renameDriveFile(r.driveLink,r.newName);
+      if(ok)renamed++;
+      else echecs.push(r.newName);
     }
+    let msg='✓ '+count+' factures renumérotées !\n✓ '+renamed+'/'+driveRenames.length+' fichiers renommés sur Drive.';
+    if(echecs.length){
+      msg+='\n\n⚠ Échec pour '+echecs.length+' fichier(s) (lien Drive cassé, fichier supprimé/déplacé ou déjà en double) :\n'+echecs.join('\n')+'\n\nVérifie ces factures manuellement sur Drive, ou lance "🧹 Nettoyer doublons Drive" puis "☁ Sync Drive" pour retenter.';
+    }
+    alert(msg);
   } else {
     alert('✓ '+count+' factures renumérotées !');
   }
@@ -15936,21 +16001,18 @@ async function renumeroterDevis(){
   renderDevis();
 
   if(driveRenames.length>0&&driveAccessToken){
-    const doRename=confirm(count+' devis renumérotés !\n\n'+driveRenames.length+' fichier(s) à renommer sur Google Drive.\nVoulez-vous les renommer maintenant ?');
-    if(doRename){
-      let renamed=0;
-      const echecs=[];
-      for(const r of driveRenames){
-        const ok=await renameDriveFile(r.driveLink,r.newName);
-        if(ok)renamed++;
-        else echecs.push(r.newName);
-      }
-      let msg='✓ '+renamed+'/'+driveRenames.length+' fichiers renommés sur Drive !';
-      if(echecs.length){
-        msg+='\n\n⚠ Échec pour '+echecs.length+' fichier(s) (lien Drive cassé, fichier supprimé/déplacé ou déjà en double) :\n'+echecs.join('\n');
-      }
-      alert(msg);
+    let renamed=0;
+    const echecs=[];
+    for(const r of driveRenames){
+      const ok=await renameDriveFile(r.driveLink,r.newName);
+      if(ok)renamed++;
+      else echecs.push(r.newName);
     }
+    let msg='✓ '+count+' devis renumérotés !\n✓ '+renamed+'/'+driveRenames.length+' fichiers renommés sur Drive.';
+    if(echecs.length){
+      msg+='\n\n⚠ Échec pour '+echecs.length+' fichier(s) (lien Drive cassé, fichier supprimé/déplacé ou déjà en double) :\n'+echecs.join('\n');
+    }
+    alert(msg);
   } else {
     alert('✓ '+count+' devis renumérotés !');
   }
