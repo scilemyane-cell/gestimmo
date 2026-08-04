@@ -5604,13 +5604,20 @@ function saveEditAsSplit(){
     cmd:baseCmd,
     desc: baseDesc,
     inclus:document.getElementById('e-inclus').checked,
-    repartition
+    repartition,
+    hasPdf:editPdfB64?true:original.hasPdf
   };
   const ok=saveFactures(d.factures);
   if(!ok){alert('Erreur de stockage — données trop volumineuses.');return;}
   delierDevisDeFacture(original.num);
   const devisSelectionneSplit=document.getElementById('e-devis')?document.getElementById('e-devis').value:'';
   if(devisSelectionneSplit)lierDevisAFacture(devisSelectionneSplit,baseNum);
+  // Un nouveau PDF a été attaché (le chemin "répartition" gardait auparavant TOUJOURS l'ancien
+  // fichier/lien Drive sans jamais regarder si un nouveau PDF avait été choisi dans le formulaire).
+  if(editPdfB64){
+    const fname=(baseNum||'FAC-'+(editIdx+1))+'_'+(document.getElementById('e-four').value||'facture').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf';
+    savePdfWithDrive(editIdx, editPdfB64, fname);
+  }
   closeModal();renderFactures();
 }
 
