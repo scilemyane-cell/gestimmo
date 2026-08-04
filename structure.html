@@ -14567,12 +14567,23 @@ async function uploadToDrive(b64, fileName, anneeFacture){
           {method:'PATCH', headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':mimeType}, body:blob}
         );
         if(updateResp.ok) return existData.files[0].webViewLink||null;
-        console.warn('Mise à jour du fichier Drive existant échouée, nouvel upload en secours.');
+        // Échec le plus fréquent : fichier existant non créé par l'app sous le scope OAuth
+        // restreint 'drive.file' → écriture refusée (403 appNotAuthorizedToFile). On ne bloque
+        // pas : on continue vers la création d'un NOUVEAU fichier ci-dessous (avec un nom
+        // légèrement différent pour ne pas entrer en conflit), mais on le trace clairement.
+        const detail=await updateResp.text().catch(()=>'');
+        console.warn('Mise à jour du fichier Drive existant échouée ('+updateResp.status+'), nouvel upload en secours :',detail);
+        window._dernierEchecMajDrive={status:updateResp.status,fileName};
       }
     }catch(e){console.warn('Vérification anti-doublon Drive échouée, upload normal:',e);}
 
-    // Upload le fichier dans le dossier de l'année
-    const metadata = {name: fileName, parents: [yearFolderId]};
+    // Upload le fichier dans le dossier de l'année. Si un fichier du même nom existait déjà et
+    // que sa mise à jour a échoué juste au-dessus (permission), on suffixe le nom pour éviter
+    // d'avoir deux fichiers strictement identiques dans le dossier — la facture pointera alors
+    // vers ce nouveau fichier (le lien Drive est toujours mis à jour côté app).
+    const nomFinal=window._dernierEchecMajDrive&&window._dernierEchecMajDrive.fileName===fileName
+      ? fileName.replace(/\.pdf$/i,'')+'_v2.pdf' : fileName;
+    const metadata = {name: nomFinal, parents: [yearFolderId]};
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
     form.append('file', blob);
@@ -14581,6 +14592,11 @@ async function uploadToDrive(b64, fileName, anneeFacture){
       'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
       {method:'POST', headers:{'Authorization':'Bearer '+driveAccessToken}, body:form}
     );
+    if(!uploadResp.ok){
+      const detail=await uploadResp.text().catch(()=>'');
+      console.error('Drive upload échoué ('+uploadResp.status+') :',detail);
+      return null;
+    }
     const uploadData = await uploadResp.json();
     return uploadData.webViewLink || null;
   } catch(e) {
@@ -14773,8 +14789,13 @@ async function savePdfWithDrive(idx, b64, fileName){
           if(factures[idx]) factures[idx].driveLink = driveLink;
         });
         console.log('PDF uploadé sur Drive:', driveLink);
+      } else {
+        alert('⚠ Le PDF a été enregistré localement, mais l\'envoi vers Google Drive a échoué (voir la console F12 pour le détail exact). Le fichier reste accessible via "📄 Local" en attendant — relance "☁ Sync Drive" plus tard pour retenter.');
       }
-    }catch(e){console.error('Upload Drive facture échoué:',e);}
+    }catch(e){
+      console.error('Upload Drive facture échoué:',e);
+      alert('⚠ Le PDF a été enregistré localement, mais l\'envoi vers Google Drive a échoué : '+e.message);
+    }
   }
   if(driveLink){
     // Le PDF est confirmé sur Drive : la copie locale devient redondante (fetchFacturePdfB64 ira
