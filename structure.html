@@ -166,12 +166,24 @@ onAuthStateChanged(auth, async (user) => {
   // sinon un cloud resté périmé (sync qui échoue, ex: erreur de permissions) écrase en boucle des
   // corrections locales jamais synchronisées, à chaque snapshot reçu (y compris à la reconnexion).
   onSnapshot(window._appDataDoc(), (snap) => {
+    // Un snapshot avec hasPendingWrites=true est l'écho de NOTRE PROPRE écriture en cours,
+    // pas une donnée venant d'un autre appareil/session. L'appliquer est non seulement inutile
+    // (on a déjà cette donnée, ou une plus récente si on a enchaîné une 2e action entre-temps) mais
+    // activement dangereux : si un écho lent du 1er clic arrive après qu'un 2e clic ait déjà mis
+    // à jour le local, il écrase la 2e modification avec les données périmées du 1er clic — c'est
+    // exactement le bug "le lien Drive reste l'ancien" observé. On ignore donc systématiquement
+    // ces échos ; seules les confirmations serveur (hasPendingWrites=false), potentiellement
+    // issues d'un autre appareil, sont candidates à l'application locale.
+    if(snap.metadata.hasPendingWrites){
+      console.log('[onSnapshot] ignoré (écho de notre propre écriture, pendingWrites=true)');
+      return;
+    }
     if(snap.exists() && window._remoteUpdate){
       const d = snap.data();
       const k = (key) => window._structureId + '_' + key;
       const lastSyncedAt = localStorage.getItem(k('last_synced_at')) || '';
       const bloque = d.updated && lastSyncedAt && d.updated<=lastSyncedAt;
-      console.log('[onSnapshot] reçu — d.updated='+d.updated+' | lastSyncedAt local='+lastSyncedAt+' | '+(bloque?'IGNORÉ (pas plus récent)':'APPLIQUÉ (écrase le local)')+' | fromCache='+snap.metadata.fromCache+' | pendingWrites='+snap.metadata.hasPendingWrites);
+      console.log('[onSnapshot] reçu (confirmé serveur) — d.updated='+d.updated+' | lastSyncedAt local='+lastSyncedAt+' | '+(bloque?'IGNORÉ (pas plus récent)':'APPLIQUÉ (écrase le local)'));
       if(!bloque){
         if(d.budget) localStorage.setItem(k('budget3'), JSON.stringify(d.budget));
         if(d.factures) localStorage.setItem(k('factures3'), JSON.stringify(d.factures));
