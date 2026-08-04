@@ -1978,6 +1978,17 @@ function loadDevis(){
   const d=localStorage.getItem(ctxKey('devis1'));
   return d?JSON.parse(d):[];
 }
+// Même protection anti-course que queueFacturesUpdate — voir son commentaire pour le détail.
+let _devisSaveQueue = Promise.resolve();
+function queueDevisUpdate(mutatorFn){
+  const run = _devisSaveQueue.then(async ()=>{
+    const d = loadDevis();
+    await mutatorFn(d);
+    return saveDevis(d);
+  });
+  _devisSaveQueue = run.catch(e=>{console.error('queueDevisUpdate error:',e);});
+  return run;
+}
 function saveDevis(devis){
   try{
     localStorage.setItem(ctxKey('devis1'),JSON.stringify(devis));
@@ -5275,7 +5286,7 @@ function lierDriveLinkDevis(idx){
   document.getElementById('lier-drive-overlay').style.display='flex';
   setTimeout(()=>document.getElementById('lier-drive-url').focus(),50);
 }
-function confirmerLierDrive(){
+async function confirmerLierDrive(){
   if(_lierDriveIdx===null)return;
   const url=document.getElementById('lier-drive-url').value.trim();
   if(!url){
@@ -5289,18 +5300,19 @@ function confirmerLierDrive(){
     return;
   }
   document.getElementById('lier-drive-url').style.borderColor='';
+  const idxAEnregistrer=_lierDriveIdx;
   if(_lierDriveType==='devis'){
-    const devis=loadDevis();
-    devis[_lierDriveIdx].driveLink=url;
-    saveDevis(devis);
+    await queueDevisUpdate((devis)=>{
+      if(devis[idxAEnregistrer]) devis[idxAEnregistrer].driveLink=url;
+    });
     document.getElementById('lier-drive-overlay').style.display='none';
     _lierDriveIdx=null;
     renderDevis();
     return;
   }
-  const{factures}=loadData();
-  factures[_lierDriveIdx].driveLink=url;
-  saveFactures(factures);
+  await queueFacturesUpdate((factures)=>{
+    if(factures[idxAEnregistrer]) factures[idxAEnregistrer].driveLink=url;
+  });
   document.getElementById('lier-drive-overlay').style.display='none';
   _lierDriveIdx=null;
   renderFactures();
