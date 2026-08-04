@@ -5278,11 +5278,17 @@ function lierDriveLinkDevis(idx){
 function confirmerLierDrive(){
   if(_lierDriveIdx===null)return;
   const url=document.getElementById('lier-drive-url').value.trim();
-  if(!url){document.getElementById('lier-drive-url').style.borderColor='var(--red)';return;}
-  if(!url.includes('drive.google.com')&&!url.includes('docs.google.com')){
+  if(!url){
     document.getElementById('lier-drive-url').style.borderColor='var(--red)';
+    alert('Le champ est vide — colle d\'abord le lien du fichier Drive.');
     return;
   }
+  if(!url.includes('drive.google.com')&&!url.includes('docs.google.com')){
+    document.getElementById('lier-drive-url').style.borderColor='var(--red)';
+    alert('Ce texte ne ressemble pas à un lien Google Drive valide :\n\n"'+url+'"\n\nUn lien valide doit contenir "drive.google.com", par exemple :\nhttps://drive.google.com/file/d/1AbC...xyz/view\n\nVérifie que tu as bien copié le lien complet depuis la barre d\'adresse ou le menu "Partager" de Drive.');
+    return;
+  }
+  document.getElementById('lier-drive-url').style.borderColor='';
   if(_lierDriveType==='devis'){
     const devis=loadDevis();
     devis[_lierDriveIdx].driveLink=url;
