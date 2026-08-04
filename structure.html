@@ -7866,6 +7866,8 @@ async function renommerToutesAnomaliesDrive(){
   const liste=(window._derniersProblemesDrive||[]).filter(a=>a.type==='mismatch');
   if(!liste.length)return;
   if(!confirm('Renommer les '+liste.length+' fichier(s) Drive concernés pour qu\'ils correspondent à leur fiche ?\n\nAucun contenu de fichier n\'est modifié, seuls les noms sont corrigés.'))return;
+  await ensureDriveConnected();
+  if(!driveAccessToken){ alert('Impossible de se connecter à Google Drive — reconnecte-toi (bouton Drive en haut de page) puis réessaie.'); return; }
   const{factures}=loadData();
   let renommes=0;
   const echecs=[];
@@ -7900,6 +7902,8 @@ async function renommerFichierDriveDepuisFacture(idx){
   if(!f||!f.driveLink)return;
   const nouveauNom=nomFichierAttenduPourFacture(f);
   if(!confirm('Renommer le fichier Drive de '+(f.num||'?')+' pour qu\'il corresponde à la fiche ?\n\nNouveau nom : "'+nouveauNom+'"\n\nLe fichier n\'est pas déplacé ni modifié dans son contenu — seul son nom est corrigé.'))return;
+  await ensureDriveConnected();
+  if(!driveAccessToken){ alert('Impossible de se connecter à Google Drive — reconnecte-toi (bouton Drive en haut de page) puis réessaie.'); return; }
   const ok=await renameDriveFile(f.driveLink,nouveauNom);
   if(!ok){ alert('Échec du renommage (fichier introuvable, supprimé, ou déjà en double). Essaie "🔓 Délier" puis "🔗 Lier Drive" à la place.'); return; }
   verifierCoherenceDrive();
@@ -15244,12 +15248,16 @@ async function ouvrirDossierDrive(){
   }
 }
 
-async function renameDriveFile(driveLink, newName){
-  if(!driveAccessToken||!driveLink) return false;
+async function renameDriveFile(driveLink, newName, _retried){
+  if(!driveLink) return false;
+  if(!driveAccessToken){
+    console.error('Drive rename: pas de token Drive en mémoire.');
+    return false;
+  }
   try{
     // Extraire l'ID du fichier depuis le lien Drive
     const match=driveLink.match(/\/d\/([a-zA-Z0-9_-]+)/)||driveLink.match(/id=([a-zA-Z0-9_-]+)/);
-    if(!match) return false;
+    if(!match){ console.error('Drive rename: impossible d\'extraire l\'ID du fichier depuis',driveLink); return false; }
     const fileId=match[1];
     
     const resp=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{
@@ -15260,7 +15268,19 @@ async function renameDriveFile(driveLink, newName){
       },
       body:JSON.stringify({name:newName})
     });
-    return resp.ok;
+    if(!resp.ok){
+      const detail=await resp.text().catch(()=>'');
+      console.error('Drive rename échoué ('+resp.status+') pour',fileId,':',detail);
+      // Token expiré ou invalide : on tente une reconnexion silencieuse puis UN seul nouvel essai,
+      // pour éviter de faire échouer tout un lot de renommages juste parce que le token a expiré
+      // entre le chargement de la page et le clic sur le bouton.
+      if(resp.status===401 && !_retried){
+        const reconnected=await reconnectDriveSilent();
+        if(reconnected) return renameDriveFile(driveLink,newName,true);
+      }
+      return false;
+    }
+    return true;
   }catch(e){
     console.error('Drive rename error:',e);
     return false;
