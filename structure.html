@@ -994,8 +994,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div style="flex:1"></div>
       <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
       <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="exportPDF()">Exporter PDF</button>
-      <button class="btn-export" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="renumeroterFactures()">🔢 Renuméroter</button>
-      <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="corrigerNumerosMalAlignes()" title="Corrige uniquement les factures dont le numéro ne correspond pas à l'année de leur date">🔧 Corriger numéros/dates</button>
       <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllPdfsToDrive()" id="btn-sync-drive" title="Uploader tous les PDF locaux vers Google Drive">☁ Sync Drive</button>
       <button class="btn-export" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="libererEspaceLocalPDF()" id="btn-liberer-espace" title="Supprime les copies locales des PDF déjà présents sur Drive (le fichier reste accessible via Drive)">🧹 Libérer l'espace local</button>
       <button class="btn-export" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)" onclick="nettoyerDoublonsDrive()" id="btn-clean-drive" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
@@ -1049,8 +1047,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div style="flex:1"></div>
     <button class="btn-export" onclick="exportDevisCSV()">Exporter CSV</button>
     <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="exportDevisPDF()">Exporter PDF</button>
-    <button class="btn-export" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="renumeroterDevis()">🔢 Renuméroter</button>
-    <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="corrigerNumerosMalAlignesDevis()" title="Corrige uniquement les devis dont le numéro ne correspond pas à l'année de leur date">🔧 Corriger numéros/dates</button>
     <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllDevisPdfsToDrive()" id="btn-sync-drive-devis" title="Uploader tous les PDF de devis locaux vers Google Drive">☁ Sync Drive</button>
     <button class="btn-export" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="libererEspaceLocalDevisPDF()" id="btn-liberer-espace-devis" title="Supprime les copies locales des PDF de devis déjà présents sur Drive">🧹 Libérer l'espace local</button>
     <button class="btn-export" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)" onclick="nettoyerDoublonsDriveDevis()" id="btn-clean-drive-devis" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
