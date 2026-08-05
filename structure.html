@@ -1248,7 +1248,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
   <div id="saisie-devis-form" style="display:none">
   <div class="table-wrap" style="padding:24px 24px 20px;margin-bottom:20px">
-    <div class="section-title" style="margin:0 0 14px" id="devis-form-title">+ Ajouter un devis</div>
+    <div class="section-title" style="margin:0 0 14px;display:flex;align-items:center;gap:8px">
+      <span id="devis-form-title">+ Ajouter un devis</span>
+      <span class="hover-pdf-trigger" style="font-size:10px;font-weight:600;color:var(--accent);border:1px solid var(--accent2);background:var(--accent3);border-radius:100px;padding:2px 9px;text-transform:none;letter-spacing:0" onmouseenter="showHoverPreview(event,'inline',pendingDevisPdfB64)" onmouseleave="hideHoverPreview()" title="Survoler pour voir le devis importé">👁 Aperçu</span>
+    </div>
 
     <!-- UPLOAD PDF/PHOTO — en premier, comme pour les factures : préremplit les champs ci-dessous -->
     <div style="margin-bottom:20px">
@@ -2359,10 +2362,11 @@ let pendingDevisPdfB64=null,pendingDevisPdfName=null;
 
 async function processDevisFile(file){
   if(file.type.startsWith('image/')){
-    pendingDevisPdfB64=await compressImage(file,1200,0.8);
+    const compressed=await compressImage(file,1200,0.8);
+    pendingDevisPdfB64=await choisirPagesDocument(compressed,true);
   } else if(file.type==='application/pdf'){
     let b64=await readFileAsB64(file);
-    b64=await choisirPagesDocument(b64);
+    b64=await choisirPagesDocument(b64,true);
     pendingDevisPdfB64=b64;
   } else {
     alert('Seuls les fichiers PDF ou images sont acceptés.');
