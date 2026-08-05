@@ -1136,7 +1136,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
   <div id="saisie-facture-form">
   <div class="table-wrap" style="padding:24px 24px 20px">
-    <div class="section-title" style="margin:0 0 14px">Enregistrer une facture</div>
+    <div class="section-title" style="margin:0 0 14px;display:flex;align-items:center;gap:8px">Enregistrer une facture
+      <span class="hover-pdf-trigger" style="font-size:10px;font-weight:600;color:var(--accent);border:1px solid var(--accent2);background:var(--accent3);border-radius:100px;padding:2px 9px;text-transform:none;letter-spacing:0" onmouseenter="showHoverPreview(event,'inline',pendingPdfB64)" onmouseleave="hideHoverPreview()" title="Survoler pour voir la facture importée">👁 Aperçu</span>
+    </div>
     <div class="form-group" style="grid-column:1/-1;margin-bottom:16px">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
         <input type="checkbox" id="f-lignes-toggle" style="width:16px;height:16px;cursor:pointer">
@@ -3136,7 +3138,8 @@ async function processImageFile(file,isEdit){
   const finalB64 = await choisirPagesDocument(compressed,true);
   if(isEdit){editPdfB64=finalB64;editPdfName=file.name;showUploadPreview(file.name,file.size,true);}
   else{
-    pendingPdfB64=finalB64;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);openSplitViewPhoto(finalB64);
+    pendingPdfB64=finalB64;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);
+    if(document.getElementById('f-lignes-toggle')?.checked) openSplitViewPhoto(finalB64);
     extractFactureInfo(finalB64);
   }
 }
@@ -3289,7 +3292,8 @@ async function processFile(file,isEdit){
   const b64=await choisirPagesDocument(b64Brut,true);
   if(isEdit){editPdfB64=b64;editPdfName=file.name;showUploadPreview(file.name,file.size,true);}
   else{
-    pendingPdfB64=b64;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);openSplitView(b64);
+    pendingPdfB64=b64;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);
+    if(document.getElementById('f-lignes-toggle')?.checked) openSplitView(b64);
     if(_pendingFacturX)remplirDepuisFacturX(_pendingFacturX);
     else extractFactureInfo(b64);
   }
