@@ -3132,10 +3132,12 @@ async function processImageFile(file,isEdit){
   }
   // Compresser l'image avant stockage
   const compressed = await compressImage(file, 1200, 0.8);
-  if(isEdit){editPdfB64=compressed;editPdfName=file.name;showUploadPreview(file.name,file.size,true);}
+  // Passe systématiquement par le sélecteur (rotation 🔄 disponible) avant d'utiliser l'image
+  const finalB64 = await choisirPagesDocument(compressed,true);
+  if(isEdit){editPdfB64=finalB64;editPdfName=file.name;showUploadPreview(file.name,file.size,true);}
   else{
-    pendingPdfB64=compressed;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);openSplitViewPhoto(compressed);
-    extractFactureInfo(compressed);
+    pendingPdfB64=finalB64;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);openSplitViewPhoto(finalB64);
+    extractFactureInfo(finalB64);
   }
 }
 
@@ -3284,7 +3286,7 @@ async function processFile(file,isEdit){
   // fichier ORIGINAL — avant que le sélecteur de pages ne le convertisse éventuellement en image
   // (ce qui supprimerait la pièce jointe XML). Repli automatique et silencieux sur l'IA si absent.
   _pendingFacturX=!isEdit?await extraireFacturX(b64Brut):null;
-  const b64=await choisirPagesDocument(b64Brut);
+  const b64=await choisirPagesDocument(b64Brut,true);
   if(isEdit){editPdfB64=b64;editPdfName=file.name;showUploadPreview(file.name,file.size,true);}
   else{
     pendingPdfB64=b64;pendingPdfName=file.name;showUploadPreview(file.name,file.size,false);openSplitView(b64);
@@ -13316,7 +13318,6 @@ async function saveSplitFacture(){
     window._splitEditMode=null;
     _pendingRepartition=null;
     closeSplitView();
-    showTab('factures');
     return;
   }
   const ttc=parseFloat(document.getElementById('sv-ttc').value)||0;
@@ -13369,7 +13370,7 @@ async function saveSplitFacture(){
   const flignes=document.getElementById('f-lignes-toggle');if(flignes)flignes.checked=false;
   clearUpload(false);
   const msg=document.getElementById('sv-msg');msg.style.display='block';
-  setTimeout(()=>{msg.style.display='none';closeSplitView();showTab('factures');},900);
+  setTimeout(()=>{msg.style.display='none';closeSplitView();},900);
 }
 
 // ── CLÉ API GEMINI (OCR factures) — stockée au niveau du compte utilisateur ──
