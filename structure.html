@@ -166,25 +166,11 @@ onAuthStateChanged(auth, async (user) => {
   // sinon un cloud resté périmé (sync qui échoue, ex: erreur de permissions) écrase en boucle des
   // corrections locales jamais synchronisées, à chaque snapshot reçu (y compris à la reconnexion).
   onSnapshot(window._appDataDoc(), (snap) => {
-    // Un snapshot avec hasPendingWrites=true est l'écho de NOTRE PROPRE écriture en cours,
-    // pas une donnée venant d'un autre appareil/session. L'appliquer est non seulement inutile
-    // (on a déjà cette donnée, ou une plus récente si on a enchaîné une 2e action entre-temps) mais
-    // activement dangereux : si un écho lent du 1er clic arrive après qu'un 2e clic ait déjà mis
-    // à jour le local, il écrase la 2e modification avec les données périmées du 1er clic — c'est
-    // exactement le bug "le lien Drive reste l'ancien" observé. On ignore donc systématiquement
-    // ces échos ; seules les confirmations serveur (hasPendingWrites=false), potentiellement
-    // issues d'un autre appareil, sont candidates à l'application locale.
-    if(snap.metadata.hasPendingWrites){
-      console.log('[onSnapshot] ignoré (écho de notre propre écriture, pendingWrites=true)');
-      return;
-    }
     if(snap.exists() && window._remoteUpdate){
       const d = snap.data();
       const k = (key) => window._structureId + '_' + key;
       const lastSyncedAt = localStorage.getItem(k('last_synced_at')) || '';
-      const bloque = d.updated && lastSyncedAt && d.updated<=lastSyncedAt;
-      console.log('[onSnapshot] reçu (confirmé serveur) — d.updated='+d.updated+' | lastSyncedAt local='+lastSyncedAt+' | '+(bloque?'IGNORÉ (pas plus récent)':'APPLIQUÉ (écrase le local)'));
-      if(!bloque){
+      if(!(d.updated && lastSyncedAt && d.updated<=lastSyncedAt)){
         if(d.budget) localStorage.setItem(k('budget3'), JSON.stringify(d.budget));
         if(d.factures) localStorage.setItem(k('factures3'), JSON.stringify(d.factures));
         if(d.fin) localStorage.setItem(k('fin4'), JSON.stringify(d.fin));
@@ -193,10 +179,6 @@ onAuthStateChanged(auth, async (user) => {
         if(d.projection) localStorage.setItem(k('projection'), JSON.stringify(d.projection));
         if(d.fc) localStorage.setItem(k('fc'), JSON.stringify(d.fc));
         if(d.updated) localStorage.setItem(k('last_synced_at'), d.updated);
-        // Si l'onglet Factures est affiché au moment où le cloud écrase le local, on le
-        // re-rafraîchit tout de suite — sinon l'écran continue d'afficher les anciennes
-        // données déjà rendues, même si localStorage vient de changer sous le capot.
-        if(typeof renderFactures==='function'&&document.getElementById('factures-list')) renderFactures();
       }
       window._remoteUpdate = false;
     }
@@ -407,6 +389,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .split-toolbar h3{font-size:13px;font-weight:600;color:var(--accent);flex:1}
 .split-body{display:flex;flex:1;overflow:hidden}
 .split-pdf{flex:1;border:none;border-right:1px solid var(--border2)}
+#hover-pdf-preview{display:none;position:fixed;z-index:400;width:320px;max-height:420px;background:#111;border:1px solid var(--border2);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.5);overflow:hidden;padding:0;pointer-events:none}
+#hover-pdf-preview img,#hover-pdf-preview iframe{width:100%;height:420px;object-fit:contain;border:none;display:block;background:#111}
+#hover-pdf-preview .hpp-msg{padding:16px;font-size:11px;color:var(--text3);text-align:center}
+.hover-pdf-trigger{cursor:zoom-in}
 .split-form{width:380px;overflow-y:auto;padding:20px;flex-shrink:0;background:var(--bg2)}
 .split-form h4{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:16px}
 .split-field{margin-bottom:14px}
@@ -546,6 +532,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div style="width:10px;height:10px;border:2px solid rgba(224,161,94,.3);border-top-color:var(--orange);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
       <span>Tri en cours...</span>
     </div>
+    <a href="manuel.html" target="_blank" class="badge" style="color:var(--accent);cursor:pointer;text-decoration:none" title="Ouvrir le manuel d'utilisation dans un nouvel onglet">❓ Aide</a>
     <div class="badge" onclick="logout()" style="color:var(--text3);cursor:pointer;font-size:10px" title="Se déconnecter">🔒 Déconnexion</div>
   </div>
 </div>
@@ -1007,12 +994,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div style="flex:1"></div>
       <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
       <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="exportPDF()">Exporter PDF</button>
-      <!-- Boutons "🔢 Renuméroter" et "🔧 Corriger numéros/dates" retirés à la demande de l'utilisateur :
-           ils changent le numéro des factures et tentent de renommer les fichiers Drive en conséquence,
-           mais ce renommage échoue silencieusement pour les fichiers non créés par l'app (permission
-           Drive drive.file), laissant des liens qui semblent "croisés" et un ménage manuel à faire.
-           Les fonctions renumeroterFactures() et corrigerNumerosMalAlignes() restent dans le code
-           mais ne sont plus accessibles depuis l'interface. -->
+      <button class="btn-export" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="renumeroterFactures()">🔢 Renuméroter</button>
+      <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="corrigerNumerosMalAlignes()" title="Corrige uniquement les factures dont le numéro ne correspond pas à l'année de leur date">🔧 Corriger numéros/dates</button>
       <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllPdfsToDrive()" id="btn-sync-drive" title="Uploader tous les PDF locaux vers Google Drive">☁ Sync Drive</button>
       <button class="btn-export" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="libererEspaceLocalPDF()" id="btn-liberer-espace" title="Supprime les copies locales des PDF déjà présents sur Drive (le fichier reste accessible via Drive)">🧹 Libérer l'espace local</button>
       <button class="btn-export" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)" onclick="nettoyerDoublonsDrive()" id="btn-clean-drive" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
@@ -1066,8 +1049,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div style="flex:1"></div>
     <button class="btn-export" onclick="exportDevisCSV()">Exporter CSV</button>
     <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="exportDevisPDF()">Exporter PDF</button>
-    <!-- Boutons "🔢 Renuméroter" / "🔧 Corriger numéros/dates" retirés — voir commentaire équivalent
-         du côté Factures. -->
+    <button class="btn-export" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple)" onclick="renumeroterDevis()">🔢 Renuméroter</button>
+    <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="corrigerNumerosMalAlignesDevis()" title="Corrige uniquement les devis dont le numéro ne correspond pas à l'année de leur date">🔧 Corriger numéros/dates</button>
     <button class="btn-export" style="background:rgba(79,209,197,.1);border-color:rgba(79,209,197,.4);color:var(--teal)" onclick="syncAllDevisPdfsToDrive()" id="btn-sync-drive-devis" title="Uploader tous les PDF de devis locaux vers Google Drive">☁ Sync Drive</button>
     <button class="btn-export" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)" onclick="libererEspaceLocalDevisPDF()" id="btn-liberer-espace-devis" title="Supprime les copies locales des PDF de devis déjà présents sur Drive">🧹 Libérer l'espace local</button>
     <button class="btn-export" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.4);color:var(--red)" onclick="nettoyerDoublonsDriveDevis()" id="btn-clean-drive-devis" title="Mettre à la corbeille les fichiers en double sur Drive (même nom), en ne gardant que le plus ancien">🧹 Nettoyer doublons Drive</button>
@@ -1996,17 +1979,6 @@ function loadDevis(){
   const d=localStorage.getItem(ctxKey('devis1'));
   return d?JSON.parse(d):[];
 }
-// Même protection anti-course que queueFacturesUpdate — voir son commentaire pour le détail.
-let _devisSaveQueue = Promise.resolve();
-function queueDevisUpdate(mutatorFn){
-  const run = _devisSaveQueue.then(async ()=>{
-    const d = loadDevis();
-    await mutatorFn(d);
-    return saveDevis(d);
-  });
-  _devisSaveQueue = run.catch(e=>{console.error('queueDevisUpdate error:',e);});
-  return run;
-}
 function saveDevis(devis){
   try{
     localStorage.setItem(ctxKey('devis1'),JSON.stringify(devis));
@@ -2529,7 +2501,7 @@ function renderDevis(){
     const sc=d.statut==='Facturé'?'#7FBF9E':d.statut==='Accepté'?'#5AC8D8':d.statut==='Refusé'?'#E0716B':'#E0A15E';
     const isDupDevis=dupIndicesDevis.has(d._ri);
     return`<tr>
-      <td style="color:var(--accent);font-weight:500">${d.num||'—'}${isDupDevis?` <span onclick="confirmerPasDoublonDevis(${d._ri})" title="Cliquer pour confirmer que ce n'est PAS un doublon" style="cursor:pointer;font-size:9px;background:rgba(224,113,107,.25);color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON — ✓ Confirmer que non</span>`:''}</td>
+      <td class="hover-pdf-trigger" style="color:var(--accent);font-weight:500" onmouseenter="showHoverPreview(event,'devis',${d._ri})" onmouseleave="hideHoverPreview()" title="Survoler pour voir le devis">${d.num||'—'}${isDupDevis?` <span onclick="confirmerPasDoublonDevis(${d._ri})" title="Cliquer pour confirmer que ce n'est PAS un doublon" style="cursor:pointer;font-size:9px;background:rgba(224,113,107,.25);color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON — ✓ Confirmer que non</span>`:''}</td>
       <td style="color:var(--text2)">${d.date||'—'}</td>
       <td style="font-weight:500">${d.four||'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${d.cat||'—'}</td>
@@ -2780,6 +2752,54 @@ async function fetchFacturePdfB64(idx){
   const b64=await downloadDriveFileAsBase64(f.driveLink);
   if(b64)savePdf(idx,b64);
   return b64;
+}
+
+// ── Aperçu au survol (factures/devis + écran de saisie) ───────────────────
+let _hoverPreviewToken=0; // évite qu'une réponse Drive lente n'écrase l'aperçu d'une ligne survolée plus récemment
+const _hoverPreviewCache={}; // clé -> b64 déjà récupéré (évite de retélécharger Drive à chaque survol)
+function _b64ToPreviewHtml(b64){
+  if(!b64)return null;
+  if(b64.startsWith('data:image'))return `<img src="${b64}">`;
+  if(b64.startsWith('data:application/pdf'))return `<iframe src="${b64}"></iframe>`;
+  return null;
+}
+function positionHoverPreview(e){
+  const box=document.getElementById('hover-pdf-preview');
+  if(box.style.display==='none')return;
+  const pad=16;
+  let x=e.clientX+pad, y=e.clientY+pad;
+  if(x+320>window.innerWidth)x=e.clientX-320-pad;
+  if(y+420>window.innerHeight)y=window.innerHeight-420-pad;
+  box.style.left=Math.max(8,x)+'px';
+  box.style.top=Math.max(8,y)+'px';
+}
+document.addEventListener('mousemove',positionHoverPreview);
+function hideHoverPreview(){
+  _hoverPreviewToken++;
+  document.getElementById('hover-pdf-preview').style.display='none';
+}
+// source: 'facture' | 'devis' | 'inline' (b64 déjà en mémoire, ex: écran de saisie)
+async function showHoverPreview(e,source,idxOrB64){
+  const box=document.getElementById('hover-pdf-preview');
+  const myToken=++_hoverPreviewToken;
+  box.style.display='block';
+  box.innerHTML='<div class="hpp-msg">Chargement de l\'aperçu…</div>';
+  positionHoverPreview(e);
+  let b64=null;
+  if(source==='inline'){
+    b64=idxOrB64;
+  } else {
+    const cacheKey=source+'-'+idxOrB64;
+    if(_hoverPreviewCache[cacheKey]){
+      b64=_hoverPreviewCache[cacheKey];
+    } else {
+      b64=source==='devis'?await fetchDevisPdfB64(idxOrB64):await fetchFacturePdfB64(idxOrB64);
+      if(b64)_hoverPreviewCache[cacheKey]=b64;
+    }
+  }
+  if(myToken!==_hoverPreviewToken)return; // la souris est déjà passée sur autre chose
+  const html=_b64ToPreviewHtml(b64);
+  box.innerHTML=html||'<div class="hpp-msg">Aucun aperçu disponible (pas de PDF local ni de lien Drive).</div>';
 }
 
 // ── Locataires ──────────────────────────────────────────────────────────
@@ -4179,7 +4199,7 @@ function renderFactures(){
     const isDup=dupIndices.has(ri);
     if(isDup){alertClass='row-alert-duplicate';}
     return`<tr class="${alertClass}" style="${excluStyle}">
-      <td style="color:var(--accent);font-weight:500">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${isDup?` <span onclick="confirmerPasDoublon(${ri})" title="Cliquer pour confirmer que ce n'est PAS un doublon" style="cursor:pointer;font-size:9px;background:rgba(224,113,107,.25);color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON — ✓ Confirmer que non</span>`:''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #E0A15E;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
+      <td class="hover-pdf-trigger" style="color:var(--accent);font-weight:500" onmouseenter="showHoverPreview(event,'facture',${ri})" onmouseleave="hideHoverPreview()" title="Survoler pour voir la facture">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${isDup?` <span onclick="confirmerPasDoublon(${ri})" title="Cliquer pour confirmer que ce n'est PAS un doublon" style="cursor:pointer;font-size:9px;background:rgba(224,113,107,.25);color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON — ✓ Confirmer que non</span>`:''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #E0A15E;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}${f.sourceCertifiee?' <span title="Facture électronique certifiée (Factur-X) — données garanties exactes, aucune lecture IA" style="font-size:9px;background:rgba(90,200,216,.15);color:#5AC8D8;border:1px solid rgba(90,200,216,.4);border-radius:3px;padding:1px 5px;font-weight:700">🔷 CERTIFIÉE</span>':''}</td>
       <td style="color:var(--text2);font-size:11px">${getCatDisplayText(f)}</td>
@@ -5304,33 +5324,26 @@ function lierDriveLinkDevis(idx){
   document.getElementById('lier-drive-overlay').style.display='flex';
   setTimeout(()=>document.getElementById('lier-drive-url').focus(),50);
 }
-async function confirmerLierDrive(){
+function confirmerLierDrive(){
   if(_lierDriveIdx===null)return;
   const url=document.getElementById('lier-drive-url').value.trim();
-  if(!url){
-    document.getElementById('lier-drive-url').style.borderColor='var(--red)';
-    alert('Le champ est vide — colle d\'abord le lien du fichier Drive.');
-    return;
-  }
+  if(!url){document.getElementById('lier-drive-url').style.borderColor='var(--red)';return;}
   if(!url.includes('drive.google.com')&&!url.includes('docs.google.com')){
     document.getElementById('lier-drive-url').style.borderColor='var(--red)';
-    alert('Ce texte ne ressemble pas à un lien Google Drive valide :\n\n"'+url+'"\n\nUn lien valide doit contenir "drive.google.com", par exemple :\nhttps://drive.google.com/file/d/1AbC...xyz/view\n\nVérifie que tu as bien copié le lien complet depuis la barre d\'adresse ou le menu "Partager" de Drive.');
     return;
   }
-  document.getElementById('lier-drive-url').style.borderColor='';
-  const idxAEnregistrer=_lierDriveIdx;
   if(_lierDriveType==='devis'){
-    await queueDevisUpdate((devis)=>{
-      if(devis[idxAEnregistrer]) devis[idxAEnregistrer].driveLink=url;
-    });
+    const devis=loadDevis();
+    devis[_lierDriveIdx].driveLink=url;
+    saveDevis(devis);
     document.getElementById('lier-drive-overlay').style.display='none';
     _lierDriveIdx=null;
     renderDevis();
     return;
   }
-  await queueFacturesUpdate((factures)=>{
-    if(factures[idxAEnregistrer]) factures[idxAEnregistrer].driveLink=url;
-  });
+  const{factures}=loadData();
+  factures[_lierDriveIdx].driveLink=url;
+  saveFactures(factures);
   document.getElementById('lier-drive-overlay').style.display='none';
   _lierDriveIdx=null;
   renderFactures();
@@ -5604,20 +5617,13 @@ function saveEditAsSplit(){
     cmd:baseCmd,
     desc: baseDesc,
     inclus:document.getElementById('e-inclus').checked,
-    repartition,
-    hasPdf:editPdfB64?true:original.hasPdf
+    repartition
   };
   const ok=saveFactures(d.factures);
   if(!ok){alert('Erreur de stockage — données trop volumineuses.');return;}
   delierDevisDeFacture(original.num);
   const devisSelectionneSplit=document.getElementById('e-devis')?document.getElementById('e-devis').value:'';
   if(devisSelectionneSplit)lierDevisAFacture(devisSelectionneSplit,baseNum);
-  // Un nouveau PDF a été attaché (le chemin "répartition" gardait auparavant TOUJOURS l'ancien
-  // fichier/lien Drive sans jamais regarder si un nouveau PDF avait été choisi dans le formulaire).
-  if(editPdfB64){
-    const fname=(baseNum||'FAC-'+(editIdx+1))+'_'+(document.getElementById('e-four').value||'facture').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf';
-    savePdfWithDrive(editIdx, editPdfB64, fname);
-  }
   closeModal();renderFactures();
 }
 
@@ -6624,20 +6630,7 @@ async function exportZipFactures(){
 }
 
 // ── FIREBASE SYNC ─────────────────────────────────────────────────────────
-// syncToCloud() est appelée à chaque sauvegarde locale (saveFactures, saveBudget, saveDevis...),
-// potentiellement plusieurs fois en rafale (ex: plusieurs "Lier Drive" à la suite). Sans
-// sérialisation, ces envois partent en parallèle et peuvent ARRIVER DANS LE DÉSORDRE sur
-// Firestore : un envoi parti tôt mais plus lent peut atterrir après un envoi plus récent et plus
-// rapide, écrasant le serveur avec des données périmées — qui redescendent ensuite via
-// onSnapshot et écrasent aussi l'affichage local avec l'ancienne valeur. En file d'attente, un
-// envoi ne démarre que lorsque le précédent est totalement terminé, et lit toujours le
-// localStorage à cet instant précis (donc toujours les toutes dernières données).
-let _cloudSyncQueue = Promise.resolve();
-function syncToCloud(){
-  _cloudSyncQueue = _cloudSyncQueue.then(()=>syncToCloudNow()).catch(e=>console.error('File de sync cloud, erreur:',e));
-  return _cloudSyncQueue;
-}
-async function syncToCloudNow(){
+async function syncToCloud(){
   if(!window._db)return;
   try{
     const{budget,factures}=loadData();
@@ -7790,7 +7783,7 @@ async function verifierCoherenceDrive(){
 
   for(const f of liees){
     const match=(f.driveLink||'').match(/\/d\/([a-zA-Z0-9_-]+)/)||(f.driveLink||'').match(/id=([a-zA-Z0-9_-]+)/);
-    if(!match){anomalies.push({f,type:'lien_invalide',detail:'Le lien enregistré n\'a pas un format Drive reconnu : "'+(f.driveLink||'')+'"'});continue;}
+    if(!match){anomalies.push({f,type:'lien_invalide',detail:'Le lien enregistré n\'a pas un format Drive reconnu.'});continue;}
     const fileId=match[1];
     try{
       const resp=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?fields=name,trashed',{
@@ -7870,7 +7863,6 @@ async function verifierCoherenceDrive(){
   el.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
       <div style="font-size:12px;color:var(--red)">⚠ ${anomalies.length} problème(s) détecté(s) sur ${liees.length} facture(s) vérifiée(s) :</div>
-      ${nbDeliables>1?`<button class="btn btn-sm" onclick="renommerToutesAnomaliesDrive()" style="background:rgba(90,200,216,.15);border-color:rgba(90,200,216,.4);color:var(--accent);flex-shrink:0">🔧 Renommer tout (${anomalies.filter(a=>a.type==='mismatch').length})</button>` : ''}
       ${nbDeliables>1?`<button class="btn btn-sm" onclick="delierToutesAnomaliesDrive()" style="background:rgba(224,113,107,.15);border-color:rgba(224,113,107,.4);color:var(--red);flex-shrink:0">🔓 Délier tout (${nbDeliables})</button>`:''}
     </div>
     <div style="display:flex;flex-direction:column;gap:6px">
@@ -7879,7 +7871,7 @@ async function verifierCoherenceDrive(){
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
             <div><span style="color:var(--accent);font-weight:500">${a.f.num||'—'}</span> · ${a.f.four||'—'} · ${a.f.date||'—'} · ${fmt(a.f.ttc)} <span style="color:${(a.type==='erreur_acces'||a.type==='erreur')?'var(--orange)':'var(--red)'};font-weight:600;margin-left:6px">${labels[a.type]||a.type}</span></div>
             <div style="display:flex;gap:6px;flex-shrink:0">
-              ${a.type==='mismatch'?`<button class="btn btn-sm" onclick="renommerFichierDriveDepuisFacture(${a.f._ri})" style="background:rgba(90,200,216,.12);border-color:rgba(90,200,216,.4);color:var(--accent);font-size:10px;padding:4px 9px" title="Renomme le fichier sur Drive pour qu'il corresponde au numéro/fournisseur actuel de la fiche — le contenu du fichier n'est pas touché">🔧 Renommer le fichier Drive</button>`:''}
+              ${a.type==='mismatch'&&a.driveFileName?(()=>{const nouveauFour=extraireFournisseurDuNomFichier(a.driveFileName,a.f.num);return `<button class="btn btn-sm" onclick='corrigerFournisseurDepuisFichier(${a.f._ri}, ${JSON.stringify(nouveauFour)})' style="background:rgba(90,200,216,.12);border-color:rgba(90,200,216,.4);color:var(--accent);font-size:10px;padding:4px 9px" title="Le lien Drive n'est pas touché — seul le champ fournisseur de la fiche est corrigé">✏️ Corriger fournisseur → ${nouveauFour}</button>`;})():''}
               ${a.pairIdx!==undefined?`<button class="btn btn-sm" onclick="echangerLiensDrive(${a.f._ri},${anomalies[a.pairIdx].f._ri})" style="background:rgba(127,191,158,.12);border-color:rgba(127,191,158,.4);color:var(--green);font-size:10px;padding:4px 9px">🔁 Échanger avec ${anomalies[a.pairIdx].f.num||'?'}</button>`:''}
               <a href="${a.f.driveLink}" target="_blank" class="btn btn-sm" style="text-decoration:none;font-size:10px;padding:4px 9px">👁 Voir le lien actuel</a>
               ${(a.type==='erreur_acces'||a.type==='erreur')?'':`<button class="btn btn-sm" onclick="delierFactureDrive(${a.f._ri})" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.35);color:var(--red);font-size:10px;padding:4px 9px">🔓 Délier</button>`}
@@ -7917,56 +7909,6 @@ async function delierFactureDrive(idx){
   });
   verifierCoherenceDrive();
   renderFacturesOrphelines();
-}
-
-// Traite en une fois tous les "Lien croisé" affichés par verifierCoherenceDrive en renommant
-// chaque fichier Drive pour qu'il corresponde à sa fiche — équivalent en masse du bouton
-// individuel "🔧 Renommer le fichier Drive".
-async function renommerToutesAnomaliesDrive(){
-  const liste=(window._derniersProblemesDrive||[]).filter(a=>a.type==='mismatch');
-  if(!liste.length)return;
-  if(!confirm('Renommer les '+liste.length+' fichier(s) Drive concernés pour qu\'ils correspondent à leur fiche ?\n\nAucun contenu de fichier n\'est modifié, seuls les noms sont corrigés.'))return;
-  await ensureDriveConnected();
-  if(!driveAccessToken){ alert('Impossible de se connecter à Google Drive — reconnecte-toi (bouton Drive en haut de page) puis réessaie.'); return; }
-  const{factures}=loadData();
-  let renommes=0;
-  const echecs=[];
-  for(const a of liste){
-    const f=factures[a.f._ri];
-    if(!f||!f.driveLink)continue;
-    const ok=await renameDriveFile(f.driveLink,nomFichierAttenduPourFacture(f));
-    if(ok)renommes++;
-    else echecs.push(f.num||'?');
-  }
-  let msg='✓ '+renommes+'/'+liste.length+' fichier(s) renommés sur Drive.';
-  if(echecs.length)msg+='\n\n⚠ Échec pour : '+echecs.join(', ')+' — essaie "🔓 Délier" puis "🔗 Lier Drive" pour ceux-là.';
-  alert(msg);
-  verifierCoherenceDrive();
-}
-
-// que celle utilisée à la création/renumérotation (num + éventuel n° de commande + fournisseur).
-function nomFichierAttenduPourFacture(f){
-  const four=(f.four||'facture').replace(/[^a-zA-Z0-9]/g,'_');
-  const cmd=f.cmd||'';
-  return (f.num||'')+(cmd?'_BC'+cmd.replace(/[^a-zA-Z0-9]/g,'_'):'')+'_'+four+'.pdf';
-}
-
-// Cas le plus fréquent en pratique (ex. après une renumérotation dont le renommage Drive a été
-// sauté) : le lien Drive est CORRECT, seul le NOM du fichier sur Drive est resté périmé. On le
-// renomme directement pour qu'il corresponde à la fiche actuelle — rien n'est modifié côté
-// données de la facture, seul le nom du fichier sur Drive change.
-async function renommerFichierDriveDepuisFacture(idx){
-  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
-  const{factures}=loadData();
-  const f=factures[idx];
-  if(!f||!f.driveLink)return;
-  const nouveauNom=nomFichierAttenduPourFacture(f);
-  if(!confirm('Renommer le fichier Drive de '+(f.num||'?')+' pour qu\'il corresponde à la fiche ?\n\nNouveau nom : "'+nouveauNom+'"\n\nLe fichier n\'est pas déplacé ni modifié dans son contenu — seul son nom est corrigé.'))return;
-  await ensureDriveConnected();
-  if(!driveAccessToken){ alert('Impossible de se connecter à Google Drive — reconnecte-toi (bouton Drive en haut de page) puis réessaie.'); return; }
-  const ok=await renameDriveFile(f.driveLink,nouveauNom);
-  if(!ok){ alert('Échec du renommage (fichier introuvable, supprimé, ou déjà en double). Essaie "🔓 Délier" puis "🔗 Lier Drive" à la place.'); return; }
-  verifierCoherenceDrive();
 }
 
 // Déduit un nom de fournisseur lisible à partir du nom de fichier Drive (ex.
@@ -8045,6 +7987,10 @@ function renderParametres(){
 
   container.innerHTML=`
     <div class="section-title">⚙️ Paramètres — ${cfg.nom}</div>
+
+    <div style="margin:-8px 0 24px">
+      <a href="manuel.html" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:var(--accent3);border:1px solid var(--accent2);border-radius:10px;padding:9px 16px;color:var(--accent);text-decoration:none;font-size:12px;font-weight:600">❓ Consulter le manuel d'utilisation</a>
+    </div>
 
     <!-- Compte Google Drive associé -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px">
@@ -13370,7 +13316,7 @@ async function saveSplitFacture(){
     window._splitEditMode=null;
     _pendingRepartition=null;
     closeSplitView();
-    renderFactures();
+    showTab('factures');
     return;
   }
   const ttc=parseFloat(document.getElementById('sv-ttc').value)||0;
@@ -13423,7 +13369,7 @@ async function saveSplitFacture(){
   const flignes=document.getElementById('f-lignes-toggle');if(flignes)flignes.checked=false;
   clearUpload(false);
   const msg=document.getElementById('sv-msg');msg.style.display='block';
-  setTimeout(()=>{msg.style.display='none';closeSplitView();},1500);
+  setTimeout(()=>{msg.style.display='none';closeSplitView();showTab('factures');},900);
 }
 
 // ── CLÉ API GEMINI (OCR factures) — stockée au niveau du compte utilisateur ──
@@ -14623,23 +14569,12 @@ async function uploadToDrive(b64, fileName, anneeFacture){
           {method:'PATCH', headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':mimeType}, body:blob}
         );
         if(updateResp.ok) return existData.files[0].webViewLink||null;
-        // Échec le plus fréquent : fichier existant non créé par l'app sous le scope OAuth
-        // restreint 'drive.file' → écriture refusée (403 appNotAuthorizedToFile). On ne bloque
-        // pas : on continue vers la création d'un NOUVEAU fichier ci-dessous (avec un nom
-        // légèrement différent pour ne pas entrer en conflit), mais on le trace clairement.
-        const detail=await updateResp.text().catch(()=>'');
-        console.warn('Mise à jour du fichier Drive existant échouée ('+updateResp.status+'), nouvel upload en secours :',detail);
-        window._dernierEchecMajDrive={status:updateResp.status,fileName};
+        console.warn('Mise à jour du fichier Drive existant échouée, nouvel upload en secours.');
       }
     }catch(e){console.warn('Vérification anti-doublon Drive échouée, upload normal:',e);}
 
-    // Upload le fichier dans le dossier de l'année. Si un fichier du même nom existait déjà et
-    // que sa mise à jour a échoué juste au-dessus (permission), on suffixe le nom pour éviter
-    // d'avoir deux fichiers strictement identiques dans le dossier — la facture pointera alors
-    // vers ce nouveau fichier (le lien Drive est toujours mis à jour côté app).
-    const nomFinal=window._dernierEchecMajDrive&&window._dernierEchecMajDrive.fileName===fileName
-      ? fileName.replace(/\.pdf$/i,'')+'_v2.pdf' : fileName;
-    const metadata = {name: nomFinal, parents: [yearFolderId]};
+    // Upload le fichier dans le dossier de l'année
+    const metadata = {name: fileName, parents: [yearFolderId]};
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
     form.append('file', blob);
@@ -14648,11 +14583,6 @@ async function uploadToDrive(b64, fileName, anneeFacture){
       'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
       {method:'POST', headers:{'Authorization':'Bearer '+driveAccessToken}, body:form}
     );
-    if(!uploadResp.ok){
-      const detail=await uploadResp.text().catch(()=>'');
-      console.error('Drive upload échoué ('+uploadResp.status+') :',detail);
-      return null;
-    }
     const uploadData = await uploadResp.json();
     return uploadData.webViewLink || null;
   } catch(e) {
@@ -14845,13 +14775,8 @@ async function savePdfWithDrive(idx, b64, fileName){
           if(factures[idx]) factures[idx].driveLink = driveLink;
         });
         console.log('PDF uploadé sur Drive:', driveLink);
-      } else {
-        alert('⚠ Le PDF a été enregistré localement, mais l\'envoi vers Google Drive a échoué (voir la console F12 pour le détail exact). Le fichier reste accessible via "📄 Local" en attendant — relance "☁ Sync Drive" plus tard pour retenter.');
       }
-    }catch(e){
-      console.error('Upload Drive facture échoué:',e);
-      alert('⚠ Le PDF a été enregistré localement, mais l\'envoi vers Google Drive a échoué : '+e.message);
-    }
+    }catch(e){console.error('Upload Drive facture échoué:',e);}
   }
   if(driveLink){
     // Le PDF est confirmé sur Drive : la copie locale devient redondante (fetchFacturePdfB64 ira
@@ -15329,16 +15254,12 @@ async function ouvrirDossierDrive(){
   }
 }
 
-async function renameDriveFile(driveLink, newName, _retried){
-  if(!driveLink) return false;
-  if(!driveAccessToken){
-    console.error('Drive rename: pas de token Drive en mémoire.');
-    return false;
-  }
+async function renameDriveFile(driveLink, newName){
+  if(!driveAccessToken||!driveLink) return false;
   try{
     // Extraire l'ID du fichier depuis le lien Drive
     const match=driveLink.match(/\/d\/([a-zA-Z0-9_-]+)/)||driveLink.match(/id=([a-zA-Z0-9_-]+)/);
-    if(!match){ console.error('Drive rename: impossible d\'extraire l\'ID du fichier depuis',driveLink); return false; }
+    if(!match) return false;
     const fileId=match[1];
     
     const resp=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{
@@ -15349,19 +15270,7 @@ async function renameDriveFile(driveLink, newName, _retried){
       },
       body:JSON.stringify({name:newName})
     });
-    if(!resp.ok){
-      const detail=await resp.text().catch(()=>'');
-      console.error('Drive rename échoué ('+resp.status+') pour',fileId,':',detail);
-      // Token expiré ou invalide : on tente une reconnexion silencieuse puis UN seul nouvel essai,
-      // pour éviter de faire échouer tout un lot de renommages juste parce que le token a expiré
-      // entre le chargement de la page et le clic sur le bouton.
-      if(resp.status===401 && !_retried){
-        const reconnected=await reconnectDriveSilent();
-        if(reconnected) return renameDriveFile(driveLink,newName,true);
-      }
-      return false;
-    }
-    return true;
+    return resp.ok;
   }catch(e){
     console.error('Drive rename error:',e);
     return false;
@@ -16008,22 +15917,23 @@ async function renumeroterFactures(){
   saveFactures(d.factures);
   renderFactures();
   
-  // Renommer sur Drive si connecté — automatique, sans confirmation séparée : sauter cette
-  // étape (ex. en cliquant trop vite sur les popups) laissait auparavant les noms de fichiers
-  // Drive périmés après chaque renumérotation, provoquant de faux "liens croisés" en cascade.
+  // Renommer sur Drive si connecté
   if(driveRenames.length>0&&driveAccessToken){
-    let renamed=0;
-    const echecs=[];
-    for(const r of driveRenames){
-      const ok=await renameDriveFile(r.driveLink,r.newName);
-      if(ok)renamed++;
-      else echecs.push(r.newName);
+    const doRename=confirm(count+' factures renumérotées !\n\n'+driveRenames.length+' fichier(s) à renommer sur Google Drive.\nVoulez-vous les renommer maintenant ?');
+    if(doRename){
+      let renamed=0;
+      const echecs=[];
+      for(const r of driveRenames){
+        const ok=await renameDriveFile(r.driveLink,r.newName);
+        if(ok)renamed++;
+        else echecs.push(r.newName);
+      }
+      let msg='✓ '+renamed+'/'+driveRenames.length+' fichiers renommés sur Drive !';
+      if(echecs.length){
+        msg+='\n\n⚠ Échec pour '+echecs.length+' fichier(s) (lien Drive cassé, fichier supprimé/déplacé ou déjà en double) :\n'+echecs.join('\n')+'\n\nVérifie ces factures manuellement sur Drive, ou lance "🧹 Nettoyer doublons Drive" puis "☁ Sync Drive" pour retenter.';
+      }
+      alert(msg);
     }
-    let msg='✓ '+count+' factures renumérotées !\n✓ '+renamed+'/'+driveRenames.length+' fichiers renommés sur Drive.';
-    if(echecs.length){
-      msg+='\n\n⚠ Échec pour '+echecs.length+' fichier(s) (lien Drive cassé, fichier supprimé/déplacé ou déjà en double) :\n'+echecs.join('\n')+'\n\nVérifie ces factures manuellement sur Drive, ou lance "🧹 Nettoyer doublons Drive" puis "☁ Sync Drive" pour retenter.';
-    }
-    alert(msg);
   } else {
     alert('✓ '+count+' factures renumérotées !');
   }
@@ -16078,18 +15988,21 @@ async function renumeroterDevis(){
   renderDevis();
 
   if(driveRenames.length>0&&driveAccessToken){
-    let renamed=0;
-    const echecs=[];
-    for(const r of driveRenames){
-      const ok=await renameDriveFile(r.driveLink,r.newName);
-      if(ok)renamed++;
-      else echecs.push(r.newName);
+    const doRename=confirm(count+' devis renumérotés !\n\n'+driveRenames.length+' fichier(s) à renommer sur Google Drive.\nVoulez-vous les renommer maintenant ?');
+    if(doRename){
+      let renamed=0;
+      const echecs=[];
+      for(const r of driveRenames){
+        const ok=await renameDriveFile(r.driveLink,r.newName);
+        if(ok)renamed++;
+        else echecs.push(r.newName);
+      }
+      let msg='✓ '+renamed+'/'+driveRenames.length+' fichiers renommés sur Drive !';
+      if(echecs.length){
+        msg+='\n\n⚠ Échec pour '+echecs.length+' fichier(s) (lien Drive cassé, fichier supprimé/déplacé ou déjà en double) :\n'+echecs.join('\n');
+      }
+      alert(msg);
     }
-    let msg='✓ '+count+' devis renumérotés !\n✓ '+renamed+'/'+driveRenames.length+' fichiers renommés sur Drive.';
-    if(echecs.length){
-      msg+='\n\n⚠ Échec pour '+echecs.length+' fichier(s) (lien Drive cassé, fichier supprimé/déplacé ou déjà en double) :\n'+echecs.join('\n');
-    }
-    alert(msg);
   } else {
     alert('✓ '+count+' devis renumérotés !');
   }
@@ -16244,6 +16157,8 @@ window._authReady.then(async () => {
 </script>
 
 
+<div id="hover-pdf-preview"></div>
+
 <div class="split-view" id="split-view">
   <div class="split-toolbar">
     <h3>📄 Saisie assistée — lisez la facture à gauche et remplissez à droite</h3>
@@ -16252,7 +16167,9 @@ window._authReady.then(async () => {
   <div class="split-body">
     <iframe id="split-pdf-frame" class="split-pdf"></iframe>
     <div class="split-form">
-      <h4>Informations de la facture</h4>
+      <h4 style="display:flex;align-items:center;gap:8px">Informations de la facture
+        <span class="hover-pdf-trigger" style="font-size:10px;font-weight:600;color:var(--accent);border:1px solid var(--accent2);background:var(--accent3);border-radius:100px;padding:2px 9px" onmouseenter="showHoverPreview(event,'inline',pendingPdfB64)" onmouseleave="hideHoverPreview()" title="Survoler pour agrandir l'aperçu">👁 Aperçu</span>
+      </h4>
       <div id="sv-warn" style="display:none;margin-bottom:14px;font-size:12px;border-radius:8px;padding:9px 12px"></div>
       <div class="split-field"><label>N° de document (interne)</label><input type="text" id="sv-num" placeholder="FAC-2025-001"></div>
       <div class="split-field"><label>Date de réception</label><input type="date" id="sv-date" onchange="majNumeroFactureSelonDate('sv-date','sv-num')"></div>
