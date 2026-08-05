@@ -389,8 +389,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .split-toolbar h3{font-size:13px;font-weight:600;color:var(--accent);flex:1}
 .split-body{display:flex;flex:1;overflow:hidden}
 .split-pdf{flex:1;border:none;border-right:1px solid var(--border2)}
-#hover-pdf-preview{display:none;position:fixed;z-index:400;width:320px;max-height:420px;background:#111;border:1px solid var(--border2);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.5);overflow:hidden;padding:0;pointer-events:none}
-#hover-pdf-preview img,#hover-pdf-preview iframe{width:100%;height:420px;object-fit:contain;border:none;display:block;background:#111}
+#hover-pdf-preview{display:none;position:fixed;z-index:400;width:min(560px,90vw);max-height:min(760px,88vh);background:#111;border:1px solid var(--border2);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.5);overflow:hidden;padding:0;pointer-events:none}
+#hover-pdf-preview img,#hover-pdf-preview iframe{width:100%;height:min(760px,88vh);object-fit:contain;border:none;display:block;background:#111}
 #hover-pdf-preview .hpp-msg{padding:16px;font-size:11px;color:var(--text3);text-align:center}
 .hover-pdf-trigger{cursor:zoom-in}
 .split-form{width:380px;overflow-y:auto;padding:20px;flex-shrink:0;background:var(--bg2)}
@@ -2769,9 +2769,10 @@ function positionHoverPreview(e){
   const box=document.getElementById('hover-pdf-preview');
   if(box.style.display==='none')return;
   const pad=16;
+  const w=box.offsetWidth||560, h=box.offsetHeight||760;
   let x=e.clientX+pad, y=e.clientY+pad;
-  if(x+320>window.innerWidth)x=e.clientX-320-pad;
-  if(y+420>window.innerHeight)y=window.innerHeight-420-pad;
+  if(x+w>window.innerWidth)x=e.clientX-w-pad;
+  if(y+h>window.innerHeight)y=window.innerHeight-h-pad;
   box.style.left=Math.max(8,x)+'px';
   box.style.top=Math.max(8,y)+'px';
 }
