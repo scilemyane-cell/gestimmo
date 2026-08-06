@@ -953,9 +953,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <select id="budget-add-cat-select" style="flex:1;min-width:240px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none"></select>
     <button onclick="ajouterCategorieBudget()" style="background:var(--accent3);border:1px solid var(--accent2);border-radius:8px;padding:9px 16px;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">+ Ajouter cette charge</button>
   </div>
-  <div class="table-wrap">
-    <div class="budget-grid" id="budget-grid"></div>
-  </div>
+  <div id="budget-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px"></div>
 </div>
 
 <!-- FACTURES -->
@@ -3881,133 +3879,115 @@ function renderLogements(){
 }
 
 // ── BUDGET ────────────────────────────────────────────────────────────────
+let _budgetExpanded={};
+function _budgetRing(pct,color){
+  const r=26,c=2*Math.PI*r;
+  const capped=Math.max(0,Math.min(100,pct));
+  const off=c-(capped/100)*c;
+  const over=pct>100;
+  return `<svg width="60" height="60" viewBox="0 0 60 60" style="flex-shrink:0">
+    <circle cx="30" cy="30" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="6"/>
+    <circle cx="30" cy="30" r="${r}" fill="none" stroke="${over?'#E0716B':color}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 30 30)"/>
+    <text x="30" y="34" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text)" style="font-family:var(--font)">${Math.round(pct)}%</text>
+  </svg>`;
+}
 function renderBudget(){
   const{budget,factures}=loadData();
   const devisAll=loadDevis();
-  const reelParPoste=sumByPoste(factures,f=>f.inclus!==false);
-  const engageParPoste=sumByPoste(devisAll,d=>d.statut==='Accepté');
   const reelParPosteLog=sumByPosteLog(factures,f=>f.inclus!==false);
   const engageParPosteLog=sumByPosteLog(devisAll,d=>d.statut==='Accepté');
-  const grid=document.getElementById('budget-grid');
-  grid.style.gridTemplateColumns=`210px repeat(${Math.max(LOGS.length,1)},1fr) 130px`;
-  grid.innerHTML='<div class="bg-th">Description</div>'+
-    LOGS.map(l=>`<div class="bg-th" style="text-align:right">${l.key} TTC</div>`).join('')+
-    '<div class="bg-th" style="text-align:right">Total TTC</div>';
+  const reelMatrix=getReelMatrix(factures);
 
-  // Menu déroulant "+ Ajouter une catégorie" — uniquement Fonctionnement, pas encore utilisées
-  // (les catégories Travaux sont toujours affichées : c'est le cœur du module Construction prévisionnelle)
   const catSelect=document.getElementById('budget-add-cat-select');
   if(catSelect){
     const dejaUtilisees=Object.keys(budget);
     const disponibles=CATEGORIES.filter(c=>c.type==='fonctionnement' && !dejaUtilisees.includes(c.name));
     catSelect.innerHTML='';
-    disponibles.forEach(c=>{
-      const o=document.createElement('option');o.value=c.name;o.textContent=c.name;
-      catSelect.appendChild(o);
-    });
-    if(!disponibles.length){
-      catSelect.innerHTML='<option>Toutes les catégories de fonctionnement sont déjà ajoutées</option>';
-      catSelect.disabled=true;
-    } else {
-      catSelect.disabled=false;
-    }
+    disponibles.forEach(c=>{const o=document.createElement('option');o.value=c.name;o.textContent=c.name;catSelect.appendChild(o);});
+    if(!disponibles.length){catSelect.innerHTML='<option>Toutes les catégories de fonctionnement sont déjà ajoutées</option>';catSelect.disabled=true;}
+    else{catSelect.disabled=false;}
   }
 
-  const categoriesUtilisees=CATEGORIES.filter(cat=>
-    cat.type==='travaux' || (cat.type==='fonctionnement' && budget[cat.name])
-  );
+  const container=document.getElementById('budget-cards');
+  const categoriesUtilisees=CATEGORIES.filter(cat=>cat.type==='travaux' || (cat.type==='fonctionnement' && budget[cat.name]));
   if(categoriesUtilisees.length===0){
-    const empty=document.createElement('div');
-    empty.style.cssText='grid-column:1/-1;padding:40px 20px;text-align:center;color:var(--text3);font-size:12px';
-    empty.innerHTML='Aucune catégorie de budget pour l\'instant.<br>Choisis-en une ci-dessus pour commencer ta saisie.';
-    grid.appendChild(empty);
+    container.innerHTML='<div style="grid-column:1/-1;padding:40px 20px;text-align:center;color:var(--text3);font-size:12px">Aucune catégorie de budget pour l\'instant.<br>Choisis-en une ci-dessus pour commencer ta saisie.</div>';
     return;
   }
 
-  let lastType=null;
-  categoriesUtilisees.forEach(cat=>{
-    if(cat.type!==lastType){
-      lastType=cat.type;
-      const sectionLabel=cat.type==='travaux'?'🔨 TRAVAUX (INVESTISSEMENT)':'📋 FONCTIONNEMENT (CHARGES RÉCURRENTES)';
-      const sectionColor=cat.type==='travaux'?'#5AC8D8':'#7FBF9E';
-      const section=document.createElement('div');
-      section.style.cssText=`grid-column:1/-1;padding:14px 12px 6px;font-size:11px;font-weight:700;letter-spacing:.6px;color:${sectionColor};border-top:2px solid ${sectionColor}33;margin-top:8px`;
-      section.textContent=sectionLabel;
-      grid.appendChild(section);
-    }
-    const hdr=document.createElement('div');hdr.className='bg-cat-hdr';hdr.style.color=cat.color;
-    hdr.style.display='flex';hdr.style.justifyContent='space-between';hdr.style.alignItems='center';
-    hdr.innerHTML=`<span style="display:flex;align-items:center;gap:8px"><span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>${cat.name}</span>`;
-    if(cat.type==='fonctionnement'){
-      const btnRetirerCat=document.createElement('button');
-      btnRetirerCat.textContent='Retirer la catégorie';
-      btnRetirerCat.title='Retire cette catégorie du budget prévisionnel (les données saisies seront perdues)';
-      btnRetirerCat.style.cssText='background:none;border:none;color:inherit;opacity:.5;cursor:pointer;font-size:9px;text-decoration:underline';
-      btnRetirerCat.onmouseover=()=>btnRetirerCat.style.opacity='1';
-      btnRetirerCat.onmouseout=()=>btnRetirerCat.style.opacity='.5';
-      btnRetirerCat.onclick=()=>retirerCategorieBudget(cat.name);
-      hdr.appendChild(btnRetirerCat);
-    }
-    grid.appendChild(hdr);
-    const rows=budget[cat.name]||[];
-    rows.forEach((row,idx)=>{
-      [{field:'desc',cls:'desc'},...LOGS.map(l=>({field:l.prevKey,logLabel:l.key}))].forEach(col=>{
-        const td=document.createElement('div');td.className='bg-td'+(col.cls?' '+col.cls:'');
-        const inp=document.createElement('input');
-        inp.type=col.cls==='desc'?'text':'number';
-        inp.value=col.cls==='desc'?(row.desc||''):(row[col.field]||'');
-        inp.placeholder=col.cls==='desc'?`Poste ${idx+1}`:'0';
-        inp.dataset.cat=cat.name;inp.dataset.idx=idx;inp.dataset.field=col.field;
-        inp.addEventListener('change',onBudgetChange);
-        td.appendChild(inp);
-        if(col.cls!=='desc'&&row.desc){
-          const posteLogKey=cat.name+'|||'+row.desc.trim()+'|||'+col.logLabel;
-          const rL=reelParPosteLog[posteLogKey]||0;
-          const eL=engageParPosteLog[posteLogKey]||0;
-          if(rL>0||eL>0){
-            const subL=document.createElement('div');subL.style.cssText='font-size:8px;line-height:1.4;margin-top:2px;text-align:right';
-            if(rL>0){const sl1=document.createElement('div');sl1.style.color='#4fd1c5';sl1.textContent='✓ '+fmt(rL);subL.appendChild(sl1);}
-            if(eL>0){const sl2=document.createElement('div');sl2.style.color='#B98ED4';sl2.textContent='◐ '+fmt(eL);subL.appendChild(sl2);}
-            td.appendChild(subL);
-          }
-        }
-        grid.appendChild(td);
-      });
-      const tdTot=document.createElement('div');tdTot.className='bg-td';tdTot.style.textAlign='right';tdTot.style.color='var(--text2)';tdTot.style.fontSize='11px';tdTot.style.display='flex';tdTot.style.flexDirection='column';tdTot.style.alignItems='flex-end';tdTot.style.justifyContent='center';tdTot.style.gap='2px';
-      const tot=LOGS.reduce((s,l)=>s+(+row[l.prevKey]||0),0);
-      const topRow=document.createElement('div');topRow.style.cssText='display:flex;align-items:center;gap:8px';
-      const span=document.createElement('span');span.textContent=tot>0?fmt(tot):'—';topRow.appendChild(span);
-      if(rows.length>1){const btn=document.createElement('button');btn.textContent='−';btn.title='Supprimer ce poste';btn.style.cssText='background:rgba(224,113,107,.15);border:1px solid rgba(224,113,107,.4);border-radius:4px;color:var(--red);cursor:pointer;font-size:12px;font-weight:700;padding:1px 7px;line-height:1.4;flex-shrink:0';btn.onclick=()=>removeBudgetRow(cat.name,idx);topRow.appendChild(btn);}
-      tdTot.appendChild(topRow);
-      const posteKey=cat.name+'|||'+(row.desc||'').trim();
-      const reelPoste=row.desc?(reelParPoste[posteKey]||0):0;
-      const engagePoste=row.desc?(engageParPoste[posteKey]||0):0;
-      if(reelPoste>0||engagePoste>0){
-        const sub=document.createElement('div');sub.style.cssText='font-size:9px;line-height:1.5;text-align:right';
-        if(reelPoste>0){const l1=document.createElement('div');l1.style.color='#4fd1c5';l1.textContent='✓ '+fmt(reelPoste)+' réel';sub.appendChild(l1);}
-        if(engagePoste>0){const l2=document.createElement('div');l2.style.color='#B98ED4';l2.textContent='◐ '+fmt(engagePoste)+' engagé';sub.appendChild(l2);}
-        tdTot.appendChild(sub);
-      }
-      grid.appendChild(tdTot);
-    });
-    // Bouton ajouter poste
-    const addRow=document.createElement('div');addRow.className='bg-cat-hdr';addRow.style.cssText='grid-column:1/-1;background:transparent;border-top:none;padding:6px 12px;justify-content:flex-start';
-    const addBtn=document.createElement('button');addBtn.textContent='+ Ajouter un poste';addBtn.style.cssText='background:rgba(90,200,216,.08);border:1px dashed rgba(90,200,216,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-size:11px;font-weight:500;padding:4px 14px;transition:all .2s';addBtn.onmouseover=()=>addBtn.style.background='rgba(90,200,216,.16)';addBtn.onmouseout=()=>addBtn.style.background='rgba(90,200,216,.08)';addBtn.onclick=()=>addBudgetRow(cat.name);addRow.appendChild(addBtn);grid.appendChild(addRow);
-    const stDiv=document.createElement('div');stDiv.className='bg-subtotal';
-    ['Sous-total',...LOGS.map(l=>l.key),'Total'].forEach((lbl,i)=>{
-      const td=document.createElement('div');td.className='bg-td';td.style.textAlign=i===0?'left':'right';
-      if(i===0){td.textContent='Sous-total '+cat.name;}
-      else if(i===LOGS.length+1){const rows2=budget[cat.name]||[];
-        const s=rows2.reduce((sum,r)=>sum+LOGS.reduce((s2,l)=>s2+(+r[l.prevKey]||0),0),0);
-        td.textContent=s>0?fmt(s):'—';}
-      else{const l=LOGS[i-1];const rows2=budget[cat.name]||[];
-        const s=rows2.reduce((sum,r)=>sum+(+r[l.prevKey]||0),0);
-        td.textContent=s>0?fmt(s):'—';}
-      stDiv.appendChild(td);
-    });
-    grid.appendChild(stDiv);
-  });
+  // buckets: une entrée par logement (prevKey) + une pour "com" (commun, partagé entre logements)
+  const buckets=LOGS.map(l=>({key:l.prevKey,label:l.key,color:l.color,isCommun:false}));
+  buckets.push({key:'com',label:'Commun',color:'#B98ED4',isCommun:true});
+
+  container.innerHTML=buckets.map(bucket=>{
+    const cats=categoriesUtilisees.map(cat=>{
+      const rows=budget[cat.name]||[];
+      const prevu=rows.reduce((s,r)=>s+(+r[bucket.key]||0),0);
+      const reel=bucket.isCommun?(reelMatrix[cat.name]?.com||0):(reelMatrix[cat.name]?.[bucket.key]||0);
+      return{cat,rows,prevu,reel};
+    }).filter(c=>c.prevu>0 || c.reel>0 || (bucket.isCommun===false));
+    // pour les cartes logement, on affiche aussi les catégories sans montant pour permettre la saisie ;
+    // pour la carte Commun, on n'affiche que ce qui a déjà une donnée pour ne pas la surcharger inutilement
+    const catsAffichees=bucket.isCommun?cats.filter(c=>c.prevu>0||c.reel>0||budget[c.cat.name]):cats;
+    const totalPrevu=catsAffichees.reduce((s,c)=>s+c.prevu,0);
+    const totalReel=catsAffichees.reduce((s,c)=>s+c.reel,0);
+    if(bucket.isCommun && totalPrevu===0 && totalReel===0) return '';
+    const pct=totalPrevu>0?(totalReel/totalPrevu*100):0;
+
+    const barSegments=catsAffichees.filter(c=>c.prevu>0).map(c=>
+      `<div style="width:${(c.prevu/(totalPrevu||1)*100).toFixed(2)}%;background:${c.cat.color}" title="${c.cat.name}"></div>`
+    ).join('');
+
+    const catRows=catsAffichees.map(c=>{
+      const expKey=bucket.key+'|'+c.cat.name;
+      const expanded=!!_budgetExpanded[expKey];
+      const catPct=c.prevu>0?Math.round(c.reel/c.prevu*100):null;
+      const posteRows=c.rows.map((row,idx)=>{
+        const val=+row[bucket.key]||0;
+        const reelPoste=row.desc?(reelParPosteLog[c.cat.name+'|||'+row.desc.trim()+'|||'+bucket.label]||0):0;
+        const engagePoste=row.desc?(engageParPosteLog[c.cat.name+'|||'+row.desc.trim()+'|||'+bucket.label]||0):0;
+        return`<div style="display:grid;grid-template-columns:1fr 84px 74px auto;gap:6px;align-items:center">
+          <input type="text" value="${(row.desc||'').replace(/"/g,'&quot;')}" placeholder="Poste ${idx+1}" data-cat="${c.cat.name.replace(/"/g,'&quot;')}" data-idx="${idx}" data-field="desc" onchange="onBudgetChange(event)" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;padding:5px 8px;font-family:var(--font)">
+          <input type="number" value="${val||''}" placeholder="0" data-cat="${c.cat.name.replace(/"/g,'&quot;')}" data-idx="${idx}" data-field="${bucket.key}" onchange="onBudgetChange(event)" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;padding:5px 8px;text-align:right;font-family:var(--font)">
+          <span style="font-size:10px;text-align:right;color:${reelPoste>val&&val>0?'var(--red)':'var(--teal)'}">${reelPoste>0?fmt(reelPoste):(engagePoste>0?'◐ '+fmt(engagePoste):'—')}</span>
+          <button onclick="removeBudgetRow('${c.cat.name.replace(/'/g,"\\'")}',${idx})" title="Supprimer ce poste" style="background:rgba(224,113,107,.12);border:1px solid rgba(224,113,107,.35);border-radius:5px;color:var(--red);cursor:pointer;font-size:11px;font-weight:700;padding:2px 7px">×</button>
+        </div>`;
+      }).join('');
+      return `<div style="border-top:1px solid var(--border)">
+        <div onclick="toggleBudgetCat('${expKey.replace(/'/g,"\\'")}')" style="display:flex;align-items:center;gap:8px;padding:8px 2px;cursor:pointer">
+          <span style="width:7px;height:7px;border-radius:2px;background:${c.cat.color};flex-shrink:0"></span>
+          <span style="font-size:11.5px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.cat.name}</span>
+          <span style="font-size:11px;color:var(--text3);flex-shrink:0">${catPct===null?'—':catPct+'%'}</span>
+          <span style="font-size:11px;color:var(--text3);transition:transform .15s;display:inline-block;flex-shrink:0;transform:rotate(${expanded?90:0}deg)">›</span>
+        </div>
+        ${expanded?`<div style="padding:2px 2px 12px;display:flex;flex-direction:column;gap:8px">
+          ${posteRows}
+          <div style="display:flex;gap:8px;align-items:center">
+            <button onclick="addBudgetRow('${c.cat.name.replace(/'/g,"\\'")}')" style="background:rgba(90,200,216,.08);border:1px dashed rgba(90,200,216,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-size:10.5px;font-weight:500;padding:5px 12px">+ Ajouter un poste</button>
+            ${c.cat.type==='fonctionnement'?`<button onclick="retirerCategorieBudget('${c.cat.name.replace(/'/g,"\\'")}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;text-decoration:underline">Retirer la catégorie</button>`:''}
+          </div>
+        </div>`:''}
+      </div>`;
+    }).join('');
+
+    return `<div style="background:var(--bg2);border:1px solid ${bucket.isCommun?'rgba(185,142,212,.25)':bucket.color+'33'};border-radius:14px;padding:18px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+        ${_budgetRing(pct,bucket.color)}
+        <div style="min-width:0">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">${bucket.label}</div>
+          <div style="font-size:18px;font-weight:700;color:${pct>100?'var(--red)':bucket.color}">${fmt(totalReel)}</div>
+          <div style="font-size:11px;color:var(--text3)">sur ${fmt(totalPrevu)} prévu</div>
+        </div>
+      </div>
+      ${totalPrevu>0?`<div style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin-bottom:12px;background:rgba(255,255,255,.06)">${barSegments}</div>`:''}
+      <div>${catRows||'<div style="font-size:11px;color:var(--text3);padding:8px 0">Aucune catégorie avec un montant pour l\'instant.</div>'}</div>
+    </div>`;
+  }).join('');
 }
+window.toggleBudgetCat=function(key){
+  _budgetExpanded[key]=!_budgetExpanded[key];
+  renderBudget();
+};
 function onBudgetChange(e){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const{cat,idx,field}=e.target.dataset;const d=loadData();
