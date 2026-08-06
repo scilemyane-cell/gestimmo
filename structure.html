@@ -947,8 +947,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
 <!-- BUDGET -->
 <div class="content" id="tab-budget">
-  <div class="section-title">Budget prévisionnel — saisie par poste</div>
-  <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Les catégories de <b>travaux</b> sont toujours disponibles ci-dessous. Ajoute en plus une charge de <b>fonctionnement</b> future si tu veux déjà la prévoir (ex: taxe foncière, assurance...) :</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+    <div class="section-title" style="margin:0">Budget prévisionnel — saisie par poste</div>
+    <button onclick="toggleGestionCategoriesBudget()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">🗂 Personnaliser les catégories</button>
+  </div>
+  <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Les catégories de <b>travaux</b> pertinentes pour ce projet sont affichées ci-dessous — masque celles dont tu n'as pas besoin via "🗂 Personnaliser les catégories". Ajoute en plus une charge de <b>fonctionnement</b> future si tu veux déjà la prévoir (ex: taxe foncière, assurance...) :</div>
+  <div id="budget-gestion-cats" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:18px"></div>
   <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
     <select id="budget-add-cat-select" style="flex:1;min-width:240px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none"></select>
     <button onclick="ajouterCategorieBudget()" style="background:var(--accent3);border:1px solid var(--accent2);border-radius:8px;padding:9px 16px;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">+ Ajouter cette charge</button>
@@ -1950,6 +1954,30 @@ function saveBudget(budget){
     return false;
   }
 }
+// Catégories masquées du budget prévisionnel — propre à chaque structure (localStorage, pas
+// synchronisé au cloud, c'est une simple préférence d'affichage). Masquer une catégorie NE
+// SUPPRIME AUCUNE DONNÉE — les postes déjà saisis restent en base, juste cachés de l'écran ;
+// les réactiver plus tard les fait réapparaître avec leurs montants intacts.
+function loadHiddenBudgetCats(){
+  try{return JSON.parse(localStorage.getItem(ctxKey('budget_cats_masquees'))||'[]');}catch(e){return[];}
+}
+function saveHiddenBudgetCats(list){
+  try{localStorage.setItem(ctxKey('budget_cats_masquees'),JSON.stringify(list));}catch(e){}
+}
+function masquerCategorieBudget(catName){
+  const hidden=loadHiddenBudgetCats();
+  if(!hidden.includes(catName)){hidden.push(catName);saveHiddenBudgetCats(hidden);}
+  renderBudget();
+  const panel=document.getElementById('budget-gestion-cats');
+  if(panel&&panel.style.display!=='none')renderGestionCategoriesBudget();
+}
+function afficherCategorieBudget(catName){
+  const hidden=loadHiddenBudgetCats().filter(c=>c!==catName);
+  saveHiddenBudgetCats(hidden);
+  renderBudget();
+  const panel=document.getElementById('budget-gestion-cats');
+  if(panel&&panel.style.display!=='none')renderGestionCategoriesBudget();
+}
 // File d'attente pour les écritures qui suivent un appel réseau (upload Drive, quelques
 // secondes) : sans ça, deux opérations lancées presque en même temps peuvent lire un instantané
 // des factures chacune de leur côté, puis s'écraser mutuellement en écrivant l'une après l'autre
@@ -2846,6 +2874,42 @@ window.ajouterCategorieBudget=function(){
   saveBudget(d.budget);
   renderBudget();
 };
+function toggleGestionCategoriesBudget(){
+  const panel=document.getElementById('budget-gestion-cats');
+  if(!panel)return;
+  const open=panel.style.display==='none';
+  panel.style.display=open?'block':'none';
+  if(open)renderGestionCategoriesBudget();
+}
+function renderGestionCategoriesBudget(){
+  const panel=document.getElementById('budget-gestion-cats');
+  if(!panel)return;
+  const{budget}=loadData();
+  const hidden=loadHiddenBudgetCats();
+  const rowHtml=cat=>{
+    const isHidden=hidden.includes(cat.name);
+    const hasData=!!budget[cat.name];
+    return `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:11.5px;color:${isHidden?'var(--text3)':'var(--text)'}">
+      <input type="checkbox" ${isHidden?'':'checked'} onchange="this.checked?afficherCategorieBudget('${cat.name.replace(/'/g,"\\'")}'):masquerCategorieBudget('${cat.name.replace(/'/g,"\\'")}')" style="width:14px;height:14px;cursor:pointer;accent-color:var(--accent)">
+      <span style="width:7px;height:7px;border-radius:2px;background:${cat.color};flex-shrink:0"></span>
+      <span style="flex:1">${cat.name}${hasData?' <span style="color:var(--text3);font-size:9px">(données saisies)</span>':''}</span>
+    </label>`;
+  };
+  const travaux=CATEGORIES.filter(c=>c.type==='travaux');
+  const fonctionnement=CATEGORIES.filter(c=>c.type==='fonctionnement');
+  panel.innerHTML=`
+    <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Décoche une catégorie pour la masquer de ce projet — les montants déjà saisis restent en base et réapparaissent si tu la recoches.</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔨 Travaux</div>
+        ${travaux.map(rowHtml).join('')}
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📋 Fonctionnement</div>
+        ${fonctionnement.map(rowHtml).join('')}
+      </div>
+    </div>`;
+}
 window.retirerCategorieBudget=function(catName){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   if(!confirm(`Retirer la catégorie "${catName}" du budget prévisionnel ?\n\nLes montants déjà saisis pour cette catégorie seront supprimés (mais tes factures réelles dans Comptabilité ne sont pas affectées).`))return;
@@ -3909,7 +3973,8 @@ function renderBudget(){
   }
 
   const container=document.getElementById('budget-cards');
-  const categoriesUtilisees=CATEGORIES.filter(cat=>cat.type==='travaux' || (cat.type==='fonctionnement' && budget[cat.name]));
+  const hiddenCats=loadHiddenBudgetCats();
+  const categoriesUtilisees=CATEGORIES.filter(cat=>!hiddenCats.includes(cat.name) && (cat.type==='travaux' || (cat.type==='fonctionnement' && budget[cat.name])));
   if(categoriesUtilisees.length===0){
     container.innerHTML='<div style="grid-column:1/-1;padding:40px 20px;text-align:center;color:var(--text3);font-size:12px">Aucune catégorie de budget pour l\'instant.<br>Choisis-en une ci-dessus pour commencer ta saisie.</div>';
     return;
@@ -3964,7 +4029,7 @@ function renderBudget(){
           ${posteRows}
           <div style="display:flex;gap:8px;align-items:center">
             <button onclick="addBudgetRow('${c.cat.name.replace(/'/g,"\\'")}')" style="background:rgba(90,200,216,.08);border:1px dashed rgba(90,200,216,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-size:10.5px;font-weight:500;padding:5px 12px">+ Ajouter un poste</button>
-            ${c.cat.type==='fonctionnement'?`<button onclick="retirerCategorieBudget('${c.cat.name.replace(/'/g,"\\'")}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;text-decoration:underline">Retirer la catégorie</button>`:''}
+            <button onclick="masquerCategorieBudget('${c.cat.name.replace(/'/g,"\\'")}')" title="Cache cette catégorie de l'affichage — les montants déjà saisis restent en base, tu peux la réafficher via 🗂 Personnaliser les catégories" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;text-decoration:underline">Masquer cette catégorie</button>
           </div>
         </div>`:''}
       </div>`;
