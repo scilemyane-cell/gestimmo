@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#5AC8D8">
+<title>Signature du bail — Novimmo</title>
+<style>
+  :root{
+    --bg:#081527;--bg2:#0B1E3D;--bg3:#163259;
+    --border:rgba(90,200,216,0.13);--border2:rgba(90,200,216,0.32);
+    --accent:#5AC8D8;--accent3:#B98D3E;
+    --text:#EAF3FA;--text2:#8CA3BD;--text3:#5A7291;
+    --green:#7FBF9E;--red:#E0716B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+  .card{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:28px 24px;width:480px;max-width:100%}
+  h1{font-size:17px;color:var(--accent);margin-bottom:4px}
+  p.sub{font-size:12px;color:var(--text2);margin-bottom:20px}
+  .infos{background:rgba(90,200,216,.06);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:12.5px;line-height:1.7}
+  .infos b{color:var(--text)}
+  label{display:block;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+  canvas{width:100%;height:160px;background:#fff;border-radius:10px;border:1px solid var(--border2);touch-action:none;cursor:crosshair;display:block}
+  .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .link{background:none;border:none;color:var(--text3);font-size:11px;text-decoration:underline;cursor:pointer}
+  .btn{width:100%;margin-top:18px;background:var(--accent3);border:1px solid #B98D3E;border-radius:10px;padding:13px;color:var(--text);font-size:14px;font-weight:700;cursor:pointer}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .msg{margin-top:14px;font-size:12px;text-align:center;display:none}
+  .state{text-align:center;padding:30px 10px}
+  .state .icon{font-size:44px;margin-bottom:14px}
+  .checkbox-row{display:flex;align-items:flex-start;gap:10px;margin-top:16px;font-size:11.5px;color:var(--text2);line-height:1.5}
+  .checkbox-row input{margin-top:2px;flex-shrink:0;width:16px;height:16px}
+  #app{display:none}
+  #loading{text-align:center;padding:40px 10px;color:var(--text3);font-size:13px}
+  .footer{margin-top:20px;padding-top:14px;border-top:1px solid var(--border);text-align:center;font-size:10px;color:var(--text3)}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div id="loading">Chargement…</div>
+
+  <div id="app">
+    <h1>✍️ Signature de votre bail</h1>
+    <p class="sub">Signature manuscrite électronique — sécurisée, valable juridiquement.</p>
+
+    <div class="infos" id="infos-bloc"></div>
+
+    <div id="zone-signature">
+      <div class="row">
+        <label style="margin-bottom:0">Votre signature</label>
+        <button class="link" onclick="effacer()">Effacer</button>
+      </div>
+      <canvas id="sigpad"></canvas>
+      <div class="checkbox-row">
+        <input type="checkbox" id="chk-lu">
+        <label style="text-transform:none;letter-spacing:0;color:var(--text2);margin:0" for="chk-lu">Je confirme avoir lu et accepté le contenu du bail, et je signe ce document en toute connaissance de cause.</label>
+      </div>
+      <button class="btn" id="btn-valider" onclick="validerMaSignature()">✓ Valider ma signature</button>
+    </div>
+
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <div class="footer">Novimmo — gestion locative simplifiée</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA1C4RZADsxHZaIaWvVkahW6DrZPEtOCKA",
+  authDomain: "gestimmo-app.firebaseapp.com",
+  projectId: "gestimmo-app",
+  storageBucket: "gestimmo-app.firebasestorage.app",
+  messagingSenderId: "658875106145",
+  appId: "1:658875106145:web:8d797303b2168efbe6bb20"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const params = new URLSearchParams(window.location.search);
+const id = params.get('id');
+const loadingEl = document.getElementById('loading');
+const appEl = document.getElementById('app');
+const msgEl = document.getElementById('msg');
+
+function afficherEtat(icon, titre, texte){
+  appEl.style.display='block';
+  document.getElementById('infos-bloc').style.display='none';
+  document.getElementById('zone-signature').style.display='none';
+  msgEl.style.display='block';
+  msgEl.innerHTML = `<div class="state"><div class="icon">${icon}</div><div style="font-weight:700;font-size:15px;margin-bottom:6px">${titre}</div><div style="color:var(--text2)">${texte}</div></div>`;
+}
+
+let docRef=null, docData=null;
+
+async function init(){
+  if(!id){ loadingEl.textContent='Lien invalide.'; return; }
+  docRef = doc(db,'signatures_attente',id);
+  try{
+    const snap = await getDoc(docRef);
+    if(!snap.exists()){
+      loadingEl.style.display='none';
+      afficherEtat('⚠️','Lien introuvable','Ce lien de signature n\'existe pas ou a été supprimé. Contacte ton bailleur pour en recevoir un nouveau.');
+      return;
+    }
+    docData = snap.data();
+    loadingEl.style.display='none';
+    appEl.style.display='block';
+
+    if(docData.statut==='signe'){
+      afficherEtat('✅','Déjà signé','Vous avez déjà signé ce document le '+(docData.locataireSigneLe?new Date(docData.locataireSigneLe.seconds*1000).toLocaleDateString('fr-FR'):'')+'. Aucune action supplémentaire n\'est nécessaire.');
+      return;
+    }
+    if(docData.expireLe && Date.now() > docData.expireLe){
+      afficherEtat('⏰','Lien expiré','Ce lien de signature a expiré. Contacte ton bailleur pour en recevoir un nouveau.');
+      return;
+    }
+
+    document.getElementById('infos-bloc').innerHTML = `
+      Bailleur : <b>${docData.bailleurNom||''}</b><br>
+      Logement : <b>${docData.logementAdresse||docData.logementLabel||''}</b><br>
+      Locataire : <b>${docData.locataireNom||''}</b>
+    `;
+    initSignaturePad();
+  }catch(e){
+    console.error(e);
+    loadingEl.style.display='none';
+    afficherEtat('⚠️','Erreur','Impossible de charger ce lien pour le moment. Réessaie dans un instant.');
+  }
+}
+
+let ctx=null, drew=false;
+function initSignaturePad(){
+  const canvas=document.getElementById('sigpad');
+  const dpr=window.devicePixelRatio||1;
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*dpr; canvas.height=rect.height*dpr;
+  ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.strokeStyle='#1a202c'; ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.lineJoin='round';
+  let drawing=false;
+  const pos=e=>{const r=canvas.getBoundingClientRect();const p=e.touches?e.touches[0]:e;return{x:p.clientX-r.left,y:p.clientY-r.top};};
+  const start=e=>{drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault();};
+  const move=e=>{if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();drew=true;e.preventDefault();};
+  const end=()=>{drawing=false;};
+  canvas.onmousedown=start;canvas.onmousemove=move;canvas.onmouseup=end;canvas.onmouseleave=end;
+  canvas.ontouchstart=start;canvas.ontouchmove=move;canvas.ontouchend=end;
+}
+window.effacer=function(){
+  const canvas=document.getElementById('sigpad');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drew=false;
+};
+window.validerMaSignature=async function(){
+  if(!drew){ alert('Dessine ta signature avant de valider.'); return; }
+  if(!document.getElementById('chk-lu').checked){ alert('Coche la case pour confirmer que tu as lu et accepté le bail.'); return; }
+  const btn=document.getElementById('btn-valider');
+  btn.disabled=true; btn.textContent='Envoi en cours…';
+  const canvas=document.getElementById('sigpad');
+  const signatureB64=canvas.toDataURL('image/png');
+  try{
+    await updateDoc(docRef,{
+      locataireSignature: signatureB64,
+      locataireSigneLe: serverTimestamp(),
+      statut: 'signe'
+    });
+    afficherEtat('✅','Signature enregistrée !','Merci, ton bailleur va recevoir la confirmation automatiquement. Tu peux fermer cette page.');
+  }catch(e){
+    console.error(e);
+    btn.disabled=false; btn.textContent='✓ Valider ma signature';
+    alert('Erreur lors de l\'envoi de la signature. Vérifie ta connexion et réessaie.');
+  }
+};
+
+init();
+</script>
+</body>
+</html>
