@@ -777,6 +777,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <button class="btn-export" onclick="ouvrirModalExport()">📤 Exporter loyers...</button>
       <button class="btn-export" onclick="exportComptableAnnuel()" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.4);color:var(--purple)">📊 Récap fiscal</button>
       <button class="btn-export" onclick="ouvrirModalRentabiliteNette()" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.4);color:var(--green)">📈 Rentabilité nette</button>
+      <button class="btn-export" id="btn-formulaire-2072" onclick="ouvrirModalFormulaire2072()" style="display:none;background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)">📄 Formulaire 2072</button>
     </div>
   </div>
 
@@ -7230,7 +7231,7 @@ function renderLocataires(){
       <div style="display:flex;gap:10px;flex-shrink:0">
         <button class="btn btn-sm btn-edit" onclick="openLocModal('${cur.id}')">✏ Modifier</button>
         <button class="btn btn-sm" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.3);color:var(--green)" onclick="ouvrirModalQuittance('${cur.id}')">📄 Quittance</button>
-        <button class="btn btn-sm" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.3);color:var(--accent)" onclick="genererBail('${cur.id}')">📝 Bail</button>
+        <button class="btn btn-sm" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.3);color:var(--accent)" onclick="ouvrirSignatureBail('${cur.id}')">📝 Bail</button>
         <button class="btn btn-sm" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.3);color:var(--purple)" onclick="ouvrirEdl('${cur.id}','entree')">🔑 EDL entrée</button>
         <button class="btn btn-sm" style="background:rgba(246,135,179,.1);border-color:rgba(246,135,179,.3);color:#f687b3" onclick="ouvrirEdl('${cur.id}','sortie')">🚪 EDL sortie</button>
         <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirModalIRL('${cur.id}')">📈 Révision IRL</button>
@@ -8195,6 +8196,20 @@ function renderParametres(){
       <div style="font-size:10px;color:var(--text3);margin-top:12px;font-style:italic">Formats acceptés : PNG, JPG. Compression et redimensionnement automatiques — importe l'image telle quelle, on s'occupe du reste.</div>
     </div>
 
+    ${!estMicro && !window._isMeuble ? `
+    <!-- Associés (SCI) -->
+    <div class="table-wrap" style="padding:24px;margin-bottom:24px">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">👥 Associés de la SCI</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Utilisé pour répartir le résultat net entre associés (formulaire 2072 si SCI à l'IR). Le total des parts devrait faire 100%.</div>
+      <div id="associes-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="text" id="associe-nom-input" placeholder="Nom de l'associé" style="flex:1;min-width:180px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none">
+        <input type="number" id="associe-pct-input" placeholder="% de parts" step="0.01" style="width:110px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none">
+        <button class="btn btn-sm" onclick="ajouterAssocie()" style="background:var(--accent3);border-color:var(--accent2)">+ Ajouter</button>
+      </div>
+      <div id="associes-total-warn" style="display:none;margin-top:10px;font-size:11px;color:var(--orange)"></div>
+    </div>` : ''}
+
     <!-- Vérificateur de cohérence Drive (liens croisés/corrompus entre factures) -->
     <div class="table-wrap" style="padding:24px;margin-bottom:24px" id="panel-drive-coherence">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px;flex-wrap:wrap">
@@ -8314,6 +8329,7 @@ function renderParametres(){
   afficherApercuLogoTampon();
   renderGeminiKeysList();
   renderComptaConnecteurs();
+  if(!estMicro && !window._isMeuble) renderAssociesList();
   if(window._canAdmin) renderCollaborateursEtInvitations();
 }
 
@@ -8658,6 +8674,13 @@ function renderRentabilite(){
   const locs=loadLocataires();
   const{factures}=loadData();
   const cfg=getCTXConfig();
+
+  const btn2072=document.getElementById('btn-formulaire-2072');
+  if(btn2072){
+    const fcRegime=loadFC();
+    const isSCI=!window._isMeuble;
+    btn2072.style.display=(isSCI && fcRegime.regime==='IR')?'inline-flex':'none';
+  }
 
   // Initialiser les filtres si pas encore fait
   initRentFiltres();
@@ -10959,7 +10982,89 @@ async function validerModalQuittance(locId){
 // ═══════════════════════════════════════════════════════════════════════
 // GÉNÉRATION BAIL
 // ═══════════════════════════════════════════════════════════════════════
-function genererBail(locId){
+// ── SIGNATURE TACTILE DU BAIL ────────────────────────────────────────────
+let _sigBailLocId=null;
+const _sigPadState={bailleur:{ctx:null,drew:false},locataire:{ctx:null,drew:false}};
+function _initSignaturePad(who){
+  const canvas=document.getElementById('sigpad-'+who);
+  if(!canvas)return;
+  const dpr=window.devicePixelRatio||1;
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.strokeStyle='#1a202c';ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';
+  _sigPadState[who]={ctx,drew:false,rect};
+  let drawing=false;
+  const pos=e=>{const r=canvas.getBoundingClientRect();const p=e.touches?e.touches[0]:e;return{x:p.clientX-r.left,y:p.clientY-r.top};};
+  const start=e=>{drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault();};
+  const move=e=>{if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();_sigPadState[who].drew=true;e.preventDefault();};
+  const end=()=>{drawing=false;};
+  canvas.onmousedown=start;canvas.onmousemove=move;canvas.onmouseup=end;canvas.onmouseleave=end;
+  canvas.ontouchstart=start;canvas.ontouchmove=move;canvas.ontouchend=end;
+}
+function effacerSignature(who){
+  const canvas=document.getElementById('sigpad-'+who);
+  const st=_sigPadState[who];
+  if(!canvas||!st||!st.ctx)return;
+  st.ctx.clearRect(0,0,canvas.width,canvas.height);
+  st.drew=false;
+}
+function ouvrirSignatureBail(locId){
+  _sigBailLocId=locId;
+  let modal=document.getElementById('modal-signature-bail');
+  if(modal)modal.remove();
+  modal=document.createElement('div');
+  modal.id='modal-signature-bail';
+  modal.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2500;align-items:center;justify-content:center;padding:16px';
+  const tampon=(window._structureInfo&&window._structureInfo.tamponBase64)||'';
+  modal.innerHTML=`
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:26px;width:560px;max-width:96vw;max-height:92vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h2 style="margin:0;font-size:16px">✍️ Signature du bail</h2>
+        <button onclick="document.getElementById('modal-signature-bail').remove()" style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer">×</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:18px">Signature manuscrite électronique — dessinez au doigt ou à la souris. Optionnel : tu peux aussi générer le bail sans signer maintenant et le faire signer plus tard.</div>
+
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <label style="font-size:11px;color:var(--text2);font-weight:600">Signature du bailleur ${tampon?'<span style=\'color:var(--text3);font-weight:400\'>(ou laisse vide pour utiliser ton tampon déjà enregistré)</span>':''}</label>
+          <button onclick="effacerSignature('bailleur')" style="background:none;border:none;color:var(--text3);font-size:10px;text-decoration:underline;cursor:pointer">Effacer</button>
+        </div>
+        <canvas id="sigpad-bailleur" style="width:100%;height:110px;background:#fff;border-radius:8px;border:1px solid var(--border2);touch-action:none;cursor:crosshair"></canvas>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <label style="font-size:11px;color:var(--text2);font-weight:600">Signature du locataire</label>
+          <button onclick="effacerSignature('locataire')" style="background:none;border:none;color:var(--text3);font-size:10px;text-decoration:underline;cursor:pointer">Effacer</button>
+        </div>
+        <canvas id="sigpad-locataire" style="width:100%;height:110px;background:#fff;border-radius:8px;border:1px solid var(--border2);touch-action:none;cursor:crosshair"></canvas>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px">À faire signer par le locataire sur cet appareil, ou partage l'écran s'il n'est pas présent physiquement.</div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <button onclick="document.getElementById('modal-signature-bail').remove();genererBail(_sigBailLocId)" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text2);font-size:12px;cursor:pointer">Générer sans signer</button>
+        <button onclick="validerSignatureBail()" style="background:var(--accent);color:#0a0e1a;border:1px solid var(--accent);border-radius:8px;padding:10px 18px;font-size:12px;font-weight:700;cursor:pointer">✓ Valider et générer le bail signé</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>{_initSignaturePad('bailleur');_initSignaturePad('locataire');},50);
+}
+function validerSignatureBail(){
+  const bCanvas=document.getElementById('sigpad-bailleur');
+  const lCanvas=document.getElementById('sigpad-locataire');
+  const sig={date:todayStr()};
+  if(_sigPadState.bailleur.drew)sig.bailleur=bCanvas.toDataURL('image/png');
+  if(_sigPadState.locataire.drew)sig.locataire=lCanvas.toDataURL('image/png');
+  if(!sig.locataire){
+    if(!confirm('Le locataire n\'a pas encore signé — générer quand même le bail (la case signature locataire restera vide, à compléter plus tard) ?'))return;
+  }
+  document.getElementById('modal-signature-bail')?.remove();
+  genererBail(_sigBailLocId,sig);
+}
+
+function genererBail(locId,sig){
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   if(!loc)return;
@@ -10967,7 +11072,9 @@ function genererBail(locId){
   const lg=getLogementsActifs().find(x=>x.key===loc.logement);
   const isMeuble=window._isMeuble;
   const logoB64=getLogoB64();
-  const sigB64=(window._structureInfo&&window._structureInfo.tamponBase64)||'';
+  const sigBailleur=(sig&&sig.bailleur)||(window._structureInfo&&window._structureInfo.tamponBase64)||'';
+  const sigLocataire=(sig&&sig.locataire)||'';
+  const dateSignature=sig&&sig.date?fmtDate(sig.date):fmtDate(todayStr());
   const mInfo=getMontantPeriode(loc,monthKey(new Date().getFullYear(),new Date().getMonth()+1));
   const loyer=mInfo.loyerHC;
   const charges=mInfo.charges;
@@ -11165,23 +11272,24 @@ function genererBail(locId){
         <div style="font-weight:700;margin-bottom:4px">Le Bailleur</div>
         <div style="font-size:11px;color:#718096;margin-bottom:4px">${nomBailleur}</div>
         <div style="font-size:11px;color:#718096">Lu et approuvé</div>
-        ${sigB64?`<img src="${sigB64}" alt="Signature bailleur" style="height:60px;width:auto;object-fit:contain;margin:10px auto;display:block">`:'<div style="height:70px"></div>'}
+        ${sigBailleur?`<img src="${sigBailleur}" alt="Signature bailleur" style="height:60px;width:auto;object-fit:contain;margin:10px auto;display:block">`:'<div style="height:70px"></div>'}
         <div class="sig-line">
           <div style="font-size:10px;color:#718096">Signature et cachet</div>
-          <div style="font-size:10px;color:#718096">${fmtDate(todayStr())}</div>
+          <div style="font-size:10px;color:#718096">${dateSignature}</div>
         </div>
       </div>
       <div class="sig-block">
         <div style="font-weight:700;margin-bottom:4px">Le Locataire</div>
         <div style="font-size:11px;color:#718096;margin-bottom:4px">${loc.nom||'_____________'}</div>
         <div style="font-size:11px;color:#718096">Lu et approuvé</div>
-        <div style="height:${sigB64?'60px':'70px'}"></div>
+        ${sigLocataire?`<img src="${sigLocataire}" alt="Signature locataire" style="height:60px;width:auto;object-fit:contain;margin:10px auto;display:block">`:`<div style="height:${sigBailleur?'60px':'70px'}"></div>`}
         <div class="sig-line">
           <div style="font-size:10px;color:#718096">Signature précédée de la mention</div>
           <div style="font-size:10px;color:#718096">"Lu et approuvé"</div>
         </div>
       </div>
     </div>
+    ${(sigBailleur&&sigLocataire)?`<div style="margin-top:16px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;padding:10px 16px;font-size:11px;color:#276749;text-align:center">✓ Document signé électroniquement par les deux parties le ${dateSignature} (signature manuscrite électronique — valeur de signature électronique simple au sens du règlement eIDAS)</div>`:''}
 
     <div class="mentions-legales">
       Bail établi conformément à la loi n°89-462 du 6 juillet 1989, modifiée par la loi ALUR du 24 mars 2014 et la loi ELAN du 23 novembre 2018.
@@ -12974,6 +13082,157 @@ function genererCourrierRevisionIRL(locId){
 // ═══════════════════════════════════════════════════════════════════════
 // EXPORT COMPTABLE ANNUEL
 // ═══════════════════════════════════════════════════════════════════════
+// ── FORMULAIRE 2072 (SCI À L'IR) ─────────────────────────────────────────
+function ouvrirModalFormulaire2072(){
+  const nowY=new Date().getFullYear();
+  const anneeStr=window.prompt('Année à déclarer (formulaire 2072) :',String(nowY-1));
+  const annee=+anneeStr;
+  if(!annee||annee<2020||annee>nowY)return;
+  exportFormulaire2072(annee);
+}
+function calc2072(year){
+  const locs=loadLocataires();
+  const{factures}=loadData();
+  const cfg=getCTXConfig();
+  const fc=loadFC();
+  const logs=cfg.logements;
+
+  const ld=getLoyersByLogementYear(locs,year);
+  const recettesParLog={};
+  logs.forEach(lg=>{recettesParLog[lg.label]=(ld[lg.key]||{encaisse:0}).encaisse;});
+  const recettesBrutes=Object.values(recettesParLog).reduce((s,v)=>s+v,0);
+
+  const fonctFactures=getReelTotalsByYearTyped(factures,year,'fonctionnement');
+  const fonctRecurrentes=getChargesRecurrentesByLogYear(year);
+  const chargesParLog={};
+  let totalFonct=0;
+  logs.forEach(lg=>{
+    const v=(fonctFactures[lg.label]||0)+(fonctRecurrentes[lg.label]||0);
+    chargesParLog[lg.label]=v;
+    totalFonct+=v;
+  });
+
+  const interetsParLog={};
+  let totalInterets=0;
+  const creditKeys=[...logs.map(l=>l.key),'Commun'];
+  creditKeys.forEach(k=>{
+    const d=fc[k]||{};
+    let interets=0;
+    if(d.capital&&d.taux&&d.duree){
+      try{
+        const a=computeAmortization(+d.capital,+d.taux,+d.duree,d.tauxType==='variable'?(d.tauxOverrides||{}):{});
+        const debutAnnee=d.debut?new Date(d.debut).getFullYear():year;
+        const yr=year-debutAnnee+1;
+        const yearData=a.years&&a.years[yr-1];
+        if(yearData)interets=yearData.interets||0;
+      }catch(e){}
+    }
+    const label=k==='Commun'?'Commun':(logs.find(l=>l.key===k)?.label||k);
+    interetsParLog[label]=(interetsParLog[label]||0)+interets;
+    totalInterets+=interets;
+  });
+
+  const totalCharges=totalFonct+totalInterets;
+  const revenuNet=recettesBrutes-totalCharges;
+
+  const associes=loadAssocies();
+  const totalPct=associes.reduce((s,a)=>s+(+a.pct||0),0);
+  const repartition=associes.map(a=>({nom:a.nom,pct:a.pct,montant:revenuNet*(+a.pct||0)/100}));
+
+  return{year,recettesParLog,recettesBrutes,chargesParLog,totalFonct,interetsParLog,totalInterets,totalCharges,revenuNet,associes,totalPct,repartition,logs};
+}
+function exportFormulaire2072(year){
+  const d=calc2072(year);
+  const cfg=getCTXConfig();
+  const eur=n=>fmt(n);
+  const ligneRow=(label,val,bold)=>`<div style="display:flex;justify-content:space-between;padding:${bold?'8px':'6px'} 0;border-bottom:1px solid #e2e8f0;font-size:${bold?13:12}px;font-weight:${bold?700:400}"><span>${label}</span><span>${eur(val)}</span></div>`;
+
+  const parLogRows=d.logs.map(lg=>`<tr>
+    <td>${lg.label}</td>
+    <td style="text-align:right">${eur(d.recettesParLog[lg.label]||0)}</td>
+    <td style="text-align:right">${eur(d.chargesParLog[lg.label]||0)}</td>
+    <td style="text-align:right">${eur(d.interetsParLog[lg.label]||0)}</td>
+    <td style="text-align:right;font-weight:600">${eur((d.recettesParLog[lg.label]||0)-(d.chargesParLog[lg.label]||0)-(d.interetsParLog[lg.label]||0))}</td>
+  </tr>`).join('');
+  const communInterets=d.interetsParLog['Commun']||0;
+
+  const repartitionRows=d.repartition.length?d.repartition.map(r=>`<tr>
+    <td>${r.nom}</td><td style="text-align:right">${r.pct}%</td>
+    <td style="text-align:right;font-weight:600;color:${r.montant>=0?'#276749':'#c53030'}">${eur(r.montant)}</td>
+  </tr>`).join(''):'<tr><td colspan="3" style="text-align:center;color:#718096;padding:16px">Aucun associé renseigné — ajoute-les dans Paramètres pour voir la répartition.</td></tr>';
+
+  const warnPct=(d.associes.length&&Math.abs(d.totalPct-100)>0.5)?`<div style="background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:11px;color:#c53030">⚠ Le total des parts des associés fait ${d.totalPct.toFixed(2)}% au lieu de 100% — corrige la liste des associés dans Paramètres avant de déclarer.</div>`:'';
+
+  const html=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+  <title>Aide au formulaire 2072 — ${year} — ${cfg.nom}</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a202c;font-size:12px;padding:20mm 25mm;max-width:210mm;margin:0 auto}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2b6cb0;padding-bottom:14px;margin-bottom:20px}
+    h1{font-size:19px;font-weight:800;color:#2b6cb0;margin:0 0 4px}
+    .section-title{font-size:13px;font-weight:700;color:#2b6cb0;border-left:4px solid #2b6cb0;padding-left:10px;margin:22px 0 10px;text-transform:uppercase}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:11px}
+    th{background:#ebf8ff;color:#2b6cb0;padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase}
+    td{padding:7px 10px;border-bottom:1px solid #e2e8f0}
+    .box{background:#ebf8ff;border:1px solid #bee3f8;border-radius:10px;padding:16px 20px;margin-bottom:16px}
+    .result-box{background:#f0fff4;border:2px solid #9ae6b4;border-radius:10px;padding:18px 22px;margin:18px 0}
+    @media print{@page{size:A4 portrait;margin:15mm}body{padding:0}}
+  </style></head><body>
+    <div class="header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="${getLogoB64()}" alt="Logo" style="height:58px;width:auto;object-fit:contain">
+        <div>
+          <h1>${cfg.nom}</h1>
+          <div style="font-size:11px;color:#718096">Aide au remplissage — Déclaration 2072 (revenus fonciers SCI à l'IR)</div>
+          <div style="font-size:11px;color:#718096">Exercice ${year} · Établi le ${fmtDate(todayStr())}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      ℹ️ Ce document reconstitue, à partir des données saisies dans Novimmo, les montants à reporter sur la déclaration officielle <b>2072-S-SD</b> (annexes 1 et 2) sur impots.gouv.fr. Ce n'est pas un document officiel ni un conseil fiscal — vérifie chaque montant et les charges déductibles applicables avec ton comptable avant de télédéclarer.
+    </div>
+    ${warnPct}
+
+    <div class="section-title">Recettes et charges par immeuble</div>
+    <table>
+      <thead><tr><th>Logement</th><th style="text-align:right">Recettes brutes</th><th style="text-align:right">Charges de gestion</th><th style="text-align:right">Intérêts d'emprunt</th><th style="text-align:right">Résultat</th></tr></thead>
+      <tbody>${parLogRows}</tbody>
+    </table>
+    ${communInterets>0?`<div style="font-size:11px;color:#718096;margin:-8px 0 16px">Dont ${eur(communInterets)} d'intérêts sur un crédit commun (terrain, parties communes...), non rattaché à un logement précis.</div>`:''}
+
+    <div class="section-title">Synthèse — Annexe 1 (recettes et charges)</div>
+    <div class="box">
+      ${ligneRow('Recettes brutes encaissées (loyers)',d.recettesBrutes)}
+      ${ligneRow('Frais de gestion, assurances, entretien, charges récurrentes',-d.totalFonct)}
+      ${ligneRow('Intérêts d\\'emprunt',-d.totalInterets)}
+      ${ligneRow('Total des charges déductibles',-d.totalCharges,true)}
+    </div>
+
+    <div class="result-box">
+      <div style="font-size:13px;font-weight:700;color:#276749;margin-bottom:8px">RÉSULTAT NET FONCIER — À reporter en case R5 / ligne 21 (annexe 1)</div>
+      <div style="font-size:24px;font-weight:800;color:${d.revenuNet>=0?'#276749':'#c53030'}">${d.revenuNet>=0?'+':''}${eur(d.revenuNet)}</div>
+      <div style="font-size:11px;color:#718096;margin-top:4px">${d.revenuNet>=0?'Bénéfice foncier à répartir entre associés':'Déficit foncier — règles de report spécifiques, vérifie avec ton comptable'}</div>
+    </div>
+
+    <div class="section-title">Annexe 2 — Répartition entre associés</div>
+    <table>
+      <thead><tr><th>Associé</th><th style="text-align:right">Parts</th><th style="text-align:right">Quote-part du résultat</th></tr></thead>
+      <tbody>${repartitionRows}</tbody>
+    </table>
+    <div style="font-size:10px;color:#718096;margin-top:-6px">Chaque associé reporte sa quote-part sur sa déclaration personnelle (2042 ou 2044 selon sa situation).</div>
+
+    <div style="font-size:9px;color:#a0aec0;margin-top:24px;padding-top:10px;border-top:1px solid #e2e8f0">
+      Document indicatif généré par Novimmo à partir des factures, charges récurrentes et crédits saisis pour l'exercice ${year}. Ne remplace pas la déclaration officielle 2072-S-SD (et ses annexes) déposée sur l'espace professionnel impots.gouv.fr.
+    </div>
+    <div style="margin-top:16px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${NOVIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec Novimmo — gestion locative simplifiée</span>
+    </div>
+  </body></html>`;
+
+  openPrintOverlay(html,`Aide formulaire 2072 — ${year} — ${cfg.nom}`);
+}
 function exportComptableAnnuel(){
   const nowY=new Date().getFullYear();
   // Demander l'année
@@ -13916,6 +14175,57 @@ window.supprimerLogoOuTampon=async function(type){
     afficherApercuLogoTampon();
   }catch(e){ alert('Erreur : '+e.message); }
 };
+// ── ASSOCIÉS (SCI) ────────────────────────────────────────────────────────
+function loadAssocies(){
+  try{return JSON.parse(localStorage.getItem(ctxKey('associes'))||'[]');}catch(e){return[];}
+}
+function saveAssocies(list){
+  try{localStorage.setItem(ctxKey('associes'),JSON.stringify(list));}catch(e){}
+  syncToCloud();
+}
+function ajouterAssocie(){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
+  const nomEl=document.getElementById('associe-nom-input');
+  const pctEl=document.getElementById('associe-pct-input');
+  const nom=(nomEl.value||'').trim();
+  const pct=+pctEl.value||0;
+  if(!nom||pct<=0){alert('Renseigne un nom et un pourcentage de parts supérieur à 0.');return;}
+  const list=loadAssocies();
+  list.push({id:'as_'+Date.now(),nom,pct});
+  saveAssocies(list);
+  nomEl.value='';pctEl.value='';
+  renderAssociesList();
+}
+function supprimerAssocie(id){
+  if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
+  const list=loadAssocies().filter(a=>a.id!==id);
+  saveAssocies(list);
+  renderAssociesList();
+}
+function renderAssociesList(){
+  const wrap=document.getElementById('associes-list');
+  if(!wrap)return;
+  const list=loadAssocies();
+  if(!list.length){
+    wrap.innerHTML='<div style="font-size:11px;color:var(--text3);font-style:italic">Aucun associé enregistré pour l\'instant.</div>';
+  } else {
+    wrap.innerHTML=list.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px">
+      <span style="flex:1;font-size:12px;color:var(--text)">${a.nom}</span>
+      <span style="font-size:12px;font-weight:600;color:var(--accent)">${a.pct}%</span>
+      <button class="btn btn-sm" onclick="supprimerAssocie('${a.id}')" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.3);color:var(--red);padding:3px 9px">×</button>
+    </div>`).join('');
+  }
+  const total=list.reduce((s,a)=>s+(+a.pct||0),0);
+  const warn=document.getElementById('associes-total-warn');
+  if(warn){
+    if(list.length&&Math.abs(total-100)>0.5){
+      warn.style.display='block';
+      warn.textContent='⚠ Le total des parts fait '+total.toFixed(2)+'% (devrait faire 100%) — corrige avant de générer le formulaire 2072.';
+    } else {
+      warn.style.display='none';
+    }
+  }
+}
 function afficherApercuLogoTampon(){
   const info=window._structureInfo||{};
   ['logo','tampon'].forEach(type=>{
