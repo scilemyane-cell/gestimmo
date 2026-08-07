@@ -11236,9 +11236,9 @@ function validerSignatureBail(){
     sig.emailVerifieAdresse=loc?loc.email:'';
     sig.viaLienDistance=true;
   }
+  const inclureEdl=_edlPretPourSignature&&_edlPretPourSignature.locId===String(_sigBailLocId)&&document.getElementById('chk-inclure-edl')?.checked;
   arreterEcouteSignatureDistance();
   document.getElementById('modal-signature-bail')?.remove();
-  const inclureEdl=_edlPretPourSignature&&_edlPretPourSignature.locId===String(_sigBailLocId)&&document.getElementById('chk-inclure-edl')?.checked;
   if(inclureEdl){
     sig.edlBodyHtml=construireEdlBodyHTML(_sigBailLocId,_edlPretPourSignature.type,sig);
     // On sauvegarde aussi un exemplaire autonome de l'état des lieux dans la gestion locative,
@@ -11250,7 +11250,10 @@ function validerSignatureBail(){
     }
   }
   _edlPretPourSignature=null;
-  if(sig.bailleur&&sig.locataire){
+  // Le bailleur signe soit en dessinant à la main, soit implicitement via son tampon déjà
+  // enregistré (fallback utilisé dans le PDF final) — les deux comptent comme "signé".
+  const bailleurSigneReel=sig.bailleur||(window._structureInfo&&window._structureInfo.tamponBase64)||'';
+  if(bailleurSigneReel&&sig.locataire){
     const locsMaj=loadLocataires();
     const idxMaj=locsMaj.findIndex(l=>String(l.id)===String(_sigBailLocId));
     if(idxMaj>-1){
