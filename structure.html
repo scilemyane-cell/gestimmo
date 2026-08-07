@@ -1647,7 +1647,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
           <option value="C">Logement C</option>
         </select>
       </div>
-      <div class="form-group"><label>Nom du locataire</label><input type="text" id="loc-nom" placeholder="Nom Prénom"></div>
+      <div class="form-group"><label>Nom du locataire</label><input type="text" id="loc-nom" placeholder="Nom de famille"></div>
+      <div class="form-group"><label>Prénom</label><input type="text" id="loc-prenom" placeholder="Prénom"></div>
       <div class="form-group"><label>Téléphone</label><input type="text" id="loc-tel"></div>
       <div class="form-group"><label>Email</label><input type="email" id="loc-email"></div>
       <div class="form-group"><label>Date d'entrée</label><input type="date" id="loc-entree"></div>
@@ -2853,6 +2854,13 @@ function saveLocataires(locs){
   if(!safeSetItem(ctxKey('locataires'),JSON.stringify(locs)))return false;
   syncToCloud();
   return true;
+}
+// Nom + prénom affichés ensemble (bail, EDL, avenants, en-tête de fiche...) — le prénom est
+// optionnel, donc on ne l'ajoute que s'il est renseigné.
+function nomCompletLoc(loc){
+  if(!loc)return'';
+  const prenom=(loc.prenom||'').trim();
+  return prenom?(prenom+' '+(loc.nom||'')):(loc.nom||'');
 }
 function loadProjection(){
   let p=localStorage.getItem(ctxKey('projection'));
@@ -7275,9 +7283,9 @@ function renderLocataires(){
     <div class="loc-log-header" style="--lc-header:${lg.color}">
       <div class="loc-avatar" style="--lc-avatar:${lg.color};background:${lg.color}22;color:${lg.color};font-size:20px">${initiales}</div>
       <div style="flex:1">
-        <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:2px">${cur.nom||'—'}</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:2px">${nomCompletLoc(cur)||'—'}</div>
         <div style="font-size:12px;color:var(--text2)">${lg.label} · <span class="loc-status-dot" style="background:${lg.color}"></span>Locataire actif depuis ${fmtDate(cur.dateEntree)}</div>
-        ${cur.tel?`<div style="font-size:11px;color:var(--text3);margin-top:2px">📞 ${cur.tel}${cur.email?' · ✉ '+cur.email:''}</div>`:''}
+        ${cur.telephone?`<div style="font-size:11px;color:var(--text3);margin-top:2px">📞 ${cur.telephone}${cur.email?' · ✉ '+cur.email:''}</div>`:''}
       </div>
       <div style="display:flex;gap:10px;flex-shrink:0">
         <button class="btn btn-sm btn-edit" onclick="openLocModal('${cur.id}')">✏ Modifier</button>
@@ -10471,6 +10479,7 @@ function openLocModal(id,logKeyDefault){
     document.getElementById('loc-modal-title').textContent='Modifier le locataire';
     document.getElementById('loc-logement').value=l.logement;
     document.getElementById('loc-nom').value=l.nom||'';
+    document.getElementById('loc-prenom').value=l.prenom||'';
     document.getElementById('loc-tel').value=l.telephone||'';
     document.getElementById('loc-email').value=l.email||'';
     document.getElementById('loc-entree').value=l.dateEntree||'';
@@ -10483,6 +10492,7 @@ function openLocModal(id,logKeyDefault){
     document.getElementById('loc-modal-title').textContent='Nouveau locataire';
     document.getElementById('loc-logement').value=logKeyDefault||'A';
     document.getElementById('loc-nom').value='';
+    document.getElementById('loc-prenom').value='';
     document.getElementById('loc-tel').value='';
     document.getElementById('loc-email').value='';
     document.getElementById('loc-entree').value=todayStr();
@@ -10551,6 +10561,7 @@ function saveLocataireForm(){
   const data={
     logement:document.getElementById('loc-logement').value,
     nom:document.getElementById('loc-nom').value.trim(),
+    prenom:document.getElementById('loc-prenom').value.trim(),
     telephone:document.getElementById('loc-tel').value.trim(),
     email:document.getElementById('loc-email').value.trim(),
     dateEntree:document.getElementById('loc-entree').value,
@@ -11171,7 +11182,14 @@ async function envoyerCodeVerificationBail(){
   const code=_genererCode6();
   const cfg=getCTXConfig();
   const ok=await envoyerEmailImmediat(loc.email,'Code de vérification — signature de votre bail',
-    `Bonjour ${loc.nom||''},\n\nVoici votre code de vérification pour confirmer la signature de votre bail avec ${cfg.nom} :\n\n${code}\n\nCe code est valable 10 minutes. Ne le communiquez à personne.\n\nCordialement,\n${cfg.nom}`);
+    `Bonjour ${loc.nom||''},\n\nVoici votre code de vérification pour confirmer la signature de votre bail avec ${cfg.nom} :\n\n${code}\n\nCe code est valable 10 minutes. Ne le communiquez à personne.\n\nCordialement,\n${cfg.nom}`,
+    null,
+    construireEmailHTML({
+      titre:'Code de vérification',
+      intro:`Bonjour ${loc.nom||''},\n\nVoici votre code pour confirmer la signature de votre bail avec ${cfg.nom} :`,
+      code:code,
+      note:'Ce code est valable 10 minutes. Ne le communiquez à personne.'
+    }));
   if(btn){btn.disabled=false;btn.textContent='Renvoyer le code';}
   if(!ok){
     if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Échec de l\'envoi de l\'email — voir la console (F12) pour le détail.';}
@@ -11225,7 +11243,15 @@ async function envoyerLienSignatureDistance(){
   }
   const lien=window.location.origin+window.location.pathname.replace(/structure\.html$/,'')+'signature.html?id='+id;
   const ok=await envoyerEmailImmediat(loc.email,'Signature de votre bail — '+cfg.nom,
-    `Bonjour ${loc.nom||''},\n\nVotre bailleur ${cfg.nom} vous invite à signer votre bail en ligne, directement depuis votre téléphone ou ordinateur.\n\nCliquez sur ce lien pour signer :\n${lien}\n\nCe lien est valable 7 jours.\n\nCordialement,\n${cfg.nom}`);
+    `Bonjour ${loc.nom||''},\n\nVotre bailleur ${cfg.nom} vous invite à signer votre bail en ligne, directement depuis votre téléphone ou ordinateur.\n\nCliquez sur ce lien pour signer :\n${lien}\n\nCe lien est valable 7 jours.\n\nCordialement,\n${cfg.nom}`,
+    null,
+    construireEmailHTML({
+      titre:'Signature de votre bail',
+      intro:`Bonjour ${loc.nom||''},\n\nVotre bailleur ${cfg.nom} vous invite à signer votre bail en ligne, directement depuis votre téléphone ou ordinateur. Le contenu complet du bail s'affichera avant la signature.`,
+      boutonTexte:'✍️ Signer mon bail',
+      boutonUrl:lien,
+      note:'Ce lien est valable 7 jours. Si vous n\'attendiez pas cet email, vous pouvez l\'ignorer.'
+    }));
   if(btn){btn.disabled=false;btn.textContent='📧 Renvoyer le lien';}
   if(!ok){
     if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Échec de l\'envoi de l\'email — voir la console (F12) pour le détail.';}
@@ -11414,7 +11440,7 @@ function ouvrirAvenant(locId){
         <div style="display:flex;gap:10px">
           <div class="form-group" style="margin:0;flex:1">
             <label style="font-size:10px">Nom du signataire</label>
-            <input type="text" id="avenant-destinataire-nom" value="${(loc&&loc.nom)||''}" style="font-size:12px">
+            <input type="text" id="avenant-destinataire-nom" value="${loc?nomCompletLoc(loc):''}" style="font-size:12px">
           </div>
           <div class="form-group" style="margin:0;flex:1">
             <label style="font-size:10px">Email du signataire</label>
@@ -11489,7 +11515,14 @@ async function envoyerCodeVerificationAvenant(){
   const code=_genererCode6();
   const cfg=getCTXConfig();
   const ok=await envoyerEmailImmediat(dest.email,'Code de vérification — signature d\'un avenant',
-    `Bonjour ${dest.nom||''},\n\nVoici votre code de vérification pour confirmer la signature d'un avenant avec ${cfg.nom} :\n\n${code}\n\nCe code est valable 10 minutes. Ne le communiquez à personne.\n\nCordialement,\n${cfg.nom}`);
+    `Bonjour ${dest.nom||''},\n\nVoici votre code de vérification pour confirmer la signature d'un avenant avec ${cfg.nom} :\n\n${code}\n\nCe code est valable 10 minutes. Ne le communiquez à personne.\n\nCordialement,\n${cfg.nom}`,
+    null,
+    construireEmailHTML({
+      titre:'Code de vérification',
+      intro:`Bonjour ${dest.nom||''},\n\nVoici votre code pour confirmer la signature d'un avenant avec ${cfg.nom} :`,
+      code:code,
+      note:'Ce code est valable 10 minutes. Ne le communiquez à personne.'
+    }));
   if(btn){btn.disabled=false;btn.textContent='Renvoyer le code';}
   if(!ok){
     if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Échec de l\'envoi de l\'email — voir la console (F12) pour le détail.';}
@@ -11558,7 +11591,15 @@ async function envoyerLienSignatureAvenantDistance(){
   }
   const lien=window.location.origin+window.location.pathname.replace(/structure\.html$/,'')+'signature.html?id='+id;
   const ok=await envoyerEmailImmediat(dest.email,titre+' — '+cfg.nom,
-    `Bonjour ${dest.nom||''},\n\nVotre bailleur ${cfg.nom} vous invite à signer un avenant en ligne, directement depuis votre téléphone ou ordinateur.\n\nCliquez sur ce lien pour signer :\n${lien}\n\nCe lien est valable 7 jours.\n\nCordialement,\n${cfg.nom}`);
+    `Bonjour ${dest.nom||''},\n\nVotre bailleur ${cfg.nom} vous invite à signer un avenant en ligne, directement depuis votre téléphone ou ordinateur.\n\nCliquez sur ce lien pour signer :\n${lien}\n\nCe lien est valable 7 jours.\n\nCordialement,\n${cfg.nom}`,
+    null,
+    construireEmailHTML({
+      titre:titre,
+      intro:`Bonjour ${dest.nom||''},\n\nVotre bailleur ${cfg.nom} vous invite à signer un avenant en ligne, directement depuis votre téléphone ou ordinateur. Le contenu complet s'affichera avant la signature.`,
+      boutonTexte:'✍️ Signer l\'avenant',
+      boutonUrl:lien,
+      note:'Ce lien est valable 7 jours. Si vous n\'attendiez pas cet email, vous pouvez l\'ignorer.'
+    }));
   if(btn){btn.disabled=false;btn.textContent='📧 Renvoyer le lien';}
   if(!ok){
     if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Échec de l\'envoi de l\'email — voir la console (F12) pour le détail.';}
@@ -11665,7 +11706,7 @@ function construireAvenantHTML(locId,titre,texte,sig){
       </div>
       <div style="text-align:right;font-size:11px;color:#718096">
         <div>Fait le : ${fmtDate(todayStr())}</div>
-        <div>Avenant au bail de ${loc.nom||''}</div>
+        <div>Avenant au bail de ${nomCompletLoc(loc)}</div>
       </div>
     </div>
 
@@ -11838,7 +11879,7 @@ function construireBailHTML(locId,sig){
     </div>`:'' ;
 
   const html=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-  <title>Bail de location ${typeLogement} — ${loc.nom||''}</title>
+  <title>Bail de location ${typeLogement} — ${nomCompletLoc(loc)}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',Arial,sans-serif;color:#1a202c;font-size:12px;line-height:1.7;padding:20mm 25mm;max-width:210mm;margin:0 auto}
@@ -11899,8 +11940,8 @@ function construireBailHTML(locId,sig){
         <div style="background:#f7fafc;border-radius:8px;padding:12px 16px">
           <div style="font-weight:700;color:#2b6cb0;margin-bottom:8px;font-size:11px;text-transform:uppercase">Locataire</div>
           <div class="info-grid">
-            <span class="info-label">Nom complet</span><span class="info-val">${loc.nom||'_____________'}</span>
-            <span class="info-label">Téléphone</span><span class="info-val">${loc.tel||'_____________'}</span>
+            <span class="info-label">Nom complet</span><span class="info-val">${nomCompletLoc(loc)||'_____________'}</span>
+            <span class="info-label">Téléphone</span><span class="info-val">${loc.telephone||'_____________'}</span>
             <span class="info-label">Email</span><span class="info-val">${loc.email||'_____________'}</span>
           </div>
         </div>
@@ -12012,7 +12053,7 @@ function construireBailHTML(locId,sig){
       </div>
       <div class="sig-block">
         <div style="font-weight:700;margin-bottom:4px">Le Locataire</div>
-        <div style="font-size:11px;color:#718096;margin-bottom:4px">${loc.nom||'_____________'}</div>
+        <div style="font-size:11px;color:#718096;margin-bottom:4px">${nomCompletLoc(loc)||'_____________'}</div>
         <div style="font-size:11px;color:#718096">Lu et approuvé</div>
         ${sigLocataire?`<img src="${sigLocataire}" alt="Signature locataire" style="height:60px;width:auto;object-fit:contain;margin:10px auto;display:block">`:`<div style="height:${sigBailleur?'60px':'70px'}"></div>`}
         <div class="sig-line">
@@ -12388,8 +12429,8 @@ function construireEdlBodyHTML(locId, type, sig){
       </div>
       <div style="background:#f7fafc;border-radius:8px;padding:10px 12px">
         <div style="font-size:10px;font-weight:700;color:#2b6cb0;margin-bottom:6px;text-transform:uppercase">Locataire</div>
-        <div style="font-size:11px;font-weight:600">${loc.nom||'—'}</div>
-        <div style="font-size:10px;color:#718096">${loc.tel||''}</div>
+        <div style="font-size:11px;font-weight:600">${nomCompletLoc(loc)||'—'}</div>
+        <div style="font-size:10px;color:#718096">${loc.telephone||''}</div>
       </div>
       <div style="background:#f7fafc;border-radius:8px;padding:10px 12px">
         <div style="font-size:10px;font-weight:700;color:#2b6cb0;margin-bottom:6px;text-transform:uppercase">Logement</div>
@@ -12435,7 +12476,7 @@ function construireEdlBodyHTML(locId, type, sig){
       </div>
       <div style="text-align:center">
         <div style="font-weight:700;margin-bottom:4px;font-size:12px">Le Locataire</div>
-        <div style="font-size:10px;color:#718096">${loc.nom||'—'}</div>
+        <div style="font-size:10px;color:#718096">${nomCompletLoc(loc)||'—'}</div>
         ${sigLocataireB64?`<img src="${sigLocataireB64}" alt="Signature" style="height:55px;width:auto;margin:8px auto;display:block">`:'<div style="height:55px"></div>'}
         <div style="border-top:1px solid #2d3748;padding-top:6px;font-size:10px;color:#718096">Signature précédée de "Lu et approuvé"</div>
       </div>
@@ -13307,10 +13348,11 @@ function toBase64Std(str){
 // de suite, sans dépendre d'un compte Gmail connecté côté bailleur (donc pas d'écran
 // "application non vérifiée" pour tes abonnés). Passe par une Cloud Function serveur
 // (envoyerEmailResend) qui envoie via Resend depuis no-reply@novimmo.immo.
-async function envoyerEmailImmediat(destinataire,sujet,corps,attachment){
+async function envoyerEmailImmediat(destinataire,sujet,corps,attachment,html){
   try{
     const payload={destinataire,sujet,corps};
     if(attachment&&attachment.base64Data){payload.pieceJointe={filename:attachment.filename,base64Data:attachment.base64Data};}
+    if(html)payload.html=html;
     const res=await window._envoyerEmailResend(payload);
     if(!res||!res.data||!res.data.ok){
       console.error('Resend send error:',res&&res.data);
@@ -13321,6 +13363,38 @@ async function envoyerEmailImmediat(destinataire,sujet,corps,attachment){
     console.error('Resend send error:',e);
     return false;
   }
+}
+// Gabarit HTML des emails envoyés au locataire — reprend les couleurs de l'app (fond bleu
+// nuit, accent turquoise, bouton doré) pour une identité visuelle cohérente, et affiche un
+// vrai bouton cliquable plutôt qu'un lien brut (plus engageant, et généralement mieux reçu
+// par les filtres anti-spam qu'un email tout-texte avec juste une URL nue).
+function construireEmailHTML({titre,intro,boutonTexte,boutonUrl,code,note}){
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+  <body style="margin:0;padding:0;background:#081527;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#081527;padding:32px 16px">
+      <tr><td align="center">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#0B1E3D;border:1px solid rgba(90,200,216,0.32);border-radius:18px;max-width:100%">
+          <tr><td style="padding:32px 28px 24px;text-align:center">
+            <div style="font-size:20px;font-weight:800;color:#5AC8D8;letter-spacing:.3px;margin-bottom:4px">Novimmo</div>
+            <div style="font-size:11px;color:#5A7291;margin-bottom:22px">Gestion locative simplifiée</div>
+            <div style="font-size:16px;font-weight:700;color:#EAF3FA;margin-bottom:14px">${titre}</div>
+            <div style="font-size:13px;color:#8CA3BD;line-height:1.7;text-align:left;white-space:pre-line">${intro}</div>
+            ${boutonUrl?`
+            <div style="margin:28px 0 8px">
+              <a href="${boutonUrl}" style="display:inline-block;background:#B98D3E;color:#EAF3FA;text-decoration:none;font-size:14px;font-weight:700;padding:14px 32px;border-radius:10px;border:1px solid #B98D3E">${boutonTexte||'Ouvrir'}</a>
+            </div>
+            <div style="font-size:10px;color:#5A7291;margin-top:10px;word-break:break-all">Le bouton ne fonctionne pas ? Copie ce lien : <a href="${boutonUrl}" style="color:#5AC8D8">${boutonUrl}</a></div>`:''}
+            ${code?`
+            <div style="margin:26px 0 8px;background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.3);border-radius:12px;padding:18px">
+              <div style="font-size:28px;font-weight:800;letter-spacing:8px;color:#5AC8D8">${code}</div>
+            </div>`:''}
+            ${note?`<div style="font-size:11px;color:#5A7291;margin-top:22px;padding-top:16px;border-top:1px solid rgba(90,200,216,0.13)">${note}</div>`:''}
+          </td></tr>
+        </table>
+        <div style="font-size:10px;color:#5A7291;margin-top:16px">Novimmo — gestion locative simplifiée</div>
+      </td></tr>
+    </table>
+  </body></html>`;
 }
 async function createGmailDraft(destinataire,sujet,corps,attachment){
   const gmailOk=await ensureGmailConnected();
