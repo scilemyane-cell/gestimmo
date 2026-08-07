@@ -7236,8 +7236,9 @@ function renderLocataires(){
       <div style="display:flex;gap:10px;flex-shrink:0">
         <button class="btn btn-sm btn-edit" onclick="openLocModal('${cur.id}')">✏ Modifier</button>
         <button class="btn btn-sm" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.3);color:var(--green)" onclick="ouvrirModalQuittance('${cur.id}')">📄 Quittance</button>
-        <button class="btn btn-sm" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.3);color:var(--accent)" onclick="genererBail('${cur.id}')">📝 Bail</button>
-        ${cur.bailSigneLe?`<span title="Bail signé le ${fmtDate(cur.bailSigneLe)}" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--green);padding:0 4px">✓ Bail signé le ${fmtDate(cur.bailSigneLe)}</span>`:''}
+        <button class="btn btn-sm" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.3);color:var(--accent)" onclick="${cur.bailSigneLe?`voirDernierBailSigne('${cur.id}')`:`genererBail('${cur.id}')`}">📝 Bail</button>
+        ${cur.bailSigneLe?`<span title="Bail signé le ${fmtDate(cur.bailSigneLe)}" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--green);background:rgba(127,191,158,.15);border:1px solid rgba(127,191,158,.4);border-radius:12px;padding:5px 12px">✓ Signé le ${fmtDate(cur.bailSigneLe)}</span>
+        <button class="btn btn-sm" style="background:none;border:none;color:var(--text3);font-size:10px;text-decoration:underline;padding:0 4px" onclick="genererBail('${cur.id}')">Générer un nouveau bail</button>`:''}
         <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirAvenant('${cur.id}')">📎 Avenant${cur.avenantsSignes&&cur.avenantsSignes.length?` (${cur.avenantsSignes.length})`:''}</button>
         <button class="btn btn-sm" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.3);color:var(--purple)" onclick="ouvrirEdl('${cur.id}','entree')">🔑 EDL entrée</button>
         <button class="btn btn-sm" style="background:rgba(246,135,179,.1);border-color:rgba(246,135,179,.3);color:#f687b3" onclick="ouvrirEdl('${cur.id}','sortie')">🚪 EDL sortie</button>
@@ -11002,7 +11003,7 @@ function _initSignaturePad(who){
   canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
   const ctx=canvas.getContext('2d');
   ctx.scale(dpr,dpr);
-  ctx.strokeStyle='#1a202c';ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.strokeStyle='#000000';ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';
   _sigPadState[who]={ctx,drew:false,rect};
   let drawing=false;
   const pos=e=>{const r=canvas.getBoundingClientRect();const p=e.touches?e.touches[0]:e;return{x:p.clientX-r.left,y:p.clientY-r.top};};
@@ -11261,6 +11262,10 @@ function validerSignatureBail(){
       saveLocataires(locsMaj);
       renderLocataires();
     }
+    // Sauvegarde le bail signé dans la gestion locative, sinon impossible à retrouver ensuite —
+    // recliquer sur "Bail" régénérait jusqu'ici toujours une version vierge, sans les signatures.
+    const bailHtmlFinal=construireBailHTML(_sigBailLocId,sig);
+    if(bailHtmlFinal)sauvegarderBailDansGestion(_sigBailLocId,bailHtmlFinal);
   }
   genererBail(_sigBailLocId,sig);
   envoyerCopieBailSigneAuLocataire(_sigBailLocId,sig);
@@ -11679,6 +11684,32 @@ async function envoyerCopieAvenantSigneAuLocataire(locId,titre,texte,sig){
   }catch(e){
     console.error('Erreur envoi copie avenant au locataire:',e);
   }
+}
+
+function sauvegarderBailDansGestion(locId,html){
+  if(!window._canEdit)return;
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(locId));
+  if(!loc)return;
+  const docs=loadGLDocs();
+  const id='bail_'+Date.now();
+  docs.push({
+    id, logement:loc.logement, categorie:'bail',
+    libelle:'Bail signé — '+fmtDate(todayStr()), dateCreation:todayStr(),
+    dateExpiration:'', lien:'', htmlContent:html
+  });
+  saveGLDocs(docs);
+}
+// Rouvre le dernier bail SIGNÉ sauvegardé pour ce locataire, au lieu d'en régénérer un
+// vierge (ce que faisait genererBail() seul — perdait les signatures à chaque réouverture).
+function voirDernierBailSigne(locId){
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(locId));
+  if(!loc)return genererBail(locId);
+  const docs=loadGLDocs().filter(d=>d.categorie==='bail'&&d.logement===loc.logement)
+    .sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
+  if(!docs.length)return genererBail(locId);
+  openPrintOverlay(docs[0].htmlContent,`Bail signé — ${loc.nom||''}`);
 }
 
 function construireBailHTML(locId,sig){
@@ -13189,6 +13220,7 @@ function rendreLecturePourMobile(html){
   const override=`<style>
     body{padding:14px !important;font-size:12.5px !important;max-width:100% !important;line-height:1.55 !important;margin:0 !important}
     .header-doc{flex-direction:column;gap:8px;align-items:flex-start !important}
+    div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr !important;gap:10px !important}
     .info-grid{grid-template-columns:110px 1fr !important;gap:2px 8px !important}
     .titre-bail,.titre-avenant{font-size:16px !important;margin:12px 0 4px !important}
     .signatures{grid-template-columns:1fr 1fr !important;gap:12px !important;margin-top:20px !important}
