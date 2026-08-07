@@ -12597,9 +12597,8 @@ function toBase64Std(str){
 // signature de bail : contrairement à createGmailDraft, on ne peut pas laisser l'utilisateur
 // aller cliquer "Envoyer" dans Gmail à la main, le code doit partir tout de suite.
 async function envoyerEmailImmediat(destinataire,sujet,corps){
-  await ensureGmailConnected();
-  if(!driveAccessToken){
-    alert('Connecte d\'abord Google (bouton de connexion Gmail/Drive) pour pouvoir envoyer un email.');
+  const gmailOk=await ensureGmailConnected();
+  if(!gmailOk){
     return false;
   }
   const sujetEncode='=?UTF-8?B?'+toBase64Std(sujet)+'?=';
@@ -12622,9 +12621,8 @@ async function envoyerEmailImmediat(destinataire,sujet,corps){
   }
 }
 async function createGmailDraft(destinataire,sujet,corps,attachment){
-  await ensureGmailConnected();
-  if(!driveAccessToken){
-    alert('Connecte d\'abord Google (bouton de connexion Gmail/Drive) pour pouvoir créer un brouillon.');
+  const gmailOk=await ensureGmailConnected();
+  if(!gmailOk){
     return false;
   }
   // Le sujet doit être encodé selon RFC 2047 (=?UTF-8?B?...?=) pour les caractères
@@ -15536,8 +15534,8 @@ async function getOrCreateGmailLabel(name){
 // et se limite à poser un label visible sans retirer le mail de l'INBOX.
 
 async function applyGmailLabels(messages){
-  await ensureGmailConnected();
-  if(!driveAccessToken)return;
+  const gmailOk=await ensureGmailConnected();
+  if(!gmailOk)return;
   _gmailLabelsCache=null;
   await getOrCreateGmailLabel('Factures');
   for(const msg of messages){
@@ -15569,8 +15567,8 @@ async function applyGmailLabels(messages){
 // Quand la vérification Google Gmail sera faite, il faudra une connexion OAuth séparée avec
 // GMAIL_SCOPE (voir plus haut) avant de réactiver cette fonction.
 async function scanGmail(){
-  await ensureGmailConnected();
-  if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
+  const gmailOk=await ensureGmailConnected();
+  if(!gmailOk)return;
   document.getElementById('gmail-modal-overlay').classList.add('open');
   document.getElementById('gmail-loading').style.display='block';
   document.getElementById('gmail-results').innerHTML='';
@@ -15622,8 +15620,8 @@ async function scanGmail(){
 
 // ── TRIER TOUTE LA BOITE GMAIL ────────────────────────────────────────────
 async function trierTouteBoite(){
-  await ensureGmailConnected();
-  if(!driveAccessToken){alert('Connectez d\'abord Google Drive.');return;}
+  const gmailOk=await ensureGmailConnected();
+  if(!gmailOk)return;
   if(!confirm('Trier TOUS les emails de la boîte par expéditeur ?\nCela peut prendre quelques minutes selon le nombre d\'emails.')){return;}
 
   const statusEl=document.getElementById('trier-status');
