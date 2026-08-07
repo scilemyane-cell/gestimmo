@@ -33,6 +33,7 @@ jobs:
           echo "PRICE_ESSENTIEL=${{ secrets.PRICE_ESSENTIEL }}" >> .env
           echo "PRICE_PRO=${{ secrets.PRICE_PRO }}" >> .env
           echo "PRICE_EXPERT=${{ secrets.PRICE_EXPERT }}" >> .env
+          echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env
 
       - name: Écrire la clé de service Firebase
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/firebase-service-account.json
