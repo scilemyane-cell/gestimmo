@@ -109,6 +109,13 @@ if(!window._structureId){
 window._appDataDoc = function(){
   return doc(db, 'users', window._currentUid, 'structures', window._structureId, 'appdata', 'data');
 };
+// Référence Firestore vers le contenu HTML complet d'UN document de gestion locative
+// (bail/EDL/avenant signés, avec images en base64) — stocké séparément du document principal
+// ci-dessus, sans quoi l'accumulation de plusieurs documents signés dépasse rapidement la
+// limite de 1 Mo par document Firestore et bloque TOUTE la synchronisation de l'app.
+window._glDocContentDoc = function(docId){
+  return doc(db, 'users', window._currentUid, 'structures', window._structureId, 'gldocs_content', docId);
+};
 
 // Attend que l'utilisateur soit authentifié (session déjà ouverte via index.html/dashboard.html)
 onAuthStateChanged(auth, async (user) => {
@@ -6699,6 +6706,20 @@ async function syncToCloud(){
     const projection=loadProjection();
     const fcData=loadFC();
     const glDocs=loadGLDocs();
+    // Le contenu HTML complet (bail/EDL/avenant signés, avec images en base64) peut être
+    // volumineux — on le pousse séparément, un document Firestore par pièce jointe, et on ne
+    // garde dans le document principal que les métadonnées légères (sans quoi l'accumulation
+    // de plusieurs documents signés dépasse la limite de 1 Mo et bloque toute la sync).
+    const glDocsLight=glDocs.map(d=>{
+      if(!d.htmlContent)return d;
+      const{htmlContent,...rest}=d;
+      return{...rest,contenuExterne:true};
+    });
+    glDocs.forEach(d=>{
+      if(d.htmlContent&&window._glDocContentDoc){
+        window._setDoc(window._glDocContentDoc(d.id),{htmlContent:d.htmlContent}).catch(e=>console.warn('Sync contenu document échouée (non bloquant):',d.id,e));
+      }
+    });
     const ccaNomsMoi=loadCCANomsMoi();
     const ccaRembourseFactures=loadCCARembourseFactures();
     const ccaVirements=loadCCAVirements();
@@ -6706,7 +6727,7 @@ async function syncToCloud(){
     if(syncEl){syncEl.textContent='⟳ Sync...';syncEl.style.color='#E0A15E';}
     const updatedAt=new Date().toISOString();
     await window._setDoc(window._appDataDoc(),{
-      budget,factures,devis,fin,locataires,logements,projection,fc:fcData,glDocs,
+      budget,factures,devis,fin,locataires,logements,projection,fc:fcData,glDocs:glDocsLight,
       ccaNomsMoi,ccaRembourseFactures,ccaVirements,
       updated:updatedAt
     });
@@ -6767,7 +6788,32 @@ async function loadFromCloud(){
         if(d.logements)localStorage.setItem(ctxKey('logements_config'),JSON.stringify(d.logements));
         if(d.projection)localStorage.setItem(ctxKey('projection'),JSON.stringify(d.projection));
         if(d.fc)localStorage.setItem(ctxKey('fc'),JSON.stringify(d.fc));
-        if(d.glDocs)localStorage.setItem(ctxKey('gl_docs'),JSON.stringify(d.glDocs));
+        if(d.glDocs){
+          // Fusionne avec ce qui existe déjà en local : un doc "contenuExterne" (venant du
+          // cloud, sans htmlContent) ne doit JAMAIS écraser un htmlContent déjà présent
+          // localement — sinon on perdrait le contenu qu'on vient nous-mêmes d'y mettre.
+          let ancienLocal=[];
+          try{ancienLocal=JSON.parse(localStorage.getItem(ctxKey('gl_docs'))||'[]');}catch(e){}
+          const fusion=d.glDocs.map(nd=>{
+            if(nd.htmlContent)return nd;
+            const local=ancienLocal.find(o=>o.id===nd.id);
+            return(local&&local.htmlContent)?{...nd,htmlContent:local.htmlContent}:nd;
+          });
+          localStorage.setItem(ctxKey('gl_docs'),JSON.stringify(fusion));
+          // Pour les documents qui manquent encore de contenu (autre appareil, cache vidé...),
+          // on va le rechercher en tâche de fond dans les documents séparés.
+          fusion.filter(doc=>doc.contenuExterne&&!doc.htmlContent).forEach(async doc=>{
+            try{
+              const snapC=await window._getDoc(window._glDocContentDoc(doc.id));
+              if(snapC.exists()&&snapC.data().htmlContent){
+                let courant=[];
+                try{courant=JSON.parse(localStorage.getItem(ctxKey('gl_docs'))||'[]');}catch(e){}
+                const idx=courant.findIndex(o=>o.id===doc.id);
+                if(idx>-1){courant[idx].htmlContent=snapC.data().htmlContent;localStorage.setItem(ctxKey('gl_docs'),JSON.stringify(courant));}
+              }
+            }catch(e){console.warn('Récupération contenu document échouée:',doc.id,e);}
+          });
+        }
         if(d.ccaNomsMoi)localStorage.setItem(ctxKey('cca_noms_moi'),JSON.stringify(d.ccaNomsMoi));
         if(d.ccaRembourseFactures)localStorage.setItem(ctxKey('cca_rembourse_factures'),JSON.stringify(d.ccaRembourseFactures));
         if(d.ccaVirements)localStorage.setItem(ctxKey('cca_virements'),JSON.stringify(d.ccaVirements));
@@ -13851,7 +13897,7 @@ async function ouvrirModalIRL(locId){
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-sm" onclick="document.getElementById('modal-irl').remove()" style="background:var(--bg3);border-color:var(--border)">Annuler</button>
         <button class="btn btn-sm" onclick="genererCourrierRevisionIRL('${locId}')" style="background:var(--bg3);border-color:var(--border)">📨 Courrier de notification</button>
-        <button class="btn btn-sm" onclick="appliquerRevisionIRL('${locId}',${mInfo.charges})" style="background:#5AC8D8;color:#0a0e1a;border-color:var(--accent);font-weight:700">✓ Appliquer la révision</button>
+        <button class="btn btn-sm" onclick="appliquerRevisionIRL('${locId}',${mInfo.charges})" ${dejaCetteAnnee?'disabled title="Une révision a déjà été appliquée depuis le dernier anniversaire du bail — la loi n\'en autorise qu\'une par an."':''} style="background:${dejaCetteAnnee?'var(--bg3)':'#5AC8D8'};color:${dejaCetteAnnee?'var(--text3)':'#0a0e1a'};border-color:${dejaCetteAnnee?'var(--border)':'var(--accent)'};font-weight:700${dejaCetteAnnee?';cursor:not-allowed':''}">✓ Appliquer la révision</button>
       </div>
     </div>`;
   modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
@@ -13865,6 +13911,17 @@ function appliquerRevisionIRL(locId, chargesActuelles){
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   if(!loc)return;
+  // Barrière anti-cumul : une révision IRL ne peut légalement s'appliquer qu'une fois par
+  // an, à la date anniversaire du bail. Sans ce contrôle, cliquer plusieurs fois recalculait
+  // l'augmentation à partir du loyer déjà révisé la fois précédente, empilant les hausses.
+  if(loc.dateEntree){
+    const derniereDate=getDernierAnniversaire(loc.dateEntree);
+    const derniereRevision=loc.periodes&&loc.periodes.length>0?loc.periodes[loc.periodes.length-1].debut:'';
+    if(derniereRevision&&derniereRevision>=derniereDate){
+      alert('⚠ Une révision a déjà été appliquée depuis le dernier anniversaire du bail ('+fmtDate(derniereRevision)+'). La loi n\'autorise qu\'une révision par an — ferme cette fenêtre sans rien faire de plus.');
+      return;
+    }
+  }
   if(!loc.periodes)loc.periodes=[];
   // Ajouter une nouvelle période
   loc.periodes.push({debut:date,loyerHC:montant,charges:chargesActuelles});
