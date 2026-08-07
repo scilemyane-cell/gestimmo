@@ -62,6 +62,7 @@ window._authReady = new Promise((resolve) => { window._authReadyResolve = resolv
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs, query, where, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
 // UID Firebase du compte personnel de Valentin — sert UNIQUEMENT à verrouiller l'onglet
 // "Micro-entreprise" (strictement privé, jamais visible par un abonné Novimmo).
@@ -80,6 +81,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const fns = getFunctions(app);
+// Callable Cloud Function côté serveur (Resend) — remplace l'envoi Gmail pour le code
+// OTP et le lien de signature à distance, sans jamais demander l'accès Gmail du bailleur.
+window._envoyerEmailResend = httpsCallable(fns, 'envoyerEmailResend');
 window._db = db;
 window._doc = doc;
 window._getDoc = getDoc;
@@ -12591,32 +12596,21 @@ function toBase64Std(str){
   return btoa(unescape(encodeURIComponent(str)));
 }
 
-// Construit un message MIME multipart (texte + 0 ou 1 pièce jointe PDF) et crée un
-// brouillon Gmail via l'API. attachment = {filename, base64Data} ou null.
-// Envoi IMMÉDIAT (pas un brouillon) — réutilisé pour le code de vérification par email de la
-// signature de bail : contrairement à createGmailDraft, on ne peut pas laisser l'utilisateur
-// aller cliquer "Envoyer" dans Gmail à la main, le code doit partir tout de suite.
+// Envoi IMMÉDIAT d'un email — réutilisé pour le code de vérification par email de la
+// signature de bail ET pour le lien de signature à distance : le message doit partir tout
+// de suite, sans dépendre d'un compte Gmail connecté côté bailleur (donc pas d'écran
+// "application non vérifiée" pour tes abonnés). Passe par une Cloud Function serveur
+// (envoyerEmailResend) qui envoie via Resend depuis no-reply@novimmo.immo.
 async function envoyerEmailImmediat(destinataire,sujet,corps){
-  const gmailOk=await ensureGmailConnected();
-  if(!gmailOk){
-    return false;
-  }
-  const sujetEncode='=?UTF-8?B?'+toBase64Std(sujet)+'?=';
-  const mime=`To: ${destinataire}\r\nSubject: ${sujetEncode}\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset="UTF-8"\r\nContent-Transfer-Encoding: 7bit\r\n\r\n${corps}`;
   try{
-    const resp=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':'application/json'},
-      body:JSON.stringify({raw:toBase64Url(mime)})
-    });
-    if(!resp.ok){
-      const err=await resp.text();
-      console.error('Gmail send error:',err);
+    const res=await window._envoyerEmailResend({destinataire,sujet,corps});
+    if(!res||!res.data||!res.data.ok){
+      console.error('Resend send error:',res&&res.data);
       return false;
     }
     return true;
   }catch(e){
-    console.error('Gmail send error:',e);
+    console.error('Resend send error:',e);
     return false;
   }
 }
