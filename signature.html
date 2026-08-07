@@ -42,10 +42,15 @@
   <div id="loading">Chargement…</div>
 
   <div id="app">
-    <h1>✍️ Signature de votre bail</h1>
+    <h1 id="titre-signature">✍️ Signature de votre bail</h1>
     <p class="sub">Signature manuscrite électronique — sécurisée, valable juridiquement.</p>
 
     <div class="infos" id="infos-bloc"></div>
+
+    <div id="bail-lecture-bloc" style="display:none;margin-bottom:18px">
+      <label>Votre bail — à lire avant de signer</label>
+      <iframe id="bail-frame" style="width:100%;height:340px;border:1px solid var(--border2);border-radius:10px;background:#fff"></iframe>
+    </div>
 
     <div id="zone-signature">
       <div class="row">
@@ -125,6 +130,13 @@ async function init(){
       Logement : <b>${docData.logementAdresse||docData.logementLabel||''}</b><br>
       Locataire : <b>${docData.locataireNom||''}</b>
     `;
+    if(docData.titre){
+      document.getElementById('titre-signature').textContent='✍️ Signature — '+docData.titre;
+    }
+    if(docData.bailHtml){
+      document.getElementById('bail-lecture-bloc').style.display='block';
+      document.getElementById('bail-frame').srcdoc=docData.bailHtml;
+    }
     initSignaturePad();
   }catch(e){
     console.error(e);
@@ -168,7 +180,7 @@ window.validerMaSignature=async function(){
       locataireSigneLe: serverTimestamp(),
       statut: 'signe'
     });
-    afficherEtat('✅','Signature enregistrée !','Merci, ton bailleur va recevoir la confirmation automatiquement. Tu peux fermer cette page.');
+    afficherEtat('✅','Signature enregistrée !','Merci, ton bailleur va recevoir la confirmation automatiquement. Tu recevras ta copie du bail signé par email dans quelques instants. Tu peux fermer cette page.');
   }catch(e){
     console.error(e);
     btn.disabled=false; btn.textContent='✓ Valider ma signature';
