@@ -11044,11 +11044,11 @@ function ouvrirSignatureBail(locId){
         <a href="#" onclick="arreterEcouteSignatureDistance();document.getElementById('modal-signature-bail').remove();genererBail(_sigBailLocId);return false" style="color:var(--accent)">📄 Relire le bail</a>
       </div>
 
-      ${(_edlPretPourSignature&&_edlPretPourSignature.locId===String(locId))?`
+      ${(()=>{const edlPret=_edlPretPourSignature&&_edlPretPourSignature.locId===String(locId);return`
       <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:8px">
-        <input type="checkbox" id="chk-inclure-edl" checked style="margin-top:2px;flex-shrink:0">
-        <label for="chk-inclure-edl" style="font-size:11px;color:var(--text2);line-height:1.5;cursor:pointer">Inclure l'état des lieux d'entrée que tu viens de remplir dans cette même signature — un seul document, signé une seule fois par les deux parties.</label>
-      </div>`:''}
+        <input type="checkbox" id="chk-inclure-edl" ${edlPret?'checked':''} onchange="onToggleInclureEdlBail(this,'${locId}')" style="margin-top:2px;flex-shrink:0">
+        <label for="chk-inclure-edl" style="font-size:11px;color:var(--text2);line-height:1.5;cursor:pointer">${edlPret?'Inclure l\'état des lieux d\'entrée que tu viens de remplir dans cette même signature — un seul document, signé une seule fois par les deux parties.':'Inclure l\'état des lieux d\'entrée dans cette signature — coche pour le remplir maintenant.'}</label>
+      </div>`;})()}
 
       <div style="margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -11096,6 +11096,21 @@ function ouvrirSignatureBail(locId){
     </div>`;
   document.body.appendChild(modal);
   setTimeout(()=>{_initSignaturePad('bailleur');_initSignaturePad('locataire');},50);
+}
+// Appelé quand on coche/décoche "Inclure l'état des lieux d'entrée" directement depuis la
+// fenêtre de signature du bail — plus besoin de passer par le bouton "🔑 EDL entrée" en amont :
+// si l'état des lieux n'a pas encore été rempli, on propose de le faire tout de suite, et on
+// revient automatiquement ici (case pré-cochée) une fois terminé.
+function onToggleInclureEdlBail(chk,locId){
+  const edlPret=_edlPretPourSignature&&_edlPretPourSignature.locId===String(locId);
+  if(chk.checked&&!edlPret){
+    if(!confirm('L\'état des lieux d\'entrée n\'a pas encore été rempli pour ce locataire. Le remplir maintenant ? Tu reviendras directement ici pour signer une fois terminé.')){
+      chk.checked=false;
+      return;
+    }
+    document.getElementById('modal-signature-bail')?.remove();
+    ouvrirEdl(locId,'entree');
+  }
 }
 function _genererCode6(){
   return String(Math.floor(100000+Math.random()*900000));
@@ -11248,6 +11263,7 @@ function validerSignatureBail(){
       const typeLabelEdl=_edlPretPourSignature.type==='entree'?"ENTRÉE":"SORTIE";
       const edlFullHtml=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>État des lieux d'${typeLabelEdl}</title><style>*{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;color:#1a202c;font-size:12px;padding:15mm 20mm;max-width:210mm;margin:0 auto}@media print{@page{size:A4 portrait;margin:12mm 15mm}body{padding:0}}</style></head><body>${sig.edlBodyHtml}</body></html>`;
       sauvegarderEdlDansGestion(_sigBailLocId,_edlPretPourSignature.type,edlFullHtml);
+      if(_edlPretPourSignature.type==='entree')sauvegarderStructureEdlEntree(_sigBailLocId);
     }
   }
   _edlPretPourSignature=null;
@@ -11963,6 +11979,19 @@ function genererBail(locId,sig){
   const loc=locs.find(l=>String(l.id)===String(locId));
   const typeLogement=window._isMeuble?'meublé':'nu';
   openPrintOverlay(html,`Bail ${typeLogement} — ${loc.nom||''}`, (!sig||!sig.locataire)?{bailLocId:locId}:null);
+  // Une fois signé par les deux parties, on fige une copie immuable dans la gestion locative —
+  // sinon le bail reste régénéré à la volée à partir des données ACTUELLES du locataire, et
+  // toute modification ultérieure du loyer/dates ferait apparaître un document différent de
+  // celui réellement signé, tout en gardant le même badge "bail signé".
+  if(sig&&sig.bailleur&&sig.locataire){
+    const docs=loadGLDocs();
+    docs.push({
+      id:'bail_'+Date.now(), logement:loc.logement, categorie:'bail',
+      libelle:'Bail signé — '+fmtDate(todayStr()), dateCreation:todayStr(),
+      dateExpiration:'', lien:'', htmlContent:html
+    });
+    saveGLDocs(docs);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -11987,12 +12016,33 @@ let _edlType='entree'; // 'entree' ou 'sortie'
 let _edlLocId=null;
 let _edlPieces=[];
 let _edlPretPourSignature=null; // {locId,type} — posé quand on enchaîne EDL entrée → signature du bail
+let _edlEtatEntreeRef={}; // {pieceId:{element:etat}} — référence affichée pendant l'EDL de sortie, pour comparer
 
 function ouvrirEdl(locId, type){
   _edlLocId=locId;
   _edlType=type||'entree';
   _edlData={};
-  _edlPieces=JSON.parse(JSON.stringify(EDL_PIECES_DEFAULT));
+  _edlEtatEntreeRef={};
+  const locs0=loadLocataires();
+  const loc0=locs0.find(l=>String(l.id)===String(locId));
+  // À la sortie, on repart des mêmes pièces/éléments que l'entrée (y compris ceux ajoutés
+  // manuellement) et on garde l'état d'entrée sous les yeux pour pouvoir comparer facilement —
+  // sans ça chaque état des lieux repartait de zéro, sans aucun lien avec l'entrée.
+  if(_edlType==='sortie'&&loc0&&loc0.edlEntreeStructure&&Array.isArray(loc0.edlEntreeStructure.pieces)){
+    _edlPieces=JSON.parse(JSON.stringify(loc0.edlEntreeStructure.pieces));
+    const dataEntree=loc0.edlEntreeStructure.data||{};
+    _edlPieces.forEach(p=>{
+      _edlData[p.id]={};
+      _edlEtatEntreeRef[p.id]={};
+      p.elements.forEach(e=>{
+        const refEtat=(dataEntree[p.id]&&dataEntree[p.id][e]&&dataEntree[p.id][e].etat)||'';
+        _edlEtatEntreeRef[p.id][e]=refEtat;
+        _edlData[p.id][e]={etat:refEtat||'Bon état',observation:''};
+      });
+    });
+  } else {
+    _edlPieces=JSON.parse(JSON.stringify(EDL_PIECES_DEFAULT));
+  }
 
   // Pré-remplir "Bon état" pour état d'entrée
   if(_edlType==='entree'){
@@ -12097,9 +12147,10 @@ function edlSelectPiece(pieceId){
       ${piece.elements.map(el=>{
         const d=(_edlData[pieceId]&&_edlData[pieceId][el])||{etat:'Bon état',observation:''};
         const etatColor={'Neuf':'#7FBF9E','Très bon état':'#5AC8D8','Bon état':'#4fd1c5','État d\'usage':'#E0A15E','Usé':'#E0716B','Dégradé':'#e53e3e'}[d.etat]||'var(--text2)';
+        const refEtat=(_edlType==='sortie'&&_edlEtatEntreeRef[pieceId])?_edlEtatEntreeRef[pieceId][el]:'';
         return`<div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:10px 14px">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <div style="font-size:12px;font-weight:600;color:var(--text);min-width:150px">${el}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text);min-width:150px">${el}${refEtat?`<div style="font-size:10px;font-weight:400;color:var(--text3);margin-top:2px">Entrée : ${refEtat}</div>`:''}</div>
             <select data-piece="${pieceId}" data-el="${el.replace(/'/g,'&#39;')}" class="edl-etat-sel"
               style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:${etatColor};flex:0 0 auto"
               onchange="edlUpdateEtat(this)">
@@ -12292,6 +12343,22 @@ function construireEdlBodyHTML(locId, type, sig){
     </div>`;
 }
 
+// Enregistre les pièces/éléments et l'état constaté à l'entrée sur la fiche du locataire —
+// c'est ce qui permet à l'état des lieux de sortie de reprendre les mêmes éléments et
+// d'afficher l'état d'entrée en référence, pour comparer facilement.
+function sauvegarderStructureEdlEntree(locId){
+  if(!window._canEdit)return;
+  edlSauvegardePiece();
+  const locsMaj=loadLocataires();
+  const idxMaj=locsMaj.findIndex(l=>String(l.id)===String(locId));
+  if(idxMaj<0)return;
+  locsMaj[idxMaj].edlEntreeStructure={
+    pieces:JSON.parse(JSON.stringify(_edlPieces)),
+    data:JSON.parse(JSON.stringify(_edlData))
+  };
+  saveLocataires(locsMaj);
+}
+
 function genererPdfEdl(locId){
   edlSauvegardePiece();
   const locs=loadLocataires();
@@ -12312,6 +12379,7 @@ function genererPdfEdl(locId){
 
   document.getElementById('modal-edl')?.remove();
   openPrintOverlay(html,`État des lieux ${typeLabel} — ${loc.nom||''}`);
+  if(_edlType==='entree')sauvegarderStructureEdlEntree(locId);
   // Sauvegarder dans la gestion locative
   sauvegarderEdlDansGestion(locId, _edlType, html);
 }
