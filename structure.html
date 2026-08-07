@@ -81,7 +81,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-const fns = getFunctions(app);
+const fns = getFunctions(app, "europe-west3");
 // Callable Cloud Function côté serveur (Resend) — remplace l'envoi Gmail pour le code
 // OTP et le lien de signature à distance, sans jamais demander l'accès Gmail du bailleur.
 window._envoyerEmailResend = httpsCallable(fns, 'envoyerEmailResend');
@@ -11104,7 +11104,7 @@ async function envoyerCodeVerificationBail(){
     `Bonjour ${loc.nom||''},\n\nVoici votre code de vérification pour confirmer la signature de votre bail avec ${cfg.nom} :\n\n${code}\n\nCe code est valable 10 minutes. Ne le communiquez à personne.\n\nCordialement,\n${cfg.nom}`);
   if(btn){btn.disabled=false;btn.textContent='Renvoyer le code';}
   if(!ok){
-    if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Échec de l\'envoi — vérifie que Google est bien connecté (bouton Drive/Gmail en haut).';}
+    if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Échec de l\'envoi de l\'email — voir la console (F12) pour le détail.';}
     return;
   }
   _otpBailCode=code;
@@ -11146,7 +11146,7 @@ async function envoyerLienSignatureDistance(){
     `Bonjour ${loc.nom||''},\n\nVotre bailleur ${cfg.nom} vous invite à signer votre bail en ligne, directement depuis votre téléphone ou ordinateur.\n\nCliquez sur ce lien pour signer :\n${lien}\n\nCe lien est valable 7 jours.\n\nCordialement,\n${cfg.nom}`);
   if(btn){btn.disabled=false;btn.textContent='📧 Renvoyer le lien';}
   if(!ok){
-    if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Échec de l\'envoi — vérifie que Google est bien connecté (bouton Drive/Gmail en haut).';}
+    if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Échec de l\'envoi de l\'email — voir la console (F12) pour le détail.';}
     return;
   }
   _sigDistanceDocId=id;
