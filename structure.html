@@ -7237,7 +7237,8 @@ function renderLocataires(){
         <button class="btn btn-sm btn-edit" onclick="openLocModal('${cur.id}')">✏ Modifier</button>
         <button class="btn btn-sm" style="background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.3);color:var(--green)" onclick="ouvrirModalQuittance('${cur.id}')">📄 Quittance</button>
         <button class="btn btn-sm" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.3);color:var(--accent)" onclick="genererBail('${cur.id}')">📝 Bail</button>
-        <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirAvenant('${cur.id}')">📎 Avenant</button>
+        ${cur.bailSigneLe?`<span title="Bail signé le ${fmtDate(cur.bailSigneLe)}" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--green);padding:0 4px">✓ Bail signé le ${fmtDate(cur.bailSigneLe)}</span>`:''}
+        <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirAvenant('${cur.id}')">📎 Avenant${cur.avenantsSignes&&cur.avenantsSignes.length?` (${cur.avenantsSignes.length})`:''}</button>
         <button class="btn btn-sm" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.3);color:var(--purple)" onclick="ouvrirEdl('${cur.id}','entree')">🔑 EDL entrée</button>
         <button class="btn btn-sm" style="background:rgba(246,135,179,.1);border-color:rgba(246,135,179,.3);color:#f687b3" onclick="ouvrirEdl('${cur.id}','sortie')">🚪 EDL sortie</button>
         <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirModalIRL('${cur.id}')">📈 Révision IRL</button>
@@ -11131,7 +11132,15 @@ async function envoyerLienSignatureDistance(){
   const id=genererIdQuittancePublique();
   // Version non signée du bail, à afficher au locataire AVANT qu'il signe — sans ça il
   // signait "à l'aveugle" sans jamais voir le contenu du contrat sur son téléphone.
-  const bailHtmlNonSigne=construireBailHTML(_sigBailLocId,null)||'';
+  // Si un état des lieux d'entrée est rattaché à cette même signature (bouton "Continuer
+  // vers signature du bail"), on l'inclut aussi dans cet aperçu, sinon le locataire signerait
+  // à distance sans jamais voir l'EDL alors qu'il fait bien partie du document final.
+  let sigPourApercu=null;
+  if(_edlPretPourSignature&&_edlPretPourSignature.locId===String(_sigBailLocId)&&document.getElementById('chk-inclure-edl')?.checked){
+    const edlBody=construireEdlBodyHTML(_sigBailLocId,_edlPretPourSignature.type,null);
+    if(edlBody)sigPourApercu={edlBodyHtml:edlBody};
+  }
+  const bailHtmlNonSigne=rendreLecturePourMobile(construireBailHTML(_sigBailLocId,sigPourApercu))||'';
   try{
     await window._setDoc(window._doc(window._db,'signatures_attente',id),{
       structureId:window._structureId,
@@ -11241,6 +11250,15 @@ function validerSignatureBail(){
     }
   }
   _edlPretPourSignature=null;
+  if(sig.bailleur&&sig.locataire){
+    const locsMaj=loadLocataires();
+    const idxMaj=locsMaj.findIndex(l=>String(l.id)===String(_sigBailLocId));
+    if(idxMaj>-1){
+      locsMaj[idxMaj].bailSigneLe=sig.date||todayStr();
+      saveLocataires(locsMaj);
+      renderLocataires();
+    }
+  }
   genererBail(_sigBailLocId,sig);
   envoyerCopieBailSigneAuLocataire(_sigBailLocId,sig);
 }
@@ -11424,7 +11442,7 @@ async function envoyerLienSignatureAvenantDistance(){
   const statusEl=document.getElementById('lien-avenant-status');
   if(btn){btn.disabled=true;btn.textContent='Envoi…';}
   const id=genererIdQuittancePublique();
-  const avenantHtmlNonSigne=construireAvenantHTML(_avenantLocId,titre,texte,null)||'';
+  const avenantHtmlNonSigne=rendreLecturePourMobile(construireAvenantHTML(_avenantLocId,titre,texte,null))||'';
   try{
     await window._setDoc(window._doc(window._db,'signatures_attente',id),{
       structureId:window._structureId,
@@ -11501,6 +11519,16 @@ function validerSignatureAvenant(){
   }
   arreterEcouteSignatureAvenantDistance();
   document.getElementById('modal-avenant')?.remove();
+  if(sig.bailleur&&sig.locataire){
+    const locsMaj=loadLocataires();
+    const idxMaj=locsMaj.findIndex(l=>String(l.id)===String(_avenantLocId));
+    if(idxMaj>-1){
+      if(!Array.isArray(locsMaj[idxMaj].avenantsSignes))locsMaj[idxMaj].avenantsSignes=[];
+      locsMaj[idxMaj].avenantsSignes.push({titre,date:sig.date||todayStr()});
+      saveLocataires(locsMaj);
+      renderLocataires();
+    }
+  }
   genererAvenant(_avenantLocId,titre,texte,sig);
   sauvegarderAvenantDansGestion(_avenantLocId,titre,texte,sig);
   envoyerCopieAvenantSigneAuLocataire(_avenantLocId,titre,texte,sig);
@@ -13147,6 +13175,25 @@ async function bailPdfBase64(locId,sig){
     console.error('Erreur génération PDF bail:',e);
     return null;
   }
+}
+
+// Insère une feuille de style compacte, pensée pour un petit écran de téléphone, dans un
+// document déjà généré pour l'impression A4 (marges en mm, polices fixes) — utilisé
+// uniquement pour la copie stockée à destination de signature.html, jamais pour
+// l'aperçu desktop ni pour le PDF final (qui doivent, eux, rester au format A4).
+function rendreLecturePourMobile(html){
+  if(!html)return html;
+  const override=`<style>
+    body{padding:14px !important;font-size:12.5px !important;max-width:100% !important;line-height:1.55 !important;margin:0 !important}
+    .header-doc{flex-direction:column;gap:8px;align-items:flex-start !important}
+    .info-grid{grid-template-columns:110px 1fr !important;gap:2px 8px !important}
+    .titre-bail,.titre-avenant{font-size:16px !important;margin:12px 0 4px !important}
+    .signatures{grid-template-columns:1fr 1fr !important;gap:12px !important;margin-top:20px !important}
+    .sig-line{margin-top:26px !important}
+    div[style*="grid-template-columns:1fr 1fr 1fr"]{grid-template-columns:1fr !important}
+    table{font-size:10.5px !important}
+  </style></head>`;
+  return html.replace('</head>',override);
 }
 
 // Génération du PDF de la quittance en mémoire (html2pdf) et retourne le base64 brut (sans préfixe data:).
