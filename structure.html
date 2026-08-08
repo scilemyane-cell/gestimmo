@@ -17029,27 +17029,37 @@ async function ouvrirDossierDriveAnneeDevis(){
   btn.innerHTML='⏳ Recherche...';btn.disabled=true;
 
   try{
-    const qRoot="name='"+rootName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-    const respRoot=await fetch(
-      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
-      {headers:{'Authorization':'Bearer '+driveAccessToken}}
-    );
-    const dataRoot=await respRoot.json();
-    const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
-    if(!rootId){
-      alert('Dossier "'+rootName+'" introuvable sur Drive. Lance d\'abord une synchronisation (☁ Sync Drive) pour le créer.');
-      return;
-    }
-    const qYear="name='"+year+"' and mimeType='application/vnd.google-apps.folder' and '"+rootId+"' in parents and trashed=false";
-    const respYear=await fetch(
-      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qYear),
-      {headers:{'Authorization':'Bearer '+driveAccessToken}}
-    );
-    const dataYear=await respYear.json();
-    const yearFolderId=dataYear.files&&dataYear.files[0]&&dataYear.files[0].id;
+    // On vérifie d'abord le cache local (posé lors des uploads précédents) — plus fiable que
+    // de rechercher le dossier par son nom via l'API : les uploads utilisent déjà ce cache et
+    // fonctionnent, alors qu'une recherche par nom peut échouer pour un dossier créé avant le
+    // rebranding Novimmo (voir limitation OAuth drive.file connue).
+    const cacheKey=ctxKey('drive_folder_devis_'+year);
+    let yearFolderId=localStorage.getItem(cacheKey);
+
     if(!yearFolderId){
-      alert(`Aucun dossier Drive pour l'année ${year} (pas encore de devis synchronisé pour cette année).`);
-      return;
+      const qRoot="name='"+rootName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const respRoot=await fetch(
+        "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
+        {headers:{'Authorization':'Bearer '+driveAccessToken}}
+      );
+      const dataRoot=await respRoot.json();
+      const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
+      if(!rootId){
+        alert('Dossier "'+rootName+'" introuvable par recherche directe — c\'est normal si ce dossier a été créé avant le rebranding Novimmo. Ouvre n\'importe quel devis ayant un bouton "Drive" fonctionnel, ça mettra ce dossier en cache pour que ce bouton fonctionne ensuite.');
+        return;
+      }
+      const qYear="name='"+year+"' and mimeType='application/vnd.google-apps.folder' and '"+rootId+"' in parents and trashed=false";
+      const respYear=await fetch(
+        "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qYear),
+        {headers:{'Authorization':'Bearer '+driveAccessToken}}
+      );
+      const dataYear=await respYear.json();
+      yearFolderId=dataYear.files&&dataYear.files[0]&&dataYear.files[0].id;
+      if(!yearFolderId){
+        alert(`Aucun dossier Drive pour l'année ${year} (pas encore de devis synchronisé pour cette année).`);
+        return;
+      }
+      localStorage.setItem(cacheKey,yearFolderId);
     }
     window.open('https://accounts.google.com/AccountChooser?Email='+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||'')+'&continue='+encodeURIComponent('https://drive.google.com/drive/folders/'+yearFolderId),'_blank');
   }catch(e){
@@ -17132,29 +17142,39 @@ async function ouvrirDossierDriveAnnee(){
   btn.innerHTML='⏳ Recherche...';btn.disabled=true;
 
   try{
-    // Chercher le dossier racine
-    const qRoot="name='"+getCTXConfig().driveFolderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-    const respRoot=await fetch(
-      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
-      {headers:{'Authorization':'Bearer '+driveAccessToken}}
-    );
-    const dataRoot=await respRoot.json();
-    const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
-    if(!rootId){
-      alert('Dossier "'+getCTXConfig().driveFolderName+'" introuvable sur Drive. Lance d\'abord une synchronisation (☁ Sync Drive) pour le créer.');
-      return;
-    }
-    // Chercher le sous-dossier de l'année demandée
-    const qYear="name='"+year+"' and mimeType='application/vnd.google-apps.folder' and '"+rootId+"' in parents and trashed=false";
-    const respYear=await fetch(
-      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qYear),
-      {headers:{'Authorization':'Bearer '+driveAccessToken}}
-    );
-    const dataYear=await respYear.json();
-    const yearFolderId=dataYear.files&&dataYear.files[0]&&dataYear.files[0].id;
+    // On vérifie d'abord le cache local (posé lors des uploads précédents) — plus fiable que
+    // de rechercher le dossier par son nom via l'API : les uploads utilisent déjà ce cache et
+    // fonctionnent, alors qu'une recherche par nom peut échouer pour un dossier créé avant le
+    // rebranding Novimmo (voir limitation OAuth drive.file connue).
+    const cacheKey=ctxKey('drive_folder_'+year);
+    let yearFolderId=localStorage.getItem(cacheKey);
+
     if(!yearFolderId){
-      alert(`Aucun dossier Drive pour l'année ${year} (pas encore de facture synchronisée pour cette année).`);
-      return;
+      // Chercher le dossier racine
+      const qRoot="name='"+getCTXConfig().driveFolderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const respRoot=await fetch(
+        "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
+        {headers:{'Authorization':'Bearer '+driveAccessToken}}
+      );
+      const dataRoot=await respRoot.json();
+      const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
+      if(!rootId){
+        alert('Dossier "'+getCTXConfig().driveFolderName+'" introuvable par recherche directe — c\'est normal si ce dossier a été créé avant le rebranding Novimmo (l\'app ne peut alors pas le RETROUVER par recherche, seulement l\'ouvrir via un lien déjà connu). Ouvre n\'importe quelle facture ayant un bouton "Drive" fonctionnel, ça mettra ce dossier en cache pour que ce bouton fonctionne ensuite.');
+        return;
+      }
+      // Chercher le sous-dossier de l'année demandée
+      const qYear="name='"+year+"' and mimeType='application/vnd.google-apps.folder' and '"+rootId+"' in parents and trashed=false";
+      const respYear=await fetch(
+        "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qYear),
+        {headers:{'Authorization':'Bearer '+driveAccessToken}}
+      );
+      const dataYear=await respYear.json();
+      yearFolderId=dataYear.files&&dataYear.files[0]&&dataYear.files[0].id;
+      if(!yearFolderId){
+        alert(`Aucun dossier Drive pour l'année ${year} (pas encore de facture synchronisée pour cette année).`);
+        return;
+      }
+      localStorage.setItem(cacheKey,yearFolderId);
     }
     // Ouvrir le dossier dans un nouvel onglet — Drive applique le tri choisi par l'utilisateur,
     // pense à cliquer sur l'en-tête "Nom" pour trier par numéro de facture si besoin.
