@@ -7004,6 +7004,8 @@ const GL_CATEGORIES=[
   {key:'assurance',label:'Assurance locataire',scope:'contrat'},
   {key:'edl',label:'État des lieux',scope:'contrat'},
   {key:'bail',label:'Bail',scope:'contrat'},
+  {key:'avenant',label:'Avenants',scope:'contrat'},
+  {key:'identite',label:"Pièces d'identité",scope:'contrat'},
   {key:'autre',label:'Autre',scope:'logement'}
 ];
 function loadGLDocs(){
@@ -11455,7 +11457,12 @@ async function envoyerLienSignatureDistance(){
         img.onload=()=>{c.clearRect(0,0,canvas.width,canvas.height);c.drawImage(img,0,0,canvas.width/(window.devicePixelRatio||1),canvas.height/(window.devicePixelRatio||1));};
         img.src=d.locataireSignature;
       }
-      if(statusEl){statusEl.style.color='var(--green)';statusEl.textContent='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.';}
+      if(statusEl){
+        statusEl.style.color='var(--green)';
+        const nbPhotos=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
+        statusEl.innerHTML='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
+          +(nbPhotos?'<br>✓ Pièce d\'identité reçue ('+(nbPhotos===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>');
+      }
     }
   });
 }
@@ -11564,7 +11571,12 @@ async function envoyerLienSignatureDistance2(){
         img.onload=()=>{c.clearRect(0,0,canvas.width,canvas.height);c.drawImage(img,0,0,canvas.width/(window.devicePixelRatio||1),canvas.height/(window.devicePixelRatio||1));};
         img.src=d.locataireSignature;
       }
-      if(statusEl){statusEl.style.color='var(--green)';statusEl.textContent='✓ Le 2e locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.';}
+      if(statusEl){
+        statusEl.style.color='var(--green)';
+        const nbPhotos2=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
+        statusEl.innerHTML='✓ Le 2e locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
+          +(nbPhotos2?'<br>✓ Pièce d\'identité reçue ('+(nbPhotos2===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>');
+      }
     }
   });
 }
@@ -12061,7 +12073,12 @@ async function envoyerLienSignatureAvenantDistance(){
         img.onload=()=>{c.clearRect(0,0,canvas.width,canvas.height);c.drawImage(img,0,0,canvas.width/(window.devicePixelRatio||1),canvas.height/(window.devicePixelRatio||1));};
         img.src=d.locataireSignature;
       }
-      if(statusEl){statusEl.style.color='var(--green)';statusEl.textContent='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.';}
+      if(statusEl){
+        statusEl.style.color='var(--green)';
+        const nbPhotosAv=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
+        statusEl.innerHTML='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
+          +(nbPhotosAv?'<br>✓ Pièce d\'identité reçue ('+(nbPhotosAv===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>');
+      }
     }
   });
 }
@@ -13696,7 +13713,7 @@ function renderGestionLocativeDetail(){
 
   const docsHtml=GL_CATEGORIES.map(cat=>{
     const docsCat=docs.filter(d=>d.categorie===cat.key);
-    const catIcons={'bail':'📄','etat-des-lieux':'🔑','assurance':'🛡','dpe':'🌡','autre':'📎'};
+    const catIcons={'bail':'📄','edl':'🔑','assurance':'🛡','dpe':'🌡','avenant':'📎','identite':'🪪','autre':'📎'};
     const icon=catIcons[cat.key]||'📎';
     const lignes=docsCat.length?docsCat.map(d=>{
       const s=glDocStatus(d);
