@@ -11461,10 +11461,27 @@ async function envoyerLienSignatureDistance(){
         statusEl.style.color='var(--green)';
         const nbPhotos=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
         statusEl.innerHTML='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
-          +(nbPhotos?'<br>✓ Pièce d\'identité reçue ('+(nbPhotos===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>');
+          +(nbPhotos?'<br>✓ Pièce d\'identité reçue ('+(nbPhotos===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>')
+          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso);
       }
     }
   });
+}
+// Ouvre une image (photo de pièce d'identité) en grand, dans un cadre simple par-dessus la
+// fenêtre en cours — pour vérifier visuellement que c'est bien le bon document avant de valider.
+function _ouvrirApercuImage(src){
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out';
+  overlay.innerHTML=`<img src="${src}" style="max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.6)">`;
+  overlay.onclick=()=>overlay.remove();
+  document.body.appendChild(overlay);
+}
+// Construit les miniatures cliquables recto/verso à afficher sous le statut de signature à
+// distance — un simple texte "reçue" ne permet pas de vérifier que c'est le bon document.
+function _apercuPiecesIdentiteHtml(recto,verso){
+  if(!recto&&!verso)return'';
+  const miniature=(src,label)=>`<img src="${src}" onclick="_ouvrirApercuImage(this.src)" title="Cliquer pour agrandir — ${label}" style="height:70px;border-radius:6px;border:1px solid var(--border2);cursor:zoom-in;object-fit:cover">`;
+  return `<div style="display:flex;gap:8px;margin-top:8px">${recto?miniature(recto,'recto'):''}${verso?miniature(verso,'verso'):''}</div>`;
 }
 function arreterEcouteSignatureDistance(){
   if(_sigDistanceUnsub){try{_sigDistanceUnsub();}catch(e){}_sigDistanceUnsub=null;}
@@ -11575,7 +11592,8 @@ async function envoyerLienSignatureDistance2(){
         statusEl.style.color='var(--green)';
         const nbPhotos2=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
         statusEl.innerHTML='✓ Le 2e locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
-          +(nbPhotos2?'<br>✓ Pièce d\'identité reçue ('+(nbPhotos2===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>');
+          +(nbPhotos2?'<br>✓ Pièce d\'identité reçue ('+(nbPhotos2===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>')
+          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso);
       }
     }
   });
@@ -12077,7 +12095,8 @@ async function envoyerLienSignatureAvenantDistance(){
         statusEl.style.color='var(--green)';
         const nbPhotosAv=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
         statusEl.innerHTML='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
-          +(nbPhotosAv?'<br>✓ Pièce d\'identité reçue ('+(nbPhotosAv===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>');
+          +(nbPhotosAv?'<br>✓ Pièce d\'identité reçue ('+(nbPhotosAv===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>')
+          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso);
       }
     }
   });
