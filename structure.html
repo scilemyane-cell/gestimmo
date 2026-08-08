@@ -11854,19 +11854,30 @@ function genererAvenant(locId,titre,texte,sig){
   const loc=locs.find(l=>String(l.id)===String(locId));
   openPrintOverlay(html,`${titre} — ${loc?.nom||''}`);
 }
-function sauvegarderAvenantDansGestion(locId,titre,texte,sig){
+async function sauvegarderAvenantDansGestion(locId,titre,texte,sig){
   if(!window._canEdit)return;
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   if(!loc)return;
   const html=construireAvenantHTML(locId,titre,texte,sig);
   if(!html)return;
+  // Sauvegarde aussi sur Drive (même dossier "Gestion locative" que les diagnostics/attestations)
+  // — pas seulement en local et dans Firestore. Best-effort : un échec Drive n'empêche jamais
+  // l'enregistrement, qui reste consultable localement dans tous les cas.
+  let lien='';
+  try{
+    const pdfB64=await _htmlDocumentToPdfBase64(html);
+    if(pdfB64){
+      const fileName='Avenant_'+titre.replace(/[^a-zA-Z0-9]/g,'_')+'_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'_'+todayStr()+'.pdf';
+      lien=await uploadToDriveGestionLocative(pdfB64,fileName,loc.logement)||'';
+    }
+  }catch(e){console.error('Upload Drive avenant échoué (non bloquant) :',e);}
   const docs=loadGLDocs();
   const id='avenant_'+Date.now();
   docs.push({
     id, logement:loc.logement, categorie:'avenant',
     libelle:titre+' — '+fmtDate(todayStr()), dateCreation:todayStr(),
-    dateExpiration:'', lien:'', htmlContent:html
+    dateExpiration:'', lien, htmlContent:html
   });
   saveGLDocs(docs);
 }
@@ -12179,7 +12190,7 @@ function construireBailHTML(locId,sig){
   return html;
 }
 
-function genererBail(locId,sig){
+async function genererBail(locId,sig){
   const html=construireBailHTML(locId,sig);
   if(!html)return;
   const locs=loadLocataires();
@@ -12189,13 +12200,22 @@ function genererBail(locId,sig){
   // Une fois signé par les deux parties, on fige une copie immuable dans la gestion locative —
   // sinon le bail reste régénéré à la volée à partir des données ACTUELLES du locataire, et
   // toute modification ultérieure du loyer/dates ferait apparaître un document différent de
-  // celui réellement signé, tout en gardant le même badge "bail signé".
+  // celui réellement signé, tout en gardant le même badge "bail signé". Sauvegarde aussi sur
+  // Drive (best-effort, n'empêche jamais l'enregistrement local/Firestore en cas d'échec).
   if(sig&&sig.bailleur&&sig.locataire){
+    let lien='';
+    try{
+      const pdfB64=await _htmlDocumentToPdfBase64(html);
+      if(pdfB64){
+        const fileName='Bail_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'_'+todayStr()+'.pdf';
+        lien=await uploadToDriveGestionLocative(pdfB64,fileName,loc.logement)||'';
+      }
+    }catch(e){console.error('Upload Drive bail échoué (non bloquant) :',e);}
     const docs=loadGLDocs();
     docs.push({
       id:'bail_'+Date.now(), logement:loc.logement, categorie:'bail',
       libelle:'Bail signé — '+fmtDate(todayStr()), dateCreation:todayStr(),
-      dateExpiration:'', lien:'', htmlContent:html
+      dateExpiration:'', lien, htmlContent:html
     });
     saveGLDocs(docs);
   }
@@ -13718,7 +13738,25 @@ async function validerRelance(locId){
 // ═══════════════════════════════════════════════════════════════════════
 // HISTORIQUE EDL — Stocker dans GL Docs
 // ═══════════════════════════════════════════════════════════════════════
-function sauvegarderEdlDansGestion(locId, type, html){
+// Convertit un document HTML déjà rendu (bail/EDL/avenant) en PDF binaire (data URI complète,
+// utilisable directement par uploadToDriveGestionLocative) — réutilisé pour sauvegarder une
+// copie de secours sur Drive de chaque document signé, en plus du stockage local/Firestore.
+async function _htmlDocumentToPdfBase64(html){
+  try{
+    const blob=await html2pdf().from(html,'string').set({
+      margin:0,
+      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+    }).toPdf().output('blob');
+    if(!blob||blob.size<3000)return null;
+    return await new Promise(resolve=>{
+      const reader=new FileReader();
+      reader.onloadend=()=>resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  }catch(e){console.error('Conversion HTML → PDF échouée :',e);return null;}
+}
+async function sauvegarderEdlDansGestion(locId, type, html){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const docs=loadGLDocs();
   const locs=loadLocataires();
@@ -13726,10 +13764,21 @@ function sauvegarderEdlDansGestion(locId, type, html){
   if(!loc)return;
   const id='edl_'+Date.now();
   const label=`État des lieux d'${type==='entree'?'entrée':'sortie'} — ${fmtDate(todayStr())}`;
+  // Sauvegarde aussi sur Drive (même dossier "Gestion locative" que les diagnostics/attestations)
+  // — pas seulement en local et dans Firestore. Best-effort : un échec Drive (pas connecté, etc.)
+  // n'empêche jamais l'enregistrement, qui reste consultable localement dans tous les cas.
+  let lien='';
+  try{
+    const pdfB64=await _htmlDocumentToPdfBase64(html);
+    if(pdfB64){
+      const fileName='EDL_'+(type==='entree'?'ENTREE':'SORTIE')+'_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'_'+todayStr()+'.pdf';
+      lien=await uploadToDriveGestionLocative(pdfB64,fileName,loc.logement)||'';
+    }
+  }catch(e){console.error('Upload Drive EDL échoué (non bloquant) :',e);}
   docs.push({
     id, logement:loc.logement, categorie:'edl',
     libelle:label, dateCreation:todayStr(),
-    dateExpiration:'', lien:'', htmlContent:html
+    dateExpiration:'', lien, htmlContent:html
   });
   saveGLDocs(docs);
 }
