@@ -561,6 +561,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div style="font-size:13px;color:var(--text2)">Vue d'ensemble du projet</div>
   </div>
 
+  <!-- Alertes prélèvements automatiques à venir -->
+  <div id="alertes-prelevements"></div>
+
   <!-- KPI principaux -->
   <div class="kpi-grid" id="kpi-grid"></div>
 
@@ -976,6 +979,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 <!-- FACTURES -->
 <div class="content" id="tab-factures">
 
+  <!-- Alertes prélèvements automatiques à venir — vue directement dans l'onglet Factures,
+       là où l'utilisateur regarde vraiment au quotidien (pas juste dans la synthèse du
+       budget de chantier). -->
+  <div id="alertes-prelevements-factures"></div>
+
   <!-- Récapitulatif retiré (peu utilisé) — la liste des factures est maintenant la seule vue -->
   <div id="sub-content-recap" style="display:none"></div>
 
@@ -1243,6 +1251,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       </div>
       <div class="form-group"><label>Réglé par</label>
         <input type="text" id="f-regleby" placeholder="ex: TOI, UN ASSOCIÉ, LA STRUCTURE..." style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div class="form-group" style="grid-column:1/-1;background:rgba(224,161,94,.06);border:1px solid rgba(224,161,94,.25);border-radius:8px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+          <input type="checkbox" id="f-prelauto" onchange="document.getElementById('f-dateprel-wrap').style.display=this.checked?'block':'none'" style="width:16px;height:16px">
+          <span>🏦 Prélèvement automatique</span>
+        </label>
+        <div id="f-dateprel-wrap" style="display:none;margin-top:8px">
+          <label style="font-size:10px">Date de prélèvement (pour être alerté avant, éviter un découvert)</label>
+          <input type="date" id="f-dateprel">
+        </div>
       </div>
       <div class="form-group"><label>Date de paiement</label><input type="date" id="f-datepay"></div>
       <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="f-ttc" placeholder="0.00" step="0.01"></div>
@@ -1577,6 +1595,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       </div>
       <div class="form-group"><label>Réglé par</label>
         <input type="text" id="e-regleby" placeholder="ex: TOI, UN ASSOCIÉ, LA STRUCTURE..." style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div class="form-group" style="grid-column:1/-1;background:rgba(224,161,94,.06);border:1px solid rgba(224,161,94,.25);border-radius:8px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+          <input type="checkbox" id="e-prelauto" onchange="document.getElementById('e-dateprel-wrap').style.display=this.checked?'block':'none'" style="width:16px;height:16px">
+          <span>🏦 Prélèvement automatique</span>
+        </label>
+        <div id="e-dateprel-wrap" style="display:none;margin-top:8px">
+          <label style="font-size:10px">Date de prélèvement (pour être alerté avant, éviter un découvert)</label>
+          <input type="date" id="e-dateprel">
+        </div>
       </div>
       <div class="form-group"><label>Date de paiement</label><input type="date" id="e-datepay"></div>
       <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="e-ttc" step="0.01"></div>
@@ -3762,6 +3790,50 @@ function showTab(id){
 
 function destroyChart(ref){if(ref)ref.destroy();return null;}
 
+// Alertes prélèvements automatiques — pour ne jamais être pris de court par un débit
+// (découvert). On ne remonte que les factures en prélèvement auto, non encore payées, avec
+// une date de prélèvement dans les 15 prochains jours ou déjà dépassée. Réutilisable sur
+// plusieurs onglets (Synthèse du budget ET onglet Factures) — charge ses propres données
+// pour ne dépendre d'aucune variable locale de la fonction appelante.
+function renderAlertesPrelevements(elId){
+  const{factures}=loadData();
+  const today=todayStr();
+  const prelevs=factures
+    .filter(f=>f.prelevementAuto&&f.dateprelevement&&f.statut!=='Payée'&&f.inclus!==false)
+    .map(f=>{
+      const diff=Math.round((new Date(f.dateprelevement)-new Date(today))/86400000);
+      return{f,diff};
+    })
+    .filter(x=>x.diff<=15)
+    .sort((a,b)=>a.diff-b.diff);
+  const elAlerte=document.getElementById(elId);
+  if(!elAlerte)return;
+  if(prelevs.length===0){
+    elAlerte.innerHTML='';
+    return;
+  }
+  const totalPrelevs=prelevs.reduce((s,x)=>s+(+x.f.ttc||0),0);
+  elAlerte.innerHTML=`
+  <div style="background:rgba(224,113,107,.08);border:1px solid rgba(224,113,107,.35);border-radius:12px;padding:14px 18px;margin-bottom:20px">
+    <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">🏦 ${prelevs.length} prélèvement${prelevs.length>1?'s':''} automatique${prelevs.length>1?'s':''} à venir — ${fmt(totalPrelevs)} au total</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${prelevs.map(x=>{
+        const f=x.f;
+        const enRetard=x.diff<0;
+        const label=enRetard?'En retard de '+Math.abs(x.diff)+' j':(x.diff===0?"Aujourd'hui":'Dans '+x.diff+' j');
+        const couleur=enRetard||x.diff<=3?'var(--red)':'var(--orange)';
+        return`<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:7px">
+          <span style="color:var(--text2)">${f.four||'—'} ${f.num?'('+f.num+')':''}</span>
+          <span style="display:flex;gap:10px;align-items:center">
+            <span style="font-weight:600;color:var(--text)">${fmt(f.ttc)}</span>
+            <span style="color:${couleur};font-weight:700;font-size:11px">${label} · ${fmtDate(f.dateprelevement)}</span>
+          </span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
 // ── SYNTHESE ──────────────────────────────────────────────────────────────
 function renderSynthese(){
   const{budget,factures}=loadData();
@@ -3777,6 +3849,8 @@ function renderSynthese(){
   const pctCombine=tPrev>0?Math.min((tReel+tEngage)/tPrev*100,100):0;
   const payees=factures.filter(f=>f.statut==='Payée'&&f.inclus!==false).reduce((s,f)=>s+(+f.ttc||0),0);
   const attente=factures.filter(f=>f.statut!=='Payée'&&f.inclus!==false).reduce((s,f)=>s+(+f.ttc||0),0);
+
+  renderAlertesPrelevements('alertes-prelevements');
 
   // KPI
   document.getElementById('kpi-grid').innerHTML=`
@@ -4204,6 +4278,7 @@ function confirmerPasDoublon(idx){
 }
 function renderFactures(){
   const{factures}=loadData();
+  renderAlertesPrelevements('alertes-prelevements-factures');
   populateDevisSelects();
   const btnSyncPennylane=document.getElementById('btn-sync-pennylane');
   if(btnSyncPennylane)btnSyncPennylane.style.display=getComptaToken('pennylane')?'inline-flex':'none';
@@ -4274,7 +4349,7 @@ function renderFactures(){
     return`<tr class="${alertClass}" style="${excluStyle}">
       <td class="hover-pdf-trigger" style="color:var(--accent);font-weight:500" onmouseenter="showHoverPreview(event,'facture',${ri})" onmouseleave="hideHoverPreview()" title="Survoler pour voir la facture">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${isDup?` <span onclick="confirmerPasDoublon(${ri})" title="Cliquer pour confirmer que ce n'est PAS un doublon" style="cursor:pointer;font-size:9px;background:rgba(224,113,107,.25);color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON — ✓ Confirmer que non</span>`:''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #E0A15E;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
-      <td style="font-weight:500">${f.four||'—'}${f.sourceCertifiee?' <span title="Facture électronique certifiée (Factur-X) — données garanties exactes, aucune lecture IA" style="font-size:9px;background:rgba(90,200,216,.15);color:#5AC8D8;border:1px solid rgba(90,200,216,.4);border-radius:3px;padding:1px 5px;font-weight:700">🔷 CERTIFIÉE</span>':''}</td>
+      <td style="font-weight:500">${f.four||'—'}${f.sourceCertifiee?' <span title="Facture électronique certifiée (Factur-X) — données garanties exactes, aucune lecture IA" style="font-size:9px;background:rgba(90,200,216,.15);color:#5AC8D8;border:1px solid rgba(90,200,216,.4);border-radius:3px;padding:1px 5px;font-weight:700">🔷 CERTIFIÉE</span>':''}${f.prelevementAuto?` <span title="Prélèvement automatique${f.dateprelevement?' le '+fmtDate(f.dateprelevement):''}" style="font-size:9px;background:rgba(224,161,94,.15);color:var(--orange);border:1px solid rgba(224,161,94,.4);border-radius:3px;padding:1px 5px;font-weight:700">🏦 PRÉLÈVEMENT</span>`:''}</td>
       <td style="color:var(--text2);font-size:11px">${getCatDisplayText(f)}</td>
       <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(f.ttc)}</td>
@@ -4360,6 +4435,8 @@ async function ajouterFacture(){
     ht,tva,ttc:ttcInput,
     statut:document.getElementById('f-statut').value,
     regleby:document.getElementById('f-regleby').value,
+    prelevementAuto:!!document.getElementById('f-prelauto')?.checked,
+    dateprelevement:document.getElementById('f-dateprel')?.value||'',
     cmd:baseCmd,
     desc: baseDesc,
     hasPdf:!!pendingPdfB64,
@@ -5469,6 +5546,9 @@ function openEdit(idx){
     eDevisSel.value=devisLie?devisLie.num:'';
   }
   document.getElementById('e-regleby').value=f.regleby||'';
+  document.getElementById('e-prelauto').checked=!!f.prelevementAuto;
+  document.getElementById('e-dateprel').value=f.dateprelevement||'';
+  document.getElementById('e-dateprel-wrap').style.display=f.prelevementAuto?'block':'none';
   document.getElementById('e-datepay').value=f.datepay||'';
   document.getElementById('e-ttc').value=f.ttc;
   document.getElementById('e-tva').value=f.tva;
@@ -5557,6 +5637,8 @@ function saveEdit(){
     log:document.getElementById('e-log').value,
     statut:document.getElementById('e-statut').value,
     regleby:document.getElementById('e-regleby').value,
+    prelevementAuto:!!document.getElementById('e-prelauto')?.checked,
+    dateprelevement:document.getElementById('e-dateprel')?.value||'',
     datepay:document.getElementById('e-datepay').value,
     ht,tva,ttc:ttcEdit,
     cmd:document.getElementById('e-cmd').value.trim(),
@@ -5686,6 +5768,8 @@ function saveEditAsSplit(){
     ht,tva,ttc:ttcInput,
     statut:document.getElementById('e-statut').value,
     regleby:document.getElementById('e-regleby').value,
+    prelevementAuto:!!document.getElementById('e-prelauto')?.checked,
+    dateprelevement:document.getElementById('e-dateprel')?.value||'',
     datepay:document.getElementById('e-datepay').value,
     cmd:baseCmd,
     desc: baseDesc,
