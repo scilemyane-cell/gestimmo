@@ -14192,6 +14192,25 @@ function _libererCopieLocaleGLDoc(docId){
     }
   }catch(e){console.warn('Libération copie locale document échouée (non bloquant) :',e);}
 }
+// Nettoyage RÉTROACTIF, exécuté une fois au chargement : tous les documents créés AVANT
+// l'existence de _libererCopieLocaleGLDoc (ou dont l'upload Drive avait réussi mais sans
+// libération locale) gardaient leur copie HTML complète en local pour toujours — ce qui finit
+// par saturer le stockage du navigateur au fil des baux/EDL/avenants/pièces d'identité
+// accumulés. On libère ici tout document qui a déjà un lien Drive confirmé, quelle que soit
+// sa date de création.
+function libererCopiesLocalesGLDocsRetroactif(){
+  try{
+    const docs=JSON.parse(localStorage.getItem(ctxKey('gl_docs'))||'[]');
+    let nbLiberes=0;
+    docs.forEach(d=>{
+      if(d.lien&&d.htmlContent){d.htmlContent='';nbLiberes++;}
+    });
+    if(nbLiberes>0){
+      localStorage.setItem(ctxKey('gl_docs'),JSON.stringify(docs));
+      console.log(nbLiberes+' copie(s) locale(s) de document(s) libérée(s) (déjà sauvegardées sur Drive).');
+    }
+  }catch(e){console.warn('Nettoyage rétroactif des documents échoué (non bloquant) :',e);}
+}
 async function sauvegarderEdlDansGestion(locId, type, html){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const docs=loadGLDocs();
@@ -18174,6 +18193,7 @@ window._authReady.then(async () => {
   });
   renderNavigation('synthese');
   initGoogleDrive();
+  libererCopiesLocalesGLDocsRetroactif();
   // Charger depuis le cloud puis afficher
   if(window._dbReady){
     loadFromCloud().then(()=>{renderSynthese();});
