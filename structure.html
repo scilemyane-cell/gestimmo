@@ -2826,7 +2826,6 @@ async function fetchFacturePdfB64(idx){
 
 // ── Aperçu au survol (factures/devis + écran de saisie) ───────────────────
 let _hoverPreviewToken=0; // évite qu'une réponse Drive lente n'écrase l'aperçu d'une ligne survolée plus récemment
-const _hoverPreviewCache={}; // clé -> b64 déjà récupéré (évite de retélécharger Drive à chaque survol)
 function _b64ToPreviewHtml(b64){
   if(!b64)return null;
   if(b64.startsWith('data:image'))return `<img src="${b64}">`;
@@ -2860,13 +2859,12 @@ async function showHoverPreview(e,source,idxOrB64){
   if(source==='inline'){
     b64=idxOrB64;
   } else {
-    const cacheKey=source+'-'+idxOrB64;
-    if(_hoverPreviewCache[cacheKey]){
-      b64=_hoverPreviewCache[cacheKey];
-    } else {
-      b64=source==='devis'?await fetchDevisPdfB64(idxOrB64):await fetchFacturePdfB64(idxOrB64);
-      if(b64)_hoverPreviewCache[cacheKey]=b64;
-    }
+    // Pas de cache séparé ici : fetchFacturePdfB64/fetchDevisPdfB64 relit déjà la copie
+    // locale à jour instantanément (rapide, pas besoin de mise en cache supplémentaire), et
+    // ne va sur Drive que si vraiment rien en local (déjà mis en cache local à ce moment-là).
+    // Un cache séparé par index de ligne provoquait un aperçu figé sur l'ANCIENNE version
+    // (avant correction de rotation par ex.) tant que la page n'était pas rechargée.
+    b64=source==='devis'?await fetchDevisPdfB64(idxOrB64):await fetchFacturePdfB64(idxOrB64);
   }
   if(myToken!==_hoverPreviewToken)return; // la souris est déjà passée sur autre chose
   const html=_b64ToPreviewHtml(b64);
