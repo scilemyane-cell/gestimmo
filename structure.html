@@ -2826,10 +2826,20 @@ async function fetchFacturePdfB64(idx){
 
 // ── Aperçu au survol (factures/devis + écran de saisie) ───────────────────
 let _hoverPreviewToken=0; // évite qu'une réponse Drive lente n'écrase l'aperçu d'une ligne survolée plus récemment
-function _b64ToPreviewHtml(b64){
+async function _b64ToPreviewHtml(b64){
   if(!b64)return null;
   if(b64.startsWith('data:image'))return `<img src="${b64}">`;
-  if(b64.startsWith('data:application/pdf'))return `<iframe src="${b64}"></iframe>`;
+  if(b64.startsWith('data:application/pdf')){
+    // On rasterise la 1ère page via le même moteur (pdf.js) que "✂️ modifier les pages", qui
+    // corrige correctement l'orientation (métadonnée de rotation du PDF + bascule
+    // paysage→portrait) — contrairement à l'affichage brut du PDF dans un <iframe>, qui ne
+    // respecte pas toujours cette même orientation selon le navigateur.
+    try{
+      const images=await pdfToImages(b64);
+      if(images&&images[0])return `<img src="${images[0]}">`;
+    }catch(e){console.error('Aperçu PDF : échec de la rasterisation, repli sur l\'iframe brut.',e);}
+    return `<iframe src="${b64}"></iframe>`;
+  }
   return null;
 }
 function positionHoverPreview(e){
@@ -2867,8 +2877,14 @@ async function showHoverPreview(e,source,idxOrB64){
     b64=source==='devis'?await fetchDevisPdfB64(idxOrB64):await fetchFacturePdfB64(idxOrB64);
   }
   if(myToken!==_hoverPreviewToken)return; // la souris est déjà passée sur autre chose
-  const html=_b64ToPreviewHtml(b64);
+  const html=await _b64ToPreviewHtml(b64);
+  if(myToken!==_hoverPreviewToken)return; // la souris a bougé pendant la rasterisation du PDF
   box.innerHTML=html||'<div class="hpp-msg">Aucun aperçu disponible (pas de PDF local ni de lien Drive).</div>';
+  // Le cadre a été positionné plus haut alors qu'il n'affichait que le petit message
+  // "Chargement…" — une fois l'image/PDF chargé, il grandit d'un coup et peut déborder en
+  // bas de l'écran sans repositionnement (ne laissant que le haut visible). On repositionne
+  // donc une seconde fois, maintenant que la taille réelle est connue.
+  positionHoverPreview(e);
 }
 
 // ── Locataires ──────────────────────────────────────────────────────────
