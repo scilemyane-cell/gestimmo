@@ -11180,9 +11180,9 @@ async function validerModalQuittance(locId){
 // ── SIGNATURE TACTILE DU BAIL ────────────────────────────────────────────
 let _sigBailLocId=null;
 let _otpBailCode=null,_otpBailExpiry=null,_otpBailVerifie=false;
-let _sigDistanceDocId=null,_sigDistanceUnsub=null,_sigDistanceLocataireB64=null,_sigDistanceLocataireTrace=null,_sigDistanceLocataireIdPhoto=null;
+let _sigDistanceDocId=null,_sigDistanceUnsub=null,_sigDistanceLocataireB64=null,_sigDistanceLocataireTrace=null,_sigDistanceLocataireIdPhotoRecto=null,_sigDistanceLocataireIdPhotoVerso=null;
 let _otpBailCode2=null,_otpBailExpiry2=null,_otpBailVerifie2=false;
-let _sigDistanceDocId2=null,_sigDistanceUnsub2=null,_sigDistanceLocataireB64_2=null,_sigDistanceLocataireTrace2=null,_sigDistanceLocataireIdPhoto2=null;
+let _sigDistanceDocId2=null,_sigDistanceUnsub2=null,_sigDistanceLocataireB64_2=null,_sigDistanceLocataireTrace2=null,_sigDistanceLocataireIdPhotoRecto2=null,_sigDistanceLocataireIdPhotoVerso2=null;
 const _sigPadState={bailleur:{ctx:null,drew:false},locataire:{ctx:null,drew:false}};
 function _initSignaturePad(who){
   const canvas=document.getElementById('sigpad-'+who);
@@ -11213,10 +11213,10 @@ function ouvrirSignatureBail(locId){
   _sigBailLocId=locId;
   _otpBailCode=null;_otpBailExpiry=null;_otpBailVerifie=false;
   arreterEcouteSignatureDistance();
-  _sigDistanceDocId=null;_sigDistanceLocataireB64=null;_sigDistanceLocataireTrace=null;_sigDistanceLocataireIdPhoto=null;
+  _sigDistanceDocId=null;_sigDistanceLocataireB64=null;_sigDistanceLocataireTrace=null;_sigDistanceLocataireIdPhotoRecto=null;_sigDistanceLocataireIdPhotoVerso=null;
   arreterEcouteSignatureDistance2();
   _otpBailCode2=null;_otpBailExpiry2=null;_otpBailVerifie2=false;
-  _sigDistanceDocId2=null;_sigDistanceLocataireB64_2=null;_sigDistanceLocataireTrace2=null;_sigDistanceLocataireIdPhoto2=null;
+  _sigDistanceDocId2=null;_sigDistanceLocataireB64_2=null;_sigDistanceLocataireTrace2=null;_sigDistanceLocataireIdPhotoRecto2=null;_sigDistanceLocataireIdPhotoVerso2=null;
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   let modal=document.getElementById('modal-signature-bail');
@@ -11258,8 +11258,10 @@ function ouvrirSignatureBail(locId){
         <canvas id="sigpad-locataire" style="width:100%;height:110px;background:#fff;border-radius:8px;border:1px solid var(--border2);touch-action:none;cursor:crosshair"></canvas>
         <div style="font-size:10px;color:var(--text3);margin-top:6px">À faire signer par le locataire sur cet appareil, ou envoie-lui le lien ci-dessous pour qu'il signe depuis son propre téléphone.</div>
         <div style="margin-top:10px">
-          <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Pièce d'identité (recommandé, si signature sur cet appareil)</label>
-          <input type="file" id="id-photo-bail-input" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px">
+          <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Pièce d'identité — recto (recommandé, si signature sur cet appareil)</label>
+          <input type="file" id="id-photo-bail-input" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px;margin-bottom:6px">
+          <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Verso</label>
+          <input type="file" id="id-photo-bail-input-verso" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px">
         </div>
       </div>
 
@@ -11296,8 +11298,10 @@ function ouvrirSignatureBail(locId){
           </div>
           <canvas id="sigpad-locataire2" style="width:100%;height:110px;background:#fff;border-radius:8px;border:1px solid var(--border2);touch-action:none;cursor:crosshair"></canvas>
           <div style="margin-top:10px">
-            <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Pièce d'identité (recommandé, si signature sur cet appareil)</label>
-            <input type="file" id="id-photo-bail-input2" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px">
+            <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Pièce d'identité — recto (recommandé, si signature sur cet appareil)</label>
+            <input type="file" id="id-photo-bail-input2" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px;margin-bottom:6px">
+            <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Verso</label>
+            <input type="file" id="id-photo-bail-input2-verso" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px">
           </div>
         </div>
 
@@ -11442,7 +11446,8 @@ async function envoyerLienSignatureDistance(){
     if(d.statut==='signe'&&d.locataireSignature){
       _sigDistanceLocataireB64=d.locataireSignature;
       _sigDistanceLocataireTrace={ip:d.locataireIP||'',horodatage:d.locataireHorodatage||'',userAgent:d.locataireUserAgent||''};
-      _sigDistanceLocataireIdPhoto=d.locataireIdPhoto||null;
+      _sigDistanceLocataireIdPhotoRecto=d.locataireIdPhotoRecto||null;
+      _sigDistanceLocataireIdPhotoVerso=d.locataireIdPhotoVerso||null;
       const canvas=document.getElementById('sigpad-locataire');
       if(canvas){
         const c=canvas.getContext('2d');
@@ -11550,7 +11555,8 @@ async function envoyerLienSignatureDistance2(){
     if(d.statut==='signe'&&d.locataireSignature){
       _sigDistanceLocataireB64_2=d.locataireSignature;
       _sigDistanceLocataireTrace2={ip:d.locataireIP||'',horodatage:d.locataireHorodatage||'',userAgent:d.locataireUserAgent||''};
-      _sigDistanceLocataireIdPhoto2=d.locataireIdPhoto||null;
+      _sigDistanceLocataireIdPhotoRecto2=d.locataireIdPhotoRecto||null;
+      _sigDistanceLocataireIdPhotoVerso2=d.locataireIdPhotoVerso||null;
       const canvas=document.getElementById('sigpad-locataire2');
       if(canvas){
         const c=canvas.getContext('2d');
@@ -11717,16 +11723,26 @@ async function validerSignatureBail(){
   if(sig.locataire){
     if(_sigDistanceLocataireTrace)sig.traceLocataire=_sigDistanceLocataireTrace;
     else sig.traceLocataire=sig.traceBailleur||await _capturerTraceSignature();
-    // Pièce d'identité : celle transmise à distance par le locataire, sinon celle éventuellement
-    // jointe sur cet appareil au moment de la signature en personne.
-    if(_sigDistanceLocataireIdPhoto)sig.locataireIdPhoto=_sigDistanceLocataireIdPhoto;
-    else sig.locataireIdPhoto=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input'));
+    // Pièce d'identité (recto/verso) : celle transmise à distance par le locataire, sinon
+    // celle éventuellement jointe sur cet appareil au moment de la signature en personne.
+    if(_sigDistanceLocataireIdPhotoRecto||_sigDistanceLocataireIdPhotoVerso){
+      sig.locataireIdPhotoRecto=_sigDistanceLocataireIdPhotoRecto;
+      sig.locataireIdPhotoVerso=_sigDistanceLocataireIdPhotoVerso;
+    } else {
+      sig.locataireIdPhotoRecto=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input'));
+      sig.locataireIdPhotoVerso=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input-verso'));
+    }
   }
   if(sig.locataire2){
     if(_sigDistanceLocataireTrace2)sig.traceLocataire2=_sigDistanceLocataireTrace2;
     else sig.traceLocataire2=sig.traceBailleur||await _capturerTraceSignature();
-    if(_sigDistanceLocataireIdPhoto2)sig.locataireIdPhoto2=_sigDistanceLocataireIdPhoto2;
-    else sig.locataireIdPhoto2=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input2'));
+    if(_sigDistanceLocataireIdPhotoRecto2||_sigDistanceLocataireIdPhotoVerso2){
+      sig.locataireIdPhotoRecto2=_sigDistanceLocataireIdPhotoRecto2;
+      sig.locataireIdPhotoVerso2=_sigDistanceLocataireIdPhotoVerso2;
+    } else {
+      sig.locataireIdPhotoRecto2=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input2'));
+      sig.locataireIdPhotoVerso2=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input2-verso'));
+    }
   }
   const inclureEdl=_edlPretPourSignature&&_edlPretPourSignature.locId===String(_sigBailLocId)&&document.getElementById('chk-inclure-edl')?.checked;
   arreterEcouteSignatureDistance();
@@ -11763,8 +11779,10 @@ async function validerSignatureBail(){
     // recliquer sur "Bail" régénérait jusqu'ici toujours une version vierge, sans les signatures.
     const bailHtmlFinal=construireBailHTML(_sigBailLocId,sig);
     if(bailHtmlFinal)await sauvegarderBailDansGestion(_sigBailLocId,bailHtmlFinal);
-    if(sig.locataireIdPhoto)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhoto,'Pièce d\'identité — bail');
-    if(sig.locataireIdPhoto2)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhoto2,'Pièce d\'identité — bail (2e titulaire)');
+    if(sig.locataireIdPhotoRecto)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhotoRecto,'Pièce d\'identité (recto) — bail');
+    if(sig.locataireIdPhotoVerso)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhotoVerso,'Pièce d\'identité (verso) — bail');
+    if(sig.locataireIdPhotoRecto2)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhotoRecto2,'Pièce d\'identité (recto) — bail (2e titulaire)');
+    if(sig.locataireIdPhotoVerso2)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhotoVerso2,'Pièce d\'identité (verso) — bail (2e titulaire)');
   }
   genererBail(_sigBailLocId,sig);
   envoyerCopieBailSigneAuLocataire(_sigBailLocId,sig);
@@ -11803,7 +11821,7 @@ async function envoyerCopieBailSigneAuLocataire(locId,sig){
 // ═══════════════════════════════════════════════════════════════════════
 let _avenantLocId=null;
 let _otpAvenantCode=null,_otpAvenantExpiry=0,_otpAvenantVerifie=false;
-let _sigAvenantDistanceDocId=null,_sigAvenantDistanceLocataireB64=null,_sigAvenantDistanceUnsub=null,_sigAvenantDistanceLocataireTrace=null,_sigAvenantDistanceLocataireIdPhoto=null;
+let _sigAvenantDistanceDocId=null,_sigAvenantDistanceLocataireB64=null,_sigAvenantDistanceUnsub=null,_sigAvenantDistanceLocataireTrace=null,_sigAvenantDistanceLocataireIdPhotoRecto=null,_sigAvenantDistanceLocataireIdPhotoVerso=null;
 
 const AVENANT_MODELES=[
   {titre:'Remise d\'une clé supplémentaire',texte:'Il est remis ce jour au locataire un exemplaire supplémentaire des clés du logement, en plus de celles déjà remises à la prise d\'effet du bail. Le locataire reconnaît la bonne réception de cette clé et s\'engage à la restituer avec les autres exemplaires à la sortie des lieux.'},
@@ -11816,7 +11834,7 @@ function ouvrirAvenant(locId){
   _avenantLocId=locId;
   _otpAvenantCode=null;_otpAvenantExpiry=0;_otpAvenantVerifie=false;
   arreterEcouteSignatureAvenantDistance();
-  _sigAvenantDistanceDocId=null;_sigAvenantDistanceLocataireB64=null;_sigAvenantDistanceLocataireTrace=null;_sigAvenantDistanceLocataireIdPhoto=null;
+  _sigAvenantDistanceDocId=null;_sigAvenantDistanceLocataireB64=null;_sigAvenantDistanceLocataireTrace=null;_sigAvenantDistanceLocataireIdPhotoRecto=null;_sigAvenantDistanceLocataireIdPhotoVerso=null;
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   let modal=document.getElementById('modal-avenant');
@@ -11878,8 +11896,10 @@ function ouvrirAvenant(locId){
         </div>
         <canvas id="sigpad-locataire" style="width:100%;height:110px;background:#fff;border-radius:8px;border:1px solid var(--border2);touch-action:none;cursor:crosshair"></canvas>
         <div style="margin-top:10px">
-          <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Pièce d'identité (recommandé, si signature sur cet appareil)</label>
-          <input type="file" id="id-photo-avenant-input" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px">
+          <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Pièce d'identité — recto (recommandé, si signature sur cet appareil)</label>
+          <input type="file" id="id-photo-avenant-input" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px;margin-bottom:6px">
+          <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Verso</label>
+          <input type="file" id="id-photo-avenant-input-verso" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px">
         </div>
       </div>
 
@@ -12032,7 +12052,8 @@ async function envoyerLienSignatureAvenantDistance(){
     if(d.statut==='signe'&&d.locataireSignature){
       _sigAvenantDistanceLocataireB64=d.locataireSignature;
       _sigAvenantDistanceLocataireTrace={ip:d.locataireIP||'',horodatage:d.locataireHorodatage||'',userAgent:d.locataireUserAgent||''};
-      _sigAvenantDistanceLocataireIdPhoto=d.locataireIdPhoto||null;
+      _sigAvenantDistanceLocataireIdPhotoRecto=d.locataireIdPhotoRecto||null;
+      _sigAvenantDistanceLocataireIdPhotoVerso=d.locataireIdPhotoVerso||null;
       const canvas=document.getElementById('sigpad-locataire');
       if(canvas){
         const c=canvas.getContext('2d');
@@ -12076,8 +12097,13 @@ async function validerSignatureAvenant(){
   if(sig.locataire){
     if(_sigAvenantDistanceLocataireTrace)sig.traceLocataire=_sigAvenantDistanceLocataireTrace;
     else sig.traceLocataire=sig.traceBailleur||await _capturerTraceSignature();
-    if(_sigAvenantDistanceLocataireIdPhoto)sig.locataireIdPhoto=_sigAvenantDistanceLocataireIdPhoto;
-    else sig.locataireIdPhoto=await _lireEtCompresserFichierImage(document.getElementById('id-photo-avenant-input'));
+    if(_sigAvenantDistanceLocataireIdPhotoRecto||_sigAvenantDistanceLocataireIdPhotoVerso){
+      sig.locataireIdPhotoRecto=_sigAvenantDistanceLocataireIdPhotoRecto;
+      sig.locataireIdPhotoVerso=_sigAvenantDistanceLocataireIdPhotoVerso;
+    } else {
+      sig.locataireIdPhotoRecto=await _lireEtCompresserFichierImage(document.getElementById('id-photo-avenant-input'));
+      sig.locataireIdPhotoVerso=await _lireEtCompresserFichierImage(document.getElementById('id-photo-avenant-input-verso'));
+    }
   }
   arreterEcouteSignatureAvenantDistance();
   document.getElementById('modal-avenant')?.remove();
@@ -12093,7 +12119,8 @@ async function validerSignatureAvenant(){
   }
   genererAvenant(_avenantLocId,titre,texte,sig);
   sauvegarderAvenantDansGestion(_avenantLocId,titre,texte,sig);
-  if(sig.locataireIdPhoto)await _sauvegarderPhotoIdentite(_avenantLocId,sig.locataireIdPhoto,'Pièce d\'identité — avenant '+titre);
+  if(sig.locataireIdPhotoRecto)await _sauvegarderPhotoIdentite(_avenantLocId,sig.locataireIdPhotoRecto,'Pièce d\'identité (recto) — avenant '+titre);
+  if(sig.locataireIdPhotoVerso)await _sauvegarderPhotoIdentite(_avenantLocId,sig.locataireIdPhotoVerso,'Pièce d\'identité (verso) — avenant '+titre);
   envoyerCopieAvenantSigneAuLocataire(_avenantLocId,titre,texte,sig,dest.email);
 }
 function construireAvenantHTML(locId,titre,texte,sig){
@@ -12306,7 +12333,7 @@ function _traceabiliteHtml(sig){
     return (t.ip?'IP '+t.ip:'')+(dateStr?(t.ip?', ':'')+'le '+dateStr:'');
   };
   const b=fmtTrace(sig.traceBailleur), l=fmtTrace(sig.traceLocataire), l2=fmtTrace(sig.traceLocataire2);
-  const idPhoto=(sig.locataireIdPhoto||sig.locataireIdPhoto2)?`<div style="margin-top:2px;font-size:9px;color:#7FBF9E">✓ Pièce d'identité produite au moment de la signature (conservée séparément, en privé)</div>`:'';
+  const idPhoto=(sig.locataireIdPhotoRecto||sig.locataireIdPhotoVerso||sig.locataireIdPhotoRecto2||sig.locataireIdPhotoVerso2)?`<div style="margin-top:2px;font-size:9px;color:#7FBF9E">✓ Pièce d'identité produite au moment de la signature (conservée séparément, en privé)</div>`:'';
   if(!b&&!l&&!l2&&!idPhoto)return'';
   const parts=[b?'Bailleur : '+b:'',l?'Locataire : '+l:'',l2?'2e locataire : '+l2:''].filter(Boolean).join(' · ');
   return `<div style="margin-top:6px;font-size:9px;color:#a0aec0;text-align:center">${parts?`Traçabilité — ${parts}`:''}${idPhoto}</div>`;
