@@ -16760,7 +16760,12 @@ async function uploadToDriveGestionLocative(b64, fileName, logKey){
 
     // Structure : <Nom structure> Gestion locative / Logement A / fichier.pdf
     const rootFolderName=(getCTXConfig().driveFolderName||'Gestion locative').replace('Factures','Gestion locative');
-    const cacheKey = 'drive_folder_gl_'+logKey;
+    // La clé de cache doit être propre à CETTE structure (ctxKey) ET intégrer le nom du
+    // dossier attendu : sans ça, un changement de nom (casse différente lors du rebranding
+    // Novimmo, structure différente avec le même identifiant de logement A/B/C...) continuait
+    // à réutiliser un ancien dossier Drive périmé — d'où plusieurs dossiers "Gestion locative"
+    // en double, et des documents "manquants" (en réalité montés dans le mauvais dossier).
+    const cacheKey = ctxKey('drive_folder_gl_'+rootFolderName.replace(/[^a-zA-Z0-9]/g,'_')+'_'+logKey);
     let logFolderId = localStorage.getItem(cacheKey);
     if(!logFolderId){
       const rootId = await getOrCreateFolderGL(rootFolderName, null);
