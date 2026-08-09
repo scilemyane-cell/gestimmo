@@ -6400,6 +6400,26 @@ async function downloadDriveFileAsBase64(driveLink){
     return null;
   }
 }
+// Récupère le document le plus récent d'une catégorie donnée (DPE, ERP...) pour un logement —
+// utilisé pour joindre automatiquement les annexes obligatoires au bail signé (email au
+// locataire + copie archivée), sans que le bailleur ait à les rechercher/joindre à la main.
+function recupererDernierDocGL(logKey,categorie){
+  const docs=loadGLDocs().filter(d=>d.categorie===categorie&&d.logement===logKey)
+    .sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
+  return docs[0]||null;
+}
+// Télécharge le contenu binaire (PDF/image) d'un document de gestion locative — depuis Drive
+// s'il y a un lien, sinon via son htmlContent local s'il en a un (rare pour DPE/ERP, qui sont
+// généralement des scans uploadés directement sans passer par une génération HTML).
+async function telechargerDocGLBase64(doc){
+  if(!doc)return null;
+  if(doc.lien){
+    await ensureDriveConnected();
+    const b64=await downloadDriveFileAsBase64(doc.lien);
+    if(b64)return b64;
+  }
+  return null;
+}
 // Convertit un PDF en base64 en une liste d'images PNG (une par page) via pdf.js, avec
 // correction d'orientation (paysage/rotation embarquée). Fonction globale — voir commentaire
 // détaillé historique dans exportZipFactures.
@@ -7001,6 +7021,7 @@ function getCurrentLocataire(logKey){
 //   nouveau contrat le cas échéant.
 const GL_CATEGORIES=[
   {key:'dpe',label:'DPE',scope:'logement'},
+  {key:'erp',label:"État des risques (ERP)",scope:'logement'},
   {key:'assurance',label:'Assurance locataire',scope:'contrat'},
   {key:'edl',label:'État des lieux',scope:'contrat'},
   {key:'bail',label:'Bail',scope:'contrat'},
@@ -8483,6 +8504,16 @@ function renderParametres(){
           <div class="form-group"><label>Adresse</label><input id="ml-adresse" type="text" placeholder="ex: 12 rue de la Paix, 85000 ..."></div>
           <div class="form-group"><label>⚡ PDL électricité</label><input id="ml-pdl" type="text" placeholder="14 chiffres (point de livraison)" maxlength="14"></div>
           <div class="form-group"><label>💧 N° compteur eau</label><input id="ml-compteur-eau" type="text" placeholder="ex: 123456789"></div>
+          <div class="form-group" style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:14px;margin-top:2px">
+            <label style="font-weight:600;color:var(--text2)">📋 Fiche technique du logement</label>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:10px">Utilisée pour la surface légale sur le bail, et pour générer automatiquement les pièces de l'état des lieux.</div>
+          </div>
+          <div class="form-group"><label>Surface habitable (m²)</label><input id="ml-surface" type="number" step="0.1" min="0" placeholder="ex: 45.5"></div>
+          <div class="form-group"><label>Nombre de pièces</label><input id="ml-nb-pieces" type="number" min="1" placeholder="ex: 3"></div>
+          <div class="form-group"><label>Chambres</label><input id="ml-nb-chambres" type="number" min="0" placeholder="ex: 2"></div>
+          <div class="form-group"><label>Salles d'eau (bain/douche)</label><input id="ml-nb-sdb" type="number" min="0" placeholder="ex: 1"></div>
+          <div class="form-group"><label>WC séparés</label><input id="ml-nb-wc" type="number" min="0" placeholder="ex: 1"></div>
+          <div class="form-group"><label>Chauffage</label><input id="ml-chauffage" type="text" placeholder="ex: Électrique, Gaz individuel..."></div>
           <div class="form-group"><label>Couleur</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="ml-colors">
               ${LOG_COLORS.map(c=>`<div onclick="selectLogColor('${c}')" style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;border:2px solid transparent;transition:.15s" data-color="${c}"></div>`).join('')}
@@ -8619,6 +8650,12 @@ function ouvrirModalLogement(idx){
   document.getElementById('ml-adresse').value=lg?lg.adresse||'':'';
   document.getElementById('ml-pdl').value=lg?lg.pdl||'':'';
   document.getElementById('ml-compteur-eau').value=lg?lg.compteurEau||'':'';
+  document.getElementById('ml-surface').value=lg?lg.surfaceM2||'':'';
+  document.getElementById('ml-nb-pieces').value=lg?lg.nbPieces||'':'';
+  document.getElementById('ml-nb-chambres').value=lg?lg.nbChambres||'':'';
+  document.getElementById('ml-nb-sdb').value=lg?lg.nbSallesEau||'':'';
+  document.getElementById('ml-nb-wc').value=lg?lg.nbWC||'':'';
+  document.getElementById('ml-chauffage').value=lg?lg.chauffage||'':'';
   const color=lg?lg.color:LOG_COLORS[0];
   document.getElementById('ml-color').value=color;
   selectLogColor(color);
@@ -8643,14 +8680,20 @@ function sauvegarderLogement(){
   const adresse=document.getElementById('ml-adresse').value.trim();
   const pdl=(document.getElementById('ml-pdl')?.value||'').trim();
   const compteurEau=(document.getElementById('ml-compteur-eau')?.value||'').trim();
+  const surfaceM2=+document.getElementById('ml-surface')?.value||0;
+  const nbPieces=+document.getElementById('ml-nb-pieces')?.value||0;
+  const nbChambres=+document.getElementById('ml-nb-chambres')?.value||0;
+  const nbSallesEau=+document.getElementById('ml-nb-sdb')?.value||0;
+  const nbWC=+document.getElementById('ml-nb-wc')?.value||0;
+  const chauffage=(document.getElementById('ml-chauffage')?.value||'').trim();
   const color=document.getElementById('ml-color').value;
   const hasPrevisionnel=document.getElementById('ml-previsionnel')?document.getElementById('ml-previsionnel').checked:true;
   const logs=loadLogements();
   if(_editLogIdx!==null){
-    logs[_editLogIdx]={...logs[_editLogIdx],label,adresse,pdl,compteurEau,color,hasPrevisionnel};
+    logs[_editLogIdx]={...logs[_editLogIdx],label,adresse,pdl,compteurEau,surfaceM2,nbPieces,nbChambres,nbSallesEau,nbWC,chauffage,color,hasPrevisionnel};
   }else{
     const key='L'+(Date.now().toString(36).slice(-4).toUpperCase());
-    logs.push({key,label,adresse,pdl,compteurEau,color,actif:true,hasPrevisionnel});
+    logs.push({key,label,adresse,pdl,compteurEau,surfaceM2,nbPieces,nbChambres,nbSallesEau,nbWC,chauffage,color,actif:true,hasPrevisionnel});
   }
   saveLogements(logs);
   document.getElementById('modal-logement').style.display='none';
@@ -11462,7 +11505,8 @@ async function envoyerLienSignatureDistance(){
         const nbPhotos=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
         statusEl.innerHTML='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
           +(nbPhotos?'<br>✓ Pièce d\'identité reçue ('+(nbPhotos===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>')
-          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso);
+          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso,'verif-identite-1');
+        if(d.locataireIdPhotoRecto)_lancerVerificationIdentiteGemini(d.locataireIdPhotoRecto,nomCompletLoc(loc),'verif-identite-1');
       }
     }
   });
@@ -11478,10 +11522,30 @@ function _ouvrirApercuImage(src){
 }
 // Construit les miniatures cliquables recto/verso à afficher sous le statut de signature à
 // distance — un simple texte "reçue" ne permet pas de vérifier que c'est le bon document.
-function _apercuPiecesIdentiteHtml(recto,verso){
+function _apercuPiecesIdentiteHtml(recto,verso,verifId){
   if(!recto&&!verso)return'';
   const miniature=(src,label)=>`<img src="${src}" onclick="_ouvrirApercuImage(this.src)" title="Cliquer pour agrandir — ${label}" style="height:70px;border-radius:6px;border:1px solid var(--border2);cursor:zoom-in;object-fit:cover">`;
-  return `<div style="display:flex;gap:8px;margin-top:8px">${recto?miniature(recto,'recto'):''}${verso?miniature(verso,'verso'):''}</div>`;
+  return `<div style="display:flex;gap:8px;margin-top:8px;align-items:center">${recto?miniature(recto,'recto'):''}${verso?miniature(verso,'verso'):''}</div><div id="${verifId}" style="font-size:11px;margin-top:6px"></div>`;
+}
+// Lance la vérification Gemini (lecture du nom sur la pièce, comparaison au nom attendu) et
+// met à jour l'élément de statut correspondant. Best-effort : ne bloque jamais la signature,
+// c'est une aide visuelle pour le bailleur avant de valider, pas une validation légale automatique.
+async function _lancerVerificationIdentiteGemini(recto,nomAttendu,verifElId){
+  const el=document.getElementById(verifElId);
+  if(!el||!recto||!nomAttendu)return;
+  if(!getGeminiKeys().length){
+    el.innerHTML='<span style="color:var(--text3)">ℹ Ajoute une clé API Gemini (Paramètres) pour vérifier automatiquement la correspondance du nom.</span>';
+    return;
+  }
+  el.innerHTML='<span style="color:var(--text3)">⏳ Vérification du nom sur la pièce (IA)…</span>';
+  const res=await verifierIdentiteAvecGemini(recto,nomAttendu);
+  if(!res){
+    el.innerHTML='<span style="color:var(--text3)">ℹ Vérification automatique indisponible — vérifie visuellement.</span>';
+    return;
+  }
+  el.innerHTML=res.correspond
+    ?`<span style="color:var(--green)">✓ Nom lu sur la pièce (${res.nomLu||'?'}) — correspond au bail</span>`
+    :`<span style="color:var(--red)">⚠ Nom lu sur la pièce (${res.nomLu||'illisible'}) — ne correspond PAS clairement à "${nomAttendu}", vérifie manuellement</span>`;
 }
 function arreterEcouteSignatureDistance(){
   if(_sigDistanceUnsub){try{_sigDistanceUnsub();}catch(e){}_sigDistanceUnsub=null;}
@@ -11593,7 +11657,8 @@ async function envoyerLienSignatureDistance2(){
         const nbPhotos2=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
         statusEl.innerHTML='✓ Le 2e locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
           +(nbPhotos2?'<br>✓ Pièce d\'identité reçue ('+(nbPhotos2===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>')
-          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso);
+          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso,'verif-identite-2');
+        if(d.locataireIdPhotoRecto)_lancerVerificationIdentiteGemini(d.locataireIdPhotoRecto,(loc.prenom2?loc.prenom2+' ':'')+(loc.nom2||''),'verif-identite-2');
       }
     }
   });
@@ -11637,6 +11702,40 @@ async function _capturerTraceSignature(){
 // Lit un champ <input type=file> et redimensionne/compresse l'image (photo de pièce
 // d'identité, souvent plusieurs Mo en sortie directe d'appareil photo) pour rester largement
 // sous la limite de 1 Mo par document Firestore.
+// Empreinte SHA-256 d'une image (data URI) — imprimée sur le bail signé lui-même : preuve
+// que le fichier consultable aujourd'hui (sur Drive) est EXACTEMENT celui déjà référencé dans
+// le document daté et signé, sans possibilité de le faire passer pour substitué après coup.
+async function sha256Hex(dataUrl){
+  if(!dataUrl)return'';
+  try{
+    const base64=dataUrl.split(',')[1]||'';
+    const bytes=atob(base64);
+    const arr=new Uint8Array(bytes.length);
+    for(let i=0;i<bytes.length;i++)arr[i]=bytes.charCodeAt(i);
+    const hashBuffer=await crypto.subtle.digest('SHA-256',arr);
+    return Array.from(new Uint8Array(hashBuffer)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }catch(e){console.error('Calcul empreinte SHA-256 échoué:',e);return'';}
+}
+// Demande à Gemini de lire le nom imprimé sur une pièce d'identité et de le comparer au nom
+// attendu du locataire — signal d'alerte utile avant de valider, jamais bloquant (l'IA peut
+// se tromper : c'est une aide à la vérification, pas une validation légale automatique).
+async function verifierIdentiteAvecGemini(imageB64,nomAttendu){
+  if(!getGeminiKeys().length||!imageB64||!nomAttendu)return null;
+  try{
+    const base64Data=imageB64.split(',')[1];
+    const data=await callGeminiAPI('gemini-3.1-flash-lite',{
+      contents:[{parts:[
+        {inline_data:{mime_type:'image/jpeg',data:base64Data}},
+        {text:`Voici la photo d'une pièce d'identité (carte d'identité, passeport ou titre de séjour). Lis le nom et le prénom imprimés dessus. Compare-les au nom attendu : "${nomAttendu}". Réponds UNIQUEMENT en JSON valide, sans markdown : {"nomLu":"nom et prénom tels que lus sur le document, chaîne vide si illisible","correspond":true ou false}. "correspond" doit être true si le nom lu correspond au nom attendu (tolère les différences d'ordre nom/prénom, majuscules, accents), false sinon.`}
+      ]}],
+      generationConfig:{temperature:0}
+    });
+    const texte=data?.candidates?.[0]?.content?.parts?.[0]?.text||'';
+    const m=texte.match(/\{[\s\S]*\}/);
+    if(!m)return null;
+    return JSON.parse(m[0]);
+  }catch(e){console.error('Vérification identité Gemini échouée (non bloquant):',e);return null;}
+}
 function _lireEtCompresserFichierImage(inputEl){
   return new Promise(resolve=>{
     const file=inputEl&&inputEl.files&&inputEl.files[0];
@@ -11762,6 +11861,8 @@ async function validerSignatureBail(){
       sig.locataireIdPhotoRecto=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input'));
       sig.locataireIdPhotoVerso=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input-verso'));
     }
+    sig.locataireIdPhotoRectoHash=await sha256Hex(sig.locataireIdPhotoRecto);
+    sig.locataireIdPhotoVersoHash=await sha256Hex(sig.locataireIdPhotoVerso);
   }
   if(sig.locataire2){
     if(_sigDistanceLocataireTrace2)sig.traceLocataire2=_sigDistanceLocataireTrace2;
@@ -11773,6 +11874,8 @@ async function validerSignatureBail(){
       sig.locataireIdPhotoRecto2=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input2'));
       sig.locataireIdPhotoVerso2=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input2-verso'));
     }
+    sig.locataireIdPhotoRecto2Hash=await sha256Hex(sig.locataireIdPhotoRecto2);
+    sig.locataireIdPhotoVerso2Hash=await sha256Hex(sig.locataireIdPhotoVerso2);
   }
   const inclureEdl=_edlPretPourSignature&&_edlPretPourSignature.locId===String(_sigBailLocId)&&document.getElementById('chk-inclure-edl')?.checked;
   arreterEcouteSignatureDistance();
@@ -11808,7 +11911,7 @@ async function validerSignatureBail(){
     // Sauvegarde le bail signé dans la gestion locative, sinon impossible à retrouver ensuite —
     // recliquer sur "Bail" régénérait jusqu'ici toujours une version vierge, sans les signatures.
     const bailHtmlFinal=construireBailHTML(_sigBailLocId,sig);
-    if(bailHtmlFinal)await sauvegarderBailDansGestion(_sigBailLocId,bailHtmlFinal);
+    if(bailHtmlFinal)await sauvegarderBailDansGestion(_sigBailLocId,bailHtmlFinal,sig);
     if(sig.locataireIdPhotoRecto)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhotoRecto,'Pièce d\'identité (recto) — bail');
     if(sig.locataireIdPhotoVerso)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhotoVerso,'Pièce d\'identité (verso) — bail');
     if(sig.locataireIdPhotoRecto2)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhotoRecto2,'Pièce d\'identité (recto) — bail (2e titulaire)');
@@ -11832,11 +11935,22 @@ async function envoyerCopieBailSigneAuLocataire(locId,sig){
   try{
     const pdfBase64=await bailPdfBase64(locId,sig);
     if(!pdfBase64){console.error('Copie du bail au locataire : génération du PDF échouée.');return;}
+    const pieces=[{filename:'Bail_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',base64Data:pdfBase64}];
+    // Annexes légalement obligatoires (DPE, état des risques) — jointes automatiquement si
+    // déjà uploadées dans la gestion locative du logement, sans que le bailleur ait à y penser
+    // à chaque signature. Best-effort : leur absence n'empêche jamais l'envoi du bail lui-même.
+    for(const cat of['dpe','erp']){
+      try{
+        const doc=recupererDernierDocGL(loc.logement,cat);
+        const b64=doc?await telechargerDocGLBase64(doc):null;
+        if(b64)pieces.push({filename:(cat==='dpe'?'DPE':'Etat_des_risques')+'_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',base64Data:b64.split(',')[1]||b64});
+      }catch(e){console.warn('Jointure annexe '+cat+' échouée (non bloquant):',e);}
+    }
     const destinataires=[loc.email,loc.email2].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i); // dédoublonne si même email pour les deux titulaires
     for(const dest of destinataires){
       await envoyerEmailImmediat(dest,'Votre bail signé — '+cfg.nom,
-        `Bonjour,\n\nVotre bail avec ${cfg.nom} vient d'être signé par ${loc.nom2?'toutes les parties':'les deux parties'}. Vous trouverez votre exemplaire en pièce jointe de cet email.\n\nConservez-le précieusement.\n\nCordialement,\n${cfg.nom}`,
-        {filename:'Bail_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',base64Data:pdfBase64});
+        `Bonjour,\n\nVotre bail avec ${cfg.nom} vient d'être signé par ${loc.nom2?'toutes les parties':'les deux parties'}. Vous trouverez votre exemplaire en pièce jointe de cet email${pieces.length>1?', accompagné du DPE et/ou de l\'état des risques si disponibles':''}.\n\nConservez-le précieusement.\n\nCordialement,\n${cfg.nom}`,
+        pieces);
     }
   }catch(e){
     console.error('Erreur envoi copie bail au locataire:',e);
@@ -12096,7 +12210,8 @@ async function envoyerLienSignatureAvenantDistance(){
         const nbPhotosAv=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
         statusEl.innerHTML='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
           +(nbPhotosAv?'<br>✓ Pièce d\'identité reçue ('+(nbPhotosAv===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>')
-          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso);
+          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso,'verif-identite-av');
+        if(d.locataireIdPhotoRecto)_lancerVerificationIdentiteGemini(d.locataireIdPhotoRecto,dest.nom,'verif-identite-av');
       }
     }
   });
@@ -12140,6 +12255,8 @@ async function validerSignatureAvenant(){
       sig.locataireIdPhotoRecto=await _lireEtCompresserFichierImage(document.getElementById('id-photo-avenant-input'));
       sig.locataireIdPhotoVerso=await _lireEtCompresserFichierImage(document.getElementById('id-photo-avenant-input-verso'));
     }
+    sig.locataireIdPhotoRectoHash=await sha256Hex(sig.locataireIdPhotoRecto);
+    sig.locataireIdPhotoVersoHash=await sha256Hex(sig.locataireIdPhotoVerso);
   }
   arreterEcouteSignatureAvenantDistance();
   document.getElementById('modal-avenant')?.remove();
@@ -12256,12 +12373,15 @@ async function sauvegarderAvenantDansGestion(locId,titre,texte,sig){
   if(!loc)return;
   const html=construireAvenantHTML(locId,titre,texte,sig);
   if(!html)return;
+  // La copie archivée inclut la pièce d'identité en pages supplémentaires du même PDF —
+  // uniquement ici (Drive + gestion locative), jamais dans la copie envoyée par email.
+  const htmlArchive=_pagesPiecesIdentiteHtml(sig)?html.replace('</body></html>',_pagesPiecesIdentiteHtml(sig)+'</body></html>'):html;
   // Sauvegarde aussi sur Drive (même dossier "Gestion locative" que les diagnostics/attestations)
   // — pas seulement en local et dans Firestore. Best-effort : un échec Drive n'empêche jamais
   // l'enregistrement, qui reste consultable localement dans tous les cas.
   let lien='';
   try{
-    const pdfB64=await _htmlDocumentToPdfBase64(html);
+    const pdfB64=await _htmlDocumentToPdfBase64(htmlArchive);
     if(pdfB64){
       const fileName='Avenant_'+titre.replace(/[^a-zA-Z0-9]/g,'_')+'_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'_'+todayStr()+'.pdf';
       lien=await uploadToDriveGestionLocative(pdfB64,fileName,loc.logement)||'';
@@ -12272,7 +12392,7 @@ async function sauvegarderAvenantDansGestion(locId,titre,texte,sig){
   docs.push({
     id, logement:loc.logement, categorie:'avenant',
     libelle:titre+' — '+fmtDate(todayStr()), dateCreation:todayStr(),
-    dateExpiration:'', lien, htmlContent:html
+    dateExpiration:'', lien, htmlContent:htmlArchive
   });
   saveGLDocs(docs);
   if(lien)_libererCopieLocaleGLDoc(id);
@@ -12316,17 +12436,36 @@ async function envoyerCopieAvenantSigneAuLocataire(locId,titre,texte,sig,destEma
   }
 }
 
+// Pages "pièce d'identité" ajoutées UNIQUEMENT à la copie archivée du bail (Drive + gestion
+// locative) — jamais à la copie envoyée par email au locataire (il a déjà son document, pas
+// besoin de le lui renvoyer), ni à l'aperçu immédiat après signature. Une page par face fournie.
+function _pagesPiecesIdentiteHtml(sig){
+  if(!sig)return'';
+  const pages=[];
+  if(sig.locataireIdPhotoRecto)pages.push({src:sig.locataireIdPhotoRecto,label:'Pièce d\'identité — recto'});
+  if(sig.locataireIdPhotoVerso)pages.push({src:sig.locataireIdPhotoVerso,label:'Pièce d\'identité — verso'});
+  if(sig.locataireIdPhotoRecto2)pages.push({src:sig.locataireIdPhotoRecto2,label:'Pièce d\'identité 2e titulaire — recto'});
+  if(sig.locataireIdPhotoVerso2)pages.push({src:sig.locataireIdPhotoVerso2,label:'Pièce d\'identité 2e titulaire — verso'});
+  if(!pages.length)return'';
+  return pages.map(p=>`<div style="page-break-before:always;padding-top:10mm;text-align:center">
+    <div style="font-size:11px;color:#718096;margin-bottom:10px">${p.label}</div>
+    <img src="${p.src}" style="max-width:100%;max-height:250mm;border-radius:6px;border:1px solid #e2e8f0">
+  </div>`).join('');
+}
 async function sauvegarderBailDansGestion(locId,html,sig){
   if(!window._canEdit)return;
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   if(!loc)return;
+  // La copie archivée inclut les pièces d'identité en pages supplémentaires du même PDF —
+  // uniquement ici (Drive + gestion locative), jamais dans la copie envoyée par email.
+  const htmlArchive=_pagesPiecesIdentiteHtml(sig)?html.replace('</body></html>',_pagesPiecesIdentiteHtml(sig)+'</body></html>'):html;
   // Sauvegarde aussi sur Drive (même dossier "Gestion locative" que les diagnostics/attestations)
   // — pas seulement en local et dans Firestore. Best-effort : un échec Drive n'empêche jamais
   // l'enregistrement, qui reste consultable localement dans tous les cas.
   let lien='';
   try{
-    const pdfB64=await _htmlDocumentToPdfBase64(html);
+    const pdfB64=await _htmlDocumentToPdfBase64(htmlArchive);
     if(pdfB64){
       const fileName='Bail_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'_'+todayStr()+'.pdf';
       lien=await uploadToDriveGestionLocative(pdfB64,fileName,loc.logement)||'';
@@ -12337,7 +12476,7 @@ async function sauvegarderBailDansGestion(locId,html,sig){
   docs.push({
     id, logement:loc.logement, categorie:'bail',
     libelle:'Bail signé — '+fmtDate(todayStr()), dateCreation:todayStr(),
-    dateExpiration:'', lien, htmlContent:html
+    dateExpiration:'', lien, htmlContent:htmlArchive
   });
   saveGLDocs(docs);
   if(lien)_libererCopieLocaleGLDoc(id);
@@ -12369,7 +12508,11 @@ function _traceabiliteHtml(sig){
     return (t.ip?'IP '+t.ip:'')+(dateStr?(t.ip?', ':'')+'le '+dateStr:'');
   };
   const b=fmtTrace(sig.traceBailleur), l=fmtTrace(sig.traceLocataire), l2=fmtTrace(sig.traceLocataire2);
-  const idPhoto=(sig.locataireIdPhotoRecto||sig.locataireIdPhotoVerso||sig.locataireIdPhotoRecto2||sig.locataireIdPhotoVerso2)?`<div style="margin-top:2px;font-size:9px;color:#7FBF9E">✓ Pièce d'identité produite au moment de la signature (conservée séparément, en privé)</div>`:'';
+  const hashes=[sig.locataireIdPhotoRectoHash,sig.locataireIdPhotoVersoHash,sig.locataireIdPhotoRecto2Hash,sig.locataireIdPhotoVerso2Hash].filter(Boolean);
+  // Empreinte SHA-256 de chaque pièce d'identité, imprimée directement sur le document daté
+  // et signé — permet de prouver, en cas de litige, que le fichier consultable aujourd'hui
+  // (sur Drive) est EXACTEMENT celui déjà référencé au moment de la signature, et non substitué.
+  const idPhoto=hashes.length?`<div style="margin-top:2px;font-size:9px;color:#7FBF9E">✓ Pièce d'identité produite au moment de la signature (jointe à l'exemplaire archivé du bailleur, jamais transmise avec la copie envoyée par email au locataire)<br><span style="font-family:monospace;color:#718096">Empreinte SHA-256 : ${hashes.map(h=>h.slice(0,16)+'…').join(' / ')}</span></div>`:'';
   if(!b&&!l&&!l2&&!idPhoto)return'';
   const parts=[b?'Bailleur : '+b:'',l?'Locataire : '+l:'',l2?'2e locataire : '+l2:''].filter(Boolean).join(' · ');
   return `<div style="margin-top:6px;font-size:9px;color:#a0aec0;text-align:center">${parts?`Traçabilité — ${parts}`:''}${idPhoto}</div>`;
@@ -12491,6 +12634,9 @@ function construireBailHTML(locId,sig){
       <div class="info-grid">
         <span class="info-label">Adresse</span><span class="info-val">${adresse}</span>
         <span class="info-label">Type de bien</span><span class="info-val">Logement ${typeLogement}</span>
+        ${lg&&lg.surfaceM2?`<span class="info-label">Surface habitable</span><span class="info-val">${lg.surfaceM2} m²</span>`:''}
+        ${lg&&lg.nbPieces?`<span class="info-label">Nombre de pièces</span><span class="info-val">${lg.nbPieces}</span>`:''}
+        ${lg&&lg.chauffage?`<span class="info-label">Chauffage</span><span class="info-val">${lg.chauffage}</span>`:''}
         <span class="info-label">Usage</span><span class="info-val">Résidence principale</span>
       </div>
     </div>
@@ -12516,6 +12662,8 @@ function construireBailHTML(locId,sig){
         <p>Le loyer est payable mensuellement, à terme échu, le 1er de chaque mois, par virement bancaire ou tout autre moyen convenu entre les parties.</p>
         <p>Le loyer sera révisé chaque année à la date anniversaire du bail sur la base de l'Indice de Référence des Loyers (IRL) publié par l'INSEE.</p>
         <p>Le dépôt de garantie ne peut être utilisé par le locataire pour se substituer au paiement du loyer. Il sera restitué dans un délai maximal d'un mois (logement meublé) ou deux mois (logement nu) après la remise des clés, déductions faites des sommes restant dues.</p>
+        <p><strong>Clause résolutoire :</strong> à défaut de paiement du loyer, des charges, du dépôt de garantie, ou de non-souscription d'une assurance habitation, et un mois après un commandement de payer ou de faire demeuré infructueux, le présent bail sera résilié de plein droit, sans qu'il soit besoin de remplir aucune formalité judiciaire, sous réserve pour le bailleur de saisir le juge afin de faire constater la résiliation et d'ordonner l'expulsion, conformément à l'article 24 de la loi n°89-462 du 6 juillet 1989.</p>
+        ${loc.nom2?`<p><strong>Solidarité entre locataires :</strong> ${nomCompletLoc(loc)} et ${(loc.prenom2?loc.prenom2+' ':'')+(loc.nom2||'')} sont cotitulaires du présent bail. Ils sont tenus solidairement et indivisiblement au paiement de l'intégralité du loyer, des charges et de toute somme due au titre du présent contrat, chacun d'eux pouvant être poursuivi pour la totalité de la dette. Cette solidarité se poursuit, le cas échéant, jusqu'au terme du bail ou du congé donné conjointement par les deux locataires.</p>`:''}
       </div>
     </div>
 
@@ -12659,6 +12807,30 @@ const EDL_PIECES_DEFAULT=[
 
 const ETATS=['Neuf','Très bon état','Bon état','État d\'usage','Usé','Dégradé'];
 
+// Construit la liste des pièces de l'état des lieux à partir de la fiche technique du
+// logement (nombre de chambres/salles d'eau/WC) — évite de repartir à chaque fois d'un
+// modèle générique à 2 chambres fixes. Si la fiche technique n'est pas renseignée, on garde
+// l'ancien modèle par défaut (rétrocompatible avec les logements déjà configurés).
+function genererPiecesEdlDepuisLogement(lg){
+  if(!lg||(!lg.nbChambres&&!lg.nbSallesEau&&!lg.nbWC))return JSON.parse(JSON.stringify(EDL_PIECES_DEFAULT));
+  const chambreTpl=['Sol','Murs','Plafond','Fenêtres / Volets','Radiateur','Placard','Prises électriques','Interrupteurs','Éclairage'];
+  const sdbTpl=['Sol','Murs','Plafond','Fenêtres / Volets','Baignoire / Douche','Lavabo / Robinetterie','Miroir','Radiateur sèche-serviettes','VMC / Aération','Éclairage'];
+  const wcTpl=['Sol','Murs','Plafond','WC / Chasse d\'eau','Porte','Éclairage'];
+  const pieces=[
+    {id:'entree',label:'Entrée / Couloir',elements:['Sol','Murs','Plafond','Porte d\'entrée','Serrure / verrou','Sonnette','Interphone','Boîte aux lettres','Éclairage']},
+    {id:'sejour',label:'Séjour / Salon',elements:['Sol','Murs','Plafond','Fenêtres / Volets','Radiateur','Prises électriques','Interrupteurs','Éclairage']},
+    {id:'cuisine',label:'Cuisine',elements:['Sol','Murs','Plafond','Fenêtres / Volets','Plaques de cuisson','Four / Micro-ondes','Réfrigérateur','Évier / Robinetterie','Placards','Hotte','Lave-vaisselle','Prises électriques','Éclairage']}
+  ];
+  for(let i=1;i<=(lg.nbChambres||0);i++)pieces.push({id:'chambre'+i,label:'Chambre '+i,elements:[...chambreTpl]});
+  const nbSallesEau=lg.nbSallesEau||0;
+  for(let i=1;i<=nbSallesEau;i++)pieces.push({id:'sdb'+i,label:nbSallesEau>1?'Salle de bain '+i:'Salle de bain',elements:[...sdbTpl]});
+  const nbWC=lg.nbWC||0;
+  for(let i=1;i<=nbWC;i++)pieces.push({id:'wc'+i,label:nbWC>1?'WC '+i:'WC séparés',elements:[...wcTpl]});
+  pieces.push({id:'garage',label:'Garage / Cave',elements:['Sol','Murs','Porte / Portail','Éclairage']});
+  pieces.push({id:'exterieur',label:'Extérieur / Terrasse',elements:['Sol / Terrasse','Portail / Portillon','Boîte aux lettres','Éclairage extérieur']});
+  return pieces;
+}
+
 let _edlData={}; // {pieceId:{element:{etat,observation}}}
 let _edlType='entree'; // 'entree' ou 'sortie'
 let _edlLocId=null;
@@ -12708,7 +12880,8 @@ function ouvrirEdl(locId, type){
       });
     });
   } else {
-    _edlPieces=JSON.parse(JSON.stringify(EDL_PIECES_DEFAULT));
+    const lg0=getLogementsActifs().find(x=>x.key===(loc0&&loc0.logement));
+    _edlPieces=genererPiecesEdlDepuisLogement(lg0);
   }
 
   // Pré-remplir "Bon état" pour état d'entrée
@@ -13732,7 +13905,7 @@ function renderGestionLocativeDetail(){
 
   const docsHtml=GL_CATEGORIES.map(cat=>{
     const docsCat=docs.filter(d=>d.categorie===cat.key);
-    const catIcons={'bail':'📄','edl':'🔑','assurance':'🛡','dpe':'🌡','avenant':'📎','identite':'🪪','autre':'📎'};
+    const catIcons={'bail':'📄','edl':'🔑','assurance':'🛡','dpe':'🌡','erp':'⚠️','avenant':'📎','identite':'🪪','autre':'📎'};
     const icon=catIcons[cat.key]||'📎';
     const lignes=docsCat.length?docsCat.map(d=>{
       const s=glDocStatus(d);
@@ -13890,7 +14063,12 @@ function toBase64Std(str){
 async function envoyerEmailImmediat(destinataire,sujet,corps,attachment,html){
   try{
     const payload={destinataire,sujet,corps};
-    if(attachment&&attachment.base64Data){payload.pieceJointe={filename:attachment.filename,base64Data:attachment.base64Data};}
+    // "attachment" peut être un seul objet {filename,base64Data} (usage historique) ou un
+    // tableau de plusieurs pièces jointes (ex: bail signé + DPE + état des risques ensemble).
+    const liste=Array.isArray(attachment)?attachment:(attachment?[attachment]:[]);
+    const piecesValides=liste.filter(a=>a&&a.base64Data&&a.filename);
+    if(piecesValides.length===1){payload.pieceJointe={filename:piecesValides[0].filename,base64Data:piecesValides[0].base64Data};}
+    else if(piecesValides.length>1){payload.piecesJointes=piecesValides.map(a=>({filename:a.filename,base64Data:a.base64Data}));}
     if(html)payload.html=html;
     const res=await window._envoyerEmailResend(payload);
     if(!res||!res.data||!res.data.ok){
