@@ -7466,6 +7466,7 @@ function renderLocataires(){
         <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirAvenant('${cur.id}')">📎 Avenant${cur.avenantsSignes&&cur.avenantsSignes.length?` (${cur.avenantsSignes.length})`:''}</button>
         <button class="btn btn-sm" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.3);color:var(--purple)" onclick="ouvrirEdl('${cur.id}','entree')">🔑 EDL entrée</button>
         <button class="btn btn-sm" style="background:rgba(246,135,179,.1);border-color:rgba(246,135,179,.3);color:#f687b3" onclick="ouvrirEdl('${cur.id}','sortie')">🚪 EDL sortie</button>
+        <button class="btn btn-sm" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.3);color:var(--accent)" title="Ouvre directement le dossier Drive de ce logement (bail, EDL, avenants, pièces d'identité...)" onclick="ouvrirDossierDriveLocataire('${cur.logement}')">📂 Dossier Drive</button>
         <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirModalIRL('${cur.id}')">📈 Révision IRL</button>
         <button class="btn btn-sm" style="background:rgba(160,174,192,.1);border-color:rgba(160,174,192,.3);color:var(--text2)" onclick="ouvrirModalCourriers('${cur.id}')">✉️ Courriers</button>
         ${Object.values(cur.paiements||{}).some(p=>!p.paye&&!p.vacant)?`<button class="btn btn-sm" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.3);color:var(--red)" onclick="ouvrirModalRelance('${cur.id}')">📧 Relance</button>`:''}
@@ -12480,9 +12481,11 @@ function _pagesPiecesIdentiteHtml(sig){
   if(sig.locataireIdPhotoRecto2)pages.push({src:sig.locataireIdPhotoRecto2,label:'Pièce d\'identité 2e titulaire — recto'});
   if(sig.locataireIdPhotoVerso2)pages.push({src:sig.locataireIdPhotoVerso2,label:'Pièce d\'identité 2e titulaire — verso'});
   if(!pages.length)return'';
-  return pages.map(p=>`<div style="page-break-before:always;padding-top:10mm;text-align:center">
-    <div style="font-size:11px;color:#718096;margin-bottom:10px">${p.label}</div>
-    <img src="${p.src}" style="max-width:100%;max-height:250mm;border-radius:6px;border:1px solid #e2e8f0">
+  // Page centrée verticalement (pas juste calée en haut avec du vide en dessous) et image
+  // agrandie à une taille cohérente avec la page A4, quel que soit le format de la photo.
+  return pages.map(p=>`<div style="page-break-before:always;min-height:250mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+    <div style="font-size:12px;color:#718096;margin-bottom:14px">${p.label}</div>
+    <img src="${p.src}" style="max-width:170mm;max-height:200mm;width:auto;height:auto;border-radius:8px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,.08)">
   </div>`).join('');
 }
 async function sauvegarderBailDansGestion(locId,html,sig){
@@ -16946,6 +16949,46 @@ async function saveDevisPdfWithDrive(idx, b64, fileName){
   return{localOk,driveLink};
 }
 
+// Ouvre directement le dossier Drive "Gestion locative / Logement X" du locataire — raccourci
+// depuis sa fiche, pour retrouver rapidement bail/EDL/avenants/pièces d'identité sans repasser
+// par l'onglet Gestion locative. Utilise le même cache que les uploads (rapide, pas de
+// connexion Drive nécessaire si déjà en cache) ; sinon cherche/crée le dossier comme un upload.
+async function ouvrirDossierDriveLocataire(logKey){
+  const rootFolderName=(getCTXConfig().driveFolderName||'Gestion locative').replace('Factures','Gestion locative');
+  const cacheKey=ctxKey('drive_folder_gl_'+rootFolderName.replace(/[^a-zA-Z0-9]/g,'_')+'_'+logKey);
+  let logFolderId=localStorage.getItem(cacheKey);
+  if(logFolderId){
+    window.open('https://drive.google.com/drive/folders/'+logFolderId,'_blank');
+    return;
+  }
+  await ensureDriveConnected();
+  if(!driveAccessToken){alert('Connecte d\'abord Google Drive.');return;}
+  try{
+    const chercherOuCreer=async(name,parentId)=>{
+      let q=`name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+      if(parentId)q+=` and '${parentId}' in parents`;
+      const resp=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q),{headers:{'Authorization':'Bearer '+driveAccessToken}});
+      const data=await resp.json();
+      if(data.files&&data.files[0])return data.files[0].id;
+      const body={name,mimeType:'application/vnd.google-apps.folder'};
+      if(parentId)body.parents=[parentId];
+      const createResp=await fetch('https://www.googleapis.com/drive/v3/files',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':'application/json'},
+        body:JSON.stringify(body)
+      });
+      const createData=await createResp.json();
+      return createData.id;
+    };
+    const rootId=await chercherOuCreer(rootFolderName,null);
+    logFolderId=await chercherOuCreer('Logement '+logKey,rootId);
+    localStorage.setItem(cacheKey,logFolderId);
+    window.open('https://drive.google.com/drive/folders/'+logFolderId,'_blank');
+  }catch(e){
+    console.error('Ouverture dossier Drive locataire échouée:',e);
+    alert('Erreur lors de l\'ouverture du dossier Drive.');
+  }
+}
 async function uploadToDriveGestionLocative(b64, fileName, logKey){
   await ensureDriveConnected();
   if(!driveAccessToken) return null;
