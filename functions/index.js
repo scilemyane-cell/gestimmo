@@ -260,15 +260,15 @@ exports.stripeWebhook = onRequest(
 );
 
 // ── Envoyer un email via Resend (remplace Gmail pour l'OTP et le lien de signature) ──
-// Accepte optionnellement une pièce jointe (pieceJointe: {filename, base64Data}) et un corps
-// HTML (html) en plus du texte brut (corps) — utilisé pour afficher un vrai bouton de
-// signature plutôt qu'un lien brut, plus lisible et généralement mieux reçu par les
-// filtres anti-spam qu'un email 100% texte avec juste une URL.
+// Accepte optionnellement UNE pièce jointe (pieceJointe: {filename, base64Data}) OU PLUSIEURS
+// (piecesJointes: [{filename, base64Data}, ...] — ex: bail signé + DPE + état des risques
+// ensemble), et un corps HTML (html) en plus du texte brut (corps) pour afficher un vrai
+// bouton de signature plutôt qu'un lien brut.
 exports.envoyerEmailResend = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Connexion requise.");
   }
-  const { destinataire, sujet, corps, pieceJointe, html } = request.data || {};
+  const { destinataire, sujet, corps, pieceJointe, piecesJointes, html } = request.data || {};
   if (!destinataire || !sujet || !corps) {
     throw new HttpsError("invalid-argument", "destinataire, sujet et corps sont requis.");
   }
@@ -284,8 +284,14 @@ exports.envoyerEmailResend = onCall(async (request) => {
   if (html) {
     body.html = html;
   }
-  if (pieceJointe && pieceJointe.filename && pieceJointe.base64Data) {
-    body.attachments = [{ filename: pieceJointe.filename, content: pieceJointe.base64Data }];
+  // Piste plusieurs pièces jointes si fourni, sinon retombe sur l'unique pieceJointe (rétro-
+  // compatible avec les appels existants qui n'envoient qu'un seul fichier).
+  const listePieces = Array.isArray(piecesJointes) && piecesJointes.length
+    ? piecesJointes
+    : (pieceJointe ? [pieceJointe] : []);
+  const attachmentsValides = listePieces.filter((p) => p && p.filename && p.base64Data);
+  if (attachmentsValides.length) {
+    body.attachments = attachmentsValides.map((p) => ({ filename: p.filename, content: p.base64Data }));
   }
   try {
     const resp = await fetch("https://api.resend.com/emails", {
