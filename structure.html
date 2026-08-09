@@ -149,6 +149,31 @@ onAuthStateChanged(auth, async (user) => {
   window._canEdit = window._myRole==='owner'||window._myRole==='saisie'||window._myRole==='admin';
   window._canAdmin = window._myRole==='owner'||window._myRole==='admin';
 
+  // Vérifie que le PROPRIÉTAIRE de cette structure a un accès valide (essai en cours ou
+  // abonnement Stripe actif) avant de laisser quiconque (propriétaire ou collaborateur invité)
+  // entrer dans l'app — sans ce contrôle, n'importe qui avec le lien direct de la structure
+  // continuait d'y accéder indéfiniment, même après la fin de l'essai gratuit de 30 jours.
+  try{
+    const profSnap = await getDoc(doc(db,'users',window._currentUid));
+    const prof = profSnap.exists() ? profSnap.data() : {};
+    const essaiEnCours = prof.plan==='trial' && prof.trialEnd && new Date(prof.trialEnd) > new Date();
+    const abonnementValide = prof.subscription && ['trialing','active'].includes(prof.subscription.status);
+    if(!essaiEnCours && !abonnementValide){
+      document.body.innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#081527;color:#EAF3FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px;text-align:center">
+        <div style="max-width:420px">
+          <div style="font-size:20px;font-weight:800;color:#5AC8D8;margin-bottom:12px">⏳ Essai gratuit terminé</div>
+          <div style="font-size:14px;color:#8CA3BD;line-height:1.7;margin-bottom:24px">L'essai gratuit de 30 jours de cette structure est arrivé à son terme. Pour continuer à y accéder, un abonnement actif est nécessaire.</div>
+          <a href="dashboard.html" style="display:inline-block;background:#B98D3E;color:#EAF3FA;text-decoration:none;font-size:14px;font-weight:700;padding:14px 32px;border-radius:10px">Retourner au tableau de bord</a>
+        </div>
+      </div>`;
+      return;
+    }
+  }catch(e){
+    console.error('Vérification abonnement échouée:',e);
+    // En cas d'erreur réseau/permission sur la vérification elle-même, on laisse passer plutôt
+    // que de bloquer un client payant à cause d'un souci technique ponctuel.
+  }
+
   // Charge les infos de la structure (nom, adresse, type) pour personnaliser l'app
   try {
     const structSnap = await getDoc(doc(db, 'users', window._currentUid, 'structures', window._structureId));
