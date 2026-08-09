@@ -1807,9 +1807,20 @@ function ctxKey(key){return CTX+'_'+key;}
 function safeSetItem(key,value){
   try{ localStorage.setItem(key,value); return true; }
   catch(e){
-    console.error('Erreur de stockage local:',e);
-    alert("Erreur de stockage : la mémoire du navigateur semble pleine. Connecte Google Drive pour externaliser tes PDF, ou supprime d'anciennes pièces jointes, puis réessaie.");
-    return false;
+    // Avant d'abandonner, on tente de libérer ce qui peut l'être (documents déjà sauvegardés
+    // sur Drive, dont la copie locale complète est superflue) puis on retente UNE fois — la
+    // limite est souvent atteinte par de l'ancien contenu jamais nettoyé, pas par l'écriture
+    // en cours elle-même.
+    console.warn('Stockage local plein, tentative de libération automatique...',e);
+    try{
+      if(typeof libererCopiesLocalesGLDocsRetroactif==='function')libererCopiesLocalesGLDocsRetroactif();
+      localStorage.setItem(key,value);
+      return true;
+    }catch(e2){
+      console.error('Erreur de stockage local (persistante après nettoyage) :',e2);
+      alert("Erreur de stockage : la mémoire du navigateur semble pleine, même après nettoyage automatique. Connecte Google Drive si ce n'est pas déjà fait, ou supprime d'anciennes pièces jointes, puis réessaie.");
+      return false;
+    }
   }
 }
 const CTX_CONFIG={};
