@@ -8344,6 +8344,7 @@ function renderParametres(){
               ${i>0?`<button class="btn btn-sm" onclick="deplacerLogement(${i},-1)" title="Monter">↑</button>`:''}
               ${i<logs.length-1?`<button class="btn btn-sm" onclick="deplacerLogement(${i},1)" title="Descendre">↓</button>`:''}
               <button class="btn btn-sm btn-edit" onclick="ouvrirModalLogement(${i})">✏ Modifier</button>
+              <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="genererAnnonceLogement('${lg.key}')" title="Génère une annonce (texte + photos) à copier sur Leboncoin, SeLoger...">📢 Annonce</button>
               <button class="btn btn-sm" onclick="toggleLogement(${i})" style="${lg.actif!==false?'':'background:rgba(127,191,158,.1);border-color:rgba(127,191,158,.3);color:var(--green)'}">
                 ${lg.actif!==false?'👁 Masquer':'👁 Afficher'}
               </button>
@@ -8548,6 +8549,23 @@ function renderParametres(){
           <div class="form-group"><label>Salles d'eau (bain/douche)</label><input id="ml-nb-sdb" type="number" min="0" placeholder="ex: 1"></div>
           <div class="form-group"><label>WC séparés</label><input id="ml-nb-wc" type="number" min="0" placeholder="ex: 1"></div>
           <div class="form-group"><label>Chauffage</label><input id="ml-chauffage" type="text" placeholder="ex: Électrique, Gaz individuel..."></div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>Pièces / annexes supplémentaires (état des lieux)</label>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:8px">Ne coche que ce que ce logement possède réellement — l'état des lieux ne générera que les pièces cochées ici (plus l'entrée, le séjour, la cuisine et les chambres/salles d'eau/WC déjà renseignés au-dessus).</div>
+            <div style="display:flex;flex-wrap:wrap;gap:14px">
+              ${EDL_PIECES_SUPPLEMENTAIRES.map(p=>`
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2)">
+                  <input type="checkbox" class="ml-piece-suppl" value="${p.key}" style="width:15px;height:15px;cursor:pointer">
+                  ${p.label}
+                </label>`).join('')}
+            </div>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:14px">
+            <label>📷 Photos du logement</label>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:8px">Utilisées pour l'annonce de mise en location. Uploadées automatiquement sur Drive (dossier Gestion locative du logement) — seule une miniature reste stockée localement.</div>
+            <input type="file" id="ml-photos-input" accept="image/*" multiple style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px">
+            <div id="ml-photos-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
+          </div>
           <div class="form-group"><label>Couleur</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="ml-colors">
               ${LOG_COLORS.map(c=>`<div onclick="selectLogColor('${c}')" style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;border:2px solid transparent;transition:.15s" data-color="${c}"></div>`).join('')}
@@ -8690,6 +8708,12 @@ function ouvrirModalLogement(idx){
   document.getElementById('ml-nb-sdb').value=lg?lg.nbSallesEau||'':'';
   document.getElementById('ml-nb-wc').value=lg?lg.nbWC||'':'';
   document.getElementById('ml-chauffage').value=lg?lg.chauffage||'':'';
+  // Rétrocompatibilité : un logement déjà enregistré AVANT l'ajout de cette liste n'a pas
+  // encore de piecesSupplementaires — on lui garde le comportement d'avant (garage + extérieur
+  // systématiques) plutôt que de faire disparaître ces pièces sans qu'il l'ait demandé. Un
+  // nouveau logement, lui, part vide : à toi de cocher ce qui existe vraiment.
+  const piecesSupplChoisies=(lg&&Array.isArray(lg.piecesSupplementaires))?lg.piecesSupplementaires:(lg?['garage','exterieur']:[]);
+  document.querySelectorAll('.ml-piece-suppl').forEach(chk=>{chk.checked=piecesSupplChoisies.includes(chk.value);});
   const color=lg?lg.color:LOG_COLORS[0];
   document.getElementById('ml-color').value=color;
   selectLogColor(color);
@@ -8699,6 +8723,122 @@ function ouvrirModalLogement(idx){
   if(prevCheck) prevCheck.checked=lg?(lg.hasPrevisionnel!==false):true;
   document.getElementById('modal-logement').style.display='flex';
   setTimeout(()=>document.getElementById('ml-label').focus(),50);
+  // Photos du logement : miniatures déjà enregistrées + gestion de l'ajout/suppression pendant
+  // que la fenêtre est ouverte.
+  _mlPhotosActuelles=(lg&&Array.isArray(lg.photos))?JSON.parse(JSON.stringify(lg.photos)):[];
+  _renderMlPhotosPreview();
+  const inputPhotos=document.getElementById('ml-photos-input');
+  if(inputPhotos){
+    inputPhotos.value='';
+    inputPhotos.onchange=_ajouterPhotosLogement;
+  }
+}
+let _mlPhotosActuelles=[]; // [{lien, thumbnail}] — logement en cours d'édition
+function _renderMlPhotosPreview(){
+  const box=document.getElementById('ml-photos-preview');
+  if(!box)return;
+  box.innerHTML=_mlPhotosActuelles.map((p,i)=>`
+    <div style="position:relative">
+      <img src="${p.thumbnail}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--border2)">
+      <button type="button" onclick="_supprimerPhotoLogement(${i})" title="Retirer cette photo" style="position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer">×</button>
+      ${!p.lien?'<div style="position:absolute;bottom:2px;left:2px;right:2px;background:rgba(0,0,0,.6);color:var(--orange);font-size:8px;text-align:center;border-radius:3px">envoi…</div>':''}
+    </div>`).join('');
+}
+function _supprimerPhotoLogement(i){
+  _mlPhotosActuelles.splice(i,1);
+  _renderMlPhotosPreview();
+}
+// Redimensionne une image côté navigateur — deux tailles : une miniature légère (stockée
+// localement, pour l'aperçu) et une version plus grande envoyée sur Drive (pour l'annonce).
+function _redimensionnerImage(dataUrl,maxDim,quality){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const scale=Math.min(1,maxDim/Math.max(img.width,img.height));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      resolve(canvas.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=()=>resolve(dataUrl);
+    img.src=dataUrl;
+  });
+}
+async function _ajouterPhotosLogement(e){
+  const files=Array.from(e.target.files||[]);
+  if(!files.length)return;
+  const logs=loadLogements();
+  const lg=_editLogIdx!==null?logs[_editLogIdx]:null;
+  const logKey=lg?lg.key:null;
+  for(const file of files){
+    const reader=new FileReader();
+    const dataUrl=await new Promise(resolve=>{reader.onload=()=>resolve(reader.result);reader.readAsDataURL(file);});
+    const thumbnail=await _redimensionnerImage(dataUrl,300,.6);
+    const entry={thumbnail,lien:''};
+    _mlPhotosActuelles.push(entry);
+    _renderMlPhotosPreview();
+    // Upload en tâche de fond — la miniature reste affichée immédiatement, le lien Drive
+    // arrive ensuite (best-effort, n'empêche jamais d'enregistrer le logement).
+    (async()=>{
+      try{
+        const grande=await _redimensionnerImage(dataUrl,1600,.75);
+        if(logKey){
+          const lien=await uploadToDriveGestionLocative(grande,'Photo_'+Date.now()+'.jpg',logKey);
+          entry.lien=lien||'';
+        }
+      }catch(err){console.error('Upload photo logement échoué (non bloquant):',err);}
+      _renderMlPhotosPreview();
+    })();
+  }
+  e.target.value='';
+}
+// Génère une annonce de mise en location (texte + photos), présentée comme un document à
+// copier/coller sur Leboncoin, SeLoger, PAP... — l'app ne publie pas directement sur ces
+// plateformes (elles n'offrent pas d'accès public pour ça), mais prépare tout le contenu.
+function genererAnnonceLogement(logKey){
+  const logs=loadLogements();
+  const lg=logs.find(l=>l.key===logKey);
+  if(!lg)return;
+  const loyerSaisi=window.prompt('Loyer mensuel hors charges demandé (€) — laisse vide si tu ne veux pas l\'indiquer :','');
+  if(loyerSaisi===null)return;
+  const chargesSaisies=window.prompt('Charges mensuelles (€) — laisse vide si tu ne veux pas l\'indiquer :','');
+  const cfg=getCTXConfig();
+  const typeLogement=window._isMeuble?'meublé':'nu';
+  const photos=(lg.photos||[]).map(p=>p.lien||p.thumbnail).filter(Boolean);
+
+  const titre=`${typeLogement==='meublé'?'Meublé':'Appartement/Maison'} ${lg.nbPieces?lg.nbPieces+' pièces':''} ${lg.surfaceM2?lg.surfaceM2+'m²':''} — ${lg.adresse||lg.label}`.replace(/\s+/g,' ').trim();
+
+  const descriptionLignes=[];
+  if(lg.surfaceM2)descriptionLignes.push(`Surface habitable : ${lg.surfaceM2} m²`);
+  if(lg.nbPieces)descriptionLignes.push(`Nombre de pièces : ${lg.nbPieces}`);
+  if(lg.nbChambres)descriptionLignes.push(`Chambres : ${lg.nbChambres}`);
+  if(lg.nbSallesEau)descriptionLignes.push(`Salle(s) d'eau : ${lg.nbSallesEau}`);
+  if(lg.nbWC)descriptionLignes.push(`WC séparés : ${lg.nbWC}`);
+  if(lg.chauffage)descriptionLignes.push(`Chauffage : ${lg.chauffage}`);
+  descriptionLignes.push(`Type de location : ${typeLogement}`);
+  if(loyerSaisi)descriptionLignes.push(`Loyer : ${loyerSaisi} € / mois hors charges`);
+  if(chargesSaisies)descriptionLignes.push(`Charges : ${chargesSaisies} € / mois`);
+
+  const texteAnnonce=`${titre}\n\n${lg.adresse||''}\n\n${descriptionLignes.join('\n')}\n\nDisponible dès maintenant. Contact : ${cfg.nom||''}${cfg.gmail?' — '+cfg.gmail:''}`;
+
+  const html=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Annonce — ${lg.label}</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a202c;font-size:13px;padding:15mm 20mm;max-width:210mm;margin:0 auto}
+    .photos{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:16px 0}
+    .photos img{width:100%;height:140px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0}
+    textarea{width:100%;min-height:220px;font-family:inherit;font-size:12px;padding:12px;border-radius:8px;border:1px solid #e2e8f0;background:#f7fafc}
+    @media print{@page{size:A4 portrait;margin:12mm 15mm}body{padding:0}}
+  </style></head><body>
+    <h1 style="font-size:20px;color:#2b6cb0;margin-bottom:4px">${titre}</h1>
+    <div style="font-size:12px;color:#718096;margin-bottom:16px">Document préparé avec Novimmo — à copier/coller sur Leboncoin, SeLoger, PAP... (publication manuelle sur ces plateformes)</div>
+    ${photos.length?`<div class="photos">${photos.map(p=>`<img src="${p}">`).join('')}</div>`:'<div style="color:#a0aec0;font-size:12px;margin-bottom:12px">Aucune photo ajoutée pour ce logement — ajoute-en depuis "✏ Modifier" pour illustrer l\'annonce.</div>'}
+    <h2 style="font-size:14px;margin-top:20px">Texte de l'annonce (copier/coller)</h2>
+    <textarea readonly onclick="this.select()">${texteAnnonce}</textarea>
+    <div style="font-size:10px;color:#a0aec0;margin-top:6px">Clique dans le texte pour tout sélectionner, puis Ctrl+C pour copier.</div>
+  </body></html>`;
+  openPrintOverlay(html,`Annonce — ${lg.label}`);
 }
 function selectLogColor(c){
   document.getElementById('ml-color').value=c;
@@ -8720,14 +8860,16 @@ function sauvegarderLogement(){
   const nbSallesEau=+document.getElementById('ml-nb-sdb')?.value||0;
   const nbWC=+document.getElementById('ml-nb-wc')?.value||0;
   const chauffage=(document.getElementById('ml-chauffage')?.value||'').trim();
+  const piecesSupplementaires=Array.from(document.querySelectorAll('.ml-piece-suppl:checked')).map(chk=>chk.value);
+  const photos=_mlPhotosActuelles;
   const color=document.getElementById('ml-color').value;
   const hasPrevisionnel=document.getElementById('ml-previsionnel')?document.getElementById('ml-previsionnel').checked:true;
   const logs=loadLogements();
   if(_editLogIdx!==null){
-    logs[_editLogIdx]={...logs[_editLogIdx],label,adresse,pdl,compteurEau,surfaceM2,nbPieces,nbChambres,nbSallesEau,nbWC,chauffage,color,hasPrevisionnel};
+    logs[_editLogIdx]={...logs[_editLogIdx],label,adresse,pdl,compteurEau,surfaceM2,nbPieces,nbChambres,nbSallesEau,nbWC,chauffage,piecesSupplementaires,photos,color,hasPrevisionnel};
   }else{
     const key='L'+(Date.now().toString(36).slice(-4).toUpperCase());
-    logs.push({key,label,adresse,pdl,compteurEau,surfaceM2,nbPieces,nbChambres,nbSallesEau,nbWC,chauffage,color,actif:true,hasPrevisionnel});
+    logs.push({key,label,adresse,pdl,compteurEau,surfaceM2,nbPieces,nbChambres,nbSallesEau,nbWC,chauffage,piecesSupplementaires,photos,color,actif:true,hasPrevisionnel});
   }
   saveLogements(logs);
   document.getElementById('modal-logement').style.display='none';
@@ -12840,6 +12982,17 @@ const EDL_PIECES_DEFAULT=[
   {id:'garage',label:'Garage / Cave',elements:['Sol','Murs','Porte / Portail','Éclairage']},
   {id:'exterieur',label:'Extérieur / Terrasse',elements:['Sol / Terrasse','Portail / Portillon','Boîte aux lettres','Éclairage extérieur']}
 ];
+// Pièces/annexes optionnelles proposées à la coche sur la fiche technique du logement — un
+// logement peut ne pas avoir de garage/cave ni d'extérieur (appartement en immeuble par ex.),
+// d'où le besoin de les rendre facultatives plutôt que systématiques dans l'état des lieux.
+const EDL_PIECES_SUPPLEMENTAIRES=[
+  {key:'garage',label:'Garage / Cave',piece:{id:'garage',label:'Garage / Cave',elements:['Sol','Murs','Porte / Portail','Éclairage']}},
+  {key:'exterieur',label:'Extérieur / Terrasse / Jardin',piece:{id:'exterieur',label:'Extérieur / Terrasse',elements:['Sol / Terrasse','Portail / Portillon','Boîte aux lettres','Éclairage extérieur']}},
+  {key:'balcon',label:'Balcon / Loggia',piece:{id:'balcon',label:'Balcon / Loggia',elements:['Sol','Garde-corps','Éclairage']}},
+  {key:'buanderie',label:'Buanderie / Cellier',piece:{id:'buanderie',label:'Buanderie / Cellier',elements:['Sol','Murs','Plafond','Prises électriques','Éclairage']}},
+  {key:'dressing',label:'Dressing',piece:{id:'dressing',label:'Dressing',elements:['Sol','Murs','Étagères / Penderie','Éclairage']}},
+  {key:'bureau',label:'Bureau',piece:{id:'bureau',label:'Bureau',elements:['Sol','Murs','Plafond','Fenêtres / Volets','Prises électriques','Éclairage']}}
+];
 
 const ETATS=['Neuf','Très bon état','Bon état','État d\'usage','Usé','Dégradé'];
 
@@ -12862,8 +13015,14 @@ function genererPiecesEdlDepuisLogement(lg){
   for(let i=1;i<=nbSallesEau;i++)pieces.push({id:'sdb'+i,label:nbSallesEau>1?'Salle de bain '+i:'Salle de bain',elements:[...sdbTpl]});
   const nbWC=lg.nbWC||0;
   for(let i=1;i<=nbWC;i++)pieces.push({id:'wc'+i,label:nbWC>1?'WC '+i:'WC séparés',elements:[...wcTpl]});
-  pieces.push({id:'garage',label:'Garage / Cave',elements:['Sol','Murs','Porte / Portail','Éclairage']});
-  pieces.push({id:'exterieur',label:'Extérieur / Terrasse',elements:['Sol / Terrasse','Portail / Portillon','Boîte aux lettres','Éclairage extérieur']});
+  // Pièces/annexes optionnelles (garage, extérieur, balcon, buanderie...) — uniquement celles
+  // réellement cochées sur la fiche technique. Rétrocompatibilité : un logement jamais
+  // retouché depuis l'ajout de cette liste (piecesSupplementaires absent) garde l'ancien
+  // comportement (garage + extérieur systématiques), pour ne rien casser silencieusement.
+  const piecesSupplChoisies=Array.isArray(lg.piecesSupplementaires)?lg.piecesSupplementaires:['garage','exterieur'];
+  EDL_PIECES_SUPPLEMENTAIRES.forEach(p=>{
+    if(piecesSupplChoisies.includes(p.key))pieces.push({...p.piece,elements:[...p.piece.elements]});
+  });
   return pieces;
 }
 
@@ -12873,6 +13032,7 @@ let _edlLocId=null;
 let _edlPieces=[];
 let _edlPretPourSignature=null; // {locId,type} — posé quand on enchaîne EDL entrée → signature du bail
 let _edlEtatEntreeRef={}; // {pieceId:{element:etat}} — référence affichée pendant l'EDL de sortie, pour comparer
+let _edlPhotos={}; // {pieceId: dataUrl} — une photo d'ensemble optionnelle par pièce
 
 function edlDraftKey(locId,type){return ctxKey('edl_brouillon_'+locId+'_'+type);}
 // Sauvegarde locale automatique du brouillon en cours — appelée à chaque modification, pour
@@ -12882,7 +13042,7 @@ function edlSauvegarderBrouillon(){
   if(!_edlLocId)return;
   try{
     localStorage.setItem(edlDraftKey(_edlLocId,_edlType),JSON.stringify({
-      pieces:_edlPieces,data:_edlData,
+      pieces:_edlPieces,data:_edlData,photos:_edlPhotos,
       compteurs:document.getElementById('edl-compteurs')?.value||'',
       cles:document.getElementById('edl-cles')?.value||'',
       obsGen:document.getElementById('edl-obs-generale')?.value||''
@@ -12898,6 +13058,7 @@ function ouvrirEdl(locId, type){
   _edlType=type||'entree';
   _edlData={};
   _edlEtatEntreeRef={};
+  _edlPhotos={};
   const locs0=loadLocataires();
   const loc0=locs0.find(l=>String(l.id)===String(locId));
   // À la sortie, on repart des mêmes pièces/éléments que l'entrée (y compris ceux ajoutés
@@ -12939,6 +13100,7 @@ function ouvrirEdl(locId, type){
       if(brouillon&&Array.isArray(brouillon.pieces)){
         _edlPieces=brouillon.pieces;
         _edlData=brouillon.data||{};
+        _edlPhotos=brouillon.photos||{};
         _edlBrouillonCompteurs=brouillon.compteurs||'';
         _edlBrouillonCles=brouillon.cles||'';
         _edlBrouillonObs=brouillon.obsGen||'';
@@ -13034,10 +13196,19 @@ function edlSelectPiece(pieceId){
 
   const content=document.getElementById('edl-piece-content');
   if(!content)return;
+  const photoPiece=_edlPhotos[pieceId]||'';
   content.innerHTML=`
-    <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:14px;display:flex;align-items:center;gap:8px">
+    <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       🏠 <span>${piece.label}</span>
       <span style="font-size:10px;color:var(--text3);font-weight:400">(${piece.elements.length} éléments)</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:10px 14px">
+      ${photoPiece?`<img src="${photoPiece}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border2)">`:''}
+      <div style="flex:1">
+        <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">📷 Photo de la pièce (optionnel)</label>
+        <input type="file" accept="image/*" onchange="edlAjouterPhotoPiece('${pieceId}',this)" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px">
+      </div>
+      ${photoPiece?`<button onclick="edlSupprimerPhotoPiece('${pieceId}')" title="Retirer la photo" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;flex-shrink:0">×</button>`:''}
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${piece.elements.map(el=>{
@@ -13080,6 +13251,20 @@ function edlUpdateObs(inp){
   if(!_edlData[pieceId][el])_edlData[pieceId][el]={etat:'Bon état',observation:''};
   _edlData[pieceId][el].observation=inp.value;
   edlSauvegarderBrouillon();
+}
+async function edlAjouterPhotoPiece(pieceId,inputEl){
+  const file=inputEl.files&&inputEl.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  const dataUrl=await new Promise(resolve=>{reader.onload=()=>resolve(reader.result);reader.readAsDataURL(file);});
+  _edlPhotos[pieceId]=await _redimensionnerImage(dataUrl,900,.65);
+  edlSauvegarderBrouillon();
+  edlSelectPiece(pieceId);
+}
+function edlSupprimerPhotoPiece(pieceId){
+  delete _edlPhotos[pieceId];
+  edlSauvegarderBrouillon();
+  edlSelectPiece(pieceId);
 }
 function edlSauvegardePiece(){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
@@ -13150,6 +13335,7 @@ function construireEdlBodyHTML(locId, type, sig){
         </tr></thead>
         <tbody>${elementsHtml}</tbody>
       </table>
+      ${_edlPhotos[piece.id]?`<img src="${_edlPhotos[piece.id]}" style="max-width:100%;max-height:90mm;border-radius:0 0 6px 6px;border:1px solid #e2e8f0;border-top:none;display:block">`:''}
     </div>`;
   }).join('');
 
