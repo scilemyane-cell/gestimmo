@@ -561,6 +561,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div style="font-size:13px;color:var(--text2)">Vue d'ensemble du projet</div>
   </div>
 
+  <!-- Alertes prélèvements automatiques à venir -->
+  <div id="alertes-prelevements"></div>
+
   <!-- KPI principaux -->
   <div class="kpi-grid" id="kpi-grid"></div>
 
@@ -976,6 +979,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 <!-- FACTURES -->
 <div class="content" id="tab-factures">
 
+  <!-- Alertes prélèvements automatiques à venir — vue directement dans l'onglet Factures,
+       là où l'utilisateur regarde vraiment au quotidien (pas juste dans la synthèse du
+       budget de chantier). -->
+  <div id="alertes-prelevements-factures"></div>
+
   <!-- Récapitulatif retiré (peu utilisé) — la liste des factures est maintenant la seule vue -->
   <div id="sub-content-recap" style="display:none"></div>
 
@@ -1243,6 +1251,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       </div>
       <div class="form-group"><label>Réglé par</label>
         <input type="text" id="f-regleby" placeholder="ex: TOI, UN ASSOCIÉ, LA STRUCTURE..." style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div class="form-group" style="grid-column:1/-1;background:rgba(224,161,94,.06);border:1px solid rgba(224,161,94,.25);border-radius:8px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+          <input type="checkbox" id="f-prelauto" onchange="document.getElementById('f-dateprel-wrap').style.display=this.checked?'block':'none'" style="width:16px;height:16px">
+          <span>🏦 Prélèvement automatique</span>
+        </label>
+        <div id="f-dateprel-wrap" style="display:none;margin-top:8px">
+          <label style="font-size:10px">Date de prélèvement (pour être alerté avant, éviter un découvert)</label>
+          <input type="date" id="f-dateprel">
+        </div>
       </div>
       <div class="form-group"><label>Date de paiement</label><input type="date" id="f-datepay"></div>
       <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="f-ttc" placeholder="0.00" step="0.01"></div>
@@ -1578,6 +1596,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>Réglé par</label>
         <input type="text" id="e-regleby" placeholder="ex: TOI, UN ASSOCIÉ, LA STRUCTURE..." style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
       </div>
+      <div class="form-group" style="grid-column:1/-1;background:rgba(224,161,94,.06);border:1px solid rgba(224,161,94,.25);border-radius:8px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+          <input type="checkbox" id="e-prelauto" onchange="document.getElementById('e-dateprel-wrap').style.display=this.checked?'block':'none'" style="width:16px;height:16px">
+          <span>🏦 Prélèvement automatique</span>
+        </label>
+        <div id="e-dateprel-wrap" style="display:none;margin-top:8px">
+          <label style="font-size:10px">Date de prélèvement (pour être alerté avant, éviter un découvert)</label>
+          <input type="date" id="e-dateprel">
+        </div>
+      </div>
       <div class="form-group"><label>Date de paiement</label><input type="date" id="e-datepay"></div>
       <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="e-ttc" step="0.01"></div>
       <select id="e-tva" style="display:none"><option value="20">20 %</option><option value="10">10 %</option><option value="5.5">5,5 %</option><option value="0">0 %</option></select>
@@ -1651,6 +1679,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>Prénom</label><input type="text" id="loc-prenom" placeholder="Prénom"></div>
       <div class="form-group"><label>Téléphone</label><input type="text" id="loc-tel"></div>
       <div class="form-group"><label>Email</label><input type="email" id="loc-email"></div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="loc-cotitulaire-toggle" onchange="document.getElementById('loc-cotitulaire-bloc').style.display=this.checked?'grid':'none'" style="width:auto">
+          Ajouter un deuxième titulaire (colocation / couple)
+        </label>
+      </div>
+      <div id="loc-cotitulaire-bloc" style="display:none;grid-column:1/-1;grid-template-columns:1fr 1fr;gap:14px;background:rgba(224,161,94,.05);border:1px solid rgba(224,161,94,.2);border-radius:10px;padding:14px;margin-top:-6px">
+        <div class="form-group"><label>Nom du 2e titulaire</label><input type="text" id="loc-nom2" placeholder="Nom de famille"></div>
+        <div class="form-group"><label>Prénom</label><input type="text" id="loc-prenom2" placeholder="Prénom"></div>
+        <div class="form-group"><label>Téléphone</label><input type="text" id="loc-tel2"></div>
+        <div class="form-group"><label>Email (identique ou différent)</label><input type="email" id="loc-email2"></div>
+      </div>
       <div class="form-group"><label>Date d'entrée</label><input type="date" id="loc-entree"></div>
       <div class="form-group"><label>Date de sortie (si connue)</label><input type="date" id="loc-sortie"></div>
       <div class="form-group"><label>Loyer hors charges (€/mois)</label><input type="number" id="loc-loyer" step="0.01"></div>
@@ -1767,9 +1807,20 @@ function ctxKey(key){return CTX+'_'+key;}
 function safeSetItem(key,value){
   try{ localStorage.setItem(key,value); return true; }
   catch(e){
-    console.error('Erreur de stockage local:',e);
-    alert("Erreur de stockage : la mémoire du navigateur semble pleine. Connecte Google Drive pour externaliser tes PDF, ou supprime d'anciennes pièces jointes, puis réessaie.");
-    return false;
+    // Avant d'abandonner, on tente de libérer ce qui peut l'être (documents déjà sauvegardés
+    // sur Drive, dont la copie locale complète est superflue) puis on retente UNE fois — la
+    // limite est souvent atteinte par de l'ancien contenu jamais nettoyé, pas par l'écriture
+    // en cours elle-même.
+    console.warn('Stockage local plein, tentative de libération automatique...',e);
+    try{
+      if(typeof libererCopiesLocalesGLDocsRetroactif==='function')libererCopiesLocalesGLDocsRetroactif();
+      localStorage.setItem(key,value);
+      return true;
+    }catch(e2){
+      console.error('Erreur de stockage local (persistante après nettoyage) :',e2);
+      alert("Erreur de stockage : la mémoire du navigateur semble pleine, même après nettoyage automatique. Connecte Google Drive si ce n'est pas déjà fait, ou supprime d'anciennes pièces jointes, puis réessaie.");
+      return false;
+    }
   }
 }
 const CTX_CONFIG={};
@@ -2798,11 +2849,20 @@ async function fetchFacturePdfB64(idx){
 
 // ── Aperçu au survol (factures/devis + écran de saisie) ───────────────────
 let _hoverPreviewToken=0; // évite qu'une réponse Drive lente n'écrase l'aperçu d'une ligne survolée plus récemment
-const _hoverPreviewCache={}; // clé -> b64 déjà récupéré (évite de retélécharger Drive à chaque survol)
-function _b64ToPreviewHtml(b64){
+async function _b64ToPreviewHtml(b64){
   if(!b64)return null;
   if(b64.startsWith('data:image'))return `<img src="${b64}">`;
-  if(b64.startsWith('data:application/pdf'))return `<iframe src="${b64}"></iframe>`;
+  if(b64.startsWith('data:application/pdf')){
+    // On rasterise la 1ère page via le même moteur (pdf.js) que "✂️ modifier les pages", qui
+    // corrige correctement l'orientation (métadonnée de rotation du PDF + bascule
+    // paysage→portrait) — contrairement à l'affichage brut du PDF dans un <iframe>, qui ne
+    // respecte pas toujours cette même orientation selon le navigateur.
+    try{
+      const images=await pdfToImages(b64);
+      if(images&&images[0])return `<img src="${images[0]}">`;
+    }catch(e){console.error('Aperçu PDF : échec de la rasterisation, repli sur l\'iframe brut.',e);}
+    return `<iframe src="${b64}"></iframe>`;
+  }
   return null;
 }
 function positionHoverPreview(e){
@@ -2832,17 +2892,22 @@ async function showHoverPreview(e,source,idxOrB64){
   if(source==='inline'){
     b64=idxOrB64;
   } else {
-    const cacheKey=source+'-'+idxOrB64;
-    if(_hoverPreviewCache[cacheKey]){
-      b64=_hoverPreviewCache[cacheKey];
-    } else {
-      b64=source==='devis'?await fetchDevisPdfB64(idxOrB64):await fetchFacturePdfB64(idxOrB64);
-      if(b64)_hoverPreviewCache[cacheKey]=b64;
-    }
+    // Pas de cache séparé ici : fetchFacturePdfB64/fetchDevisPdfB64 relit déjà la copie
+    // locale à jour instantanément (rapide, pas besoin de mise en cache supplémentaire), et
+    // ne va sur Drive que si vraiment rien en local (déjà mis en cache local à ce moment-là).
+    // Un cache séparé par index de ligne provoquait un aperçu figé sur l'ANCIENNE version
+    // (avant correction de rotation par ex.) tant que la page n'était pas rechargée.
+    b64=source==='devis'?await fetchDevisPdfB64(idxOrB64):await fetchFacturePdfB64(idxOrB64);
   }
   if(myToken!==_hoverPreviewToken)return; // la souris est déjà passée sur autre chose
-  const html=_b64ToPreviewHtml(b64);
+  const html=await _b64ToPreviewHtml(b64);
+  if(myToken!==_hoverPreviewToken)return; // la souris a bougé pendant la rasterisation du PDF
   box.innerHTML=html||'<div class="hpp-msg">Aucun aperçu disponible (pas de PDF local ni de lien Drive).</div>';
+  // Le cadre a été positionné plus haut alors qu'il n'affichait que le petit message
+  // "Chargement…" — une fois l'image/PDF chargé, il grandit d'un coup et peut déborder en
+  // bas de l'écran sans repositionnement (ne laissant que le haut visible). On repositionne
+  // donc une seconde fois, maintenant que la taille réelle est connue.
+  positionHoverPreview(e);
 }
 
 // ── Locataires ──────────────────────────────────────────────────────────
@@ -3762,6 +3827,50 @@ function showTab(id){
 
 function destroyChart(ref){if(ref)ref.destroy();return null;}
 
+// Alertes prélèvements automatiques — pour ne jamais être pris de court par un débit
+// (découvert). On ne remonte que les factures en prélèvement auto, non encore payées, avec
+// une date de prélèvement dans les 15 prochains jours ou déjà dépassée. Réutilisable sur
+// plusieurs onglets (Synthèse du budget ET onglet Factures) — charge ses propres données
+// pour ne dépendre d'aucune variable locale de la fonction appelante.
+function renderAlertesPrelevements(elId){
+  const{factures}=loadData();
+  const today=todayStr();
+  const prelevs=factures
+    .filter(f=>f.prelevementAuto&&f.dateprelevement&&f.statut!=='Payée'&&f.inclus!==false)
+    .map(f=>{
+      const diff=Math.round((new Date(f.dateprelevement)-new Date(today))/86400000);
+      return{f,diff};
+    })
+    .filter(x=>x.diff<=15)
+    .sort((a,b)=>a.diff-b.diff);
+  const elAlerte=document.getElementById(elId);
+  if(!elAlerte)return;
+  if(prelevs.length===0){
+    elAlerte.innerHTML='';
+    return;
+  }
+  const totalPrelevs=prelevs.reduce((s,x)=>s+(+x.f.ttc||0),0);
+  elAlerte.innerHTML=`
+  <div style="background:rgba(224,113,107,.08);border:1px solid rgba(224,113,107,.35);border-radius:12px;padding:14px 18px;margin-bottom:20px">
+    <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">🏦 ${prelevs.length} prélèvement${prelevs.length>1?'s':''} automatique${prelevs.length>1?'s':''} à venir — ${fmt(totalPrelevs)} au total</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${prelevs.map(x=>{
+        const f=x.f;
+        const enRetard=x.diff<0;
+        const label=enRetard?'En retard de '+Math.abs(x.diff)+' j':(x.diff===0?"Aujourd'hui":'Dans '+x.diff+' j');
+        const couleur=enRetard||x.diff<=3?'var(--red)':'var(--orange)';
+        return`<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:7px">
+          <span style="color:var(--text2)">${f.four||'—'} ${f.num?'('+f.num+')':''}</span>
+          <span style="display:flex;gap:10px;align-items:center">
+            <span style="font-weight:600;color:var(--text)">${fmt(f.ttc)}</span>
+            <span style="color:${couleur};font-weight:700;font-size:11px">${label} · ${fmtDate(f.dateprelevement)}</span>
+          </span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
 // ── SYNTHESE ──────────────────────────────────────────────────────────────
 function renderSynthese(){
   const{budget,factures}=loadData();
@@ -3777,6 +3886,8 @@ function renderSynthese(){
   const pctCombine=tPrev>0?Math.min((tReel+tEngage)/tPrev*100,100):0;
   const payees=factures.filter(f=>f.statut==='Payée'&&f.inclus!==false).reduce((s,f)=>s+(+f.ttc||0),0);
   const attente=factures.filter(f=>f.statut!=='Payée'&&f.inclus!==false).reduce((s,f)=>s+(+f.ttc||0),0);
+
+  renderAlertesPrelevements('alertes-prelevements');
 
   // KPI
   document.getElementById('kpi-grid').innerHTML=`
@@ -4204,6 +4315,7 @@ function confirmerPasDoublon(idx){
 }
 function renderFactures(){
   const{factures}=loadData();
+  renderAlertesPrelevements('alertes-prelevements-factures');
   populateDevisSelects();
   const btnSyncPennylane=document.getElementById('btn-sync-pennylane');
   if(btnSyncPennylane)btnSyncPennylane.style.display=getComptaToken('pennylane')?'inline-flex':'none';
@@ -4274,7 +4386,7 @@ function renderFactures(){
     return`<tr class="${alertClass}" style="${excluStyle}">
       <td class="hover-pdf-trigger" style="color:var(--accent);font-weight:500" onmouseenter="showHoverPreview(event,'facture',${ri})" onmouseleave="hideHoverPreview()" title="Survoler pour voir la facture">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${isDup?` <span onclick="confirmerPasDoublon(${ri})" title="Cliquer pour confirmer que ce n'est PAS un doublon" style="cursor:pointer;font-size:9px;background:rgba(224,113,107,.25);color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON — ✓ Confirmer que non</span>`:''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #E0A15E;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
-      <td style="font-weight:500">${f.four||'—'}${f.sourceCertifiee?' <span title="Facture électronique certifiée (Factur-X) — données garanties exactes, aucune lecture IA" style="font-size:9px;background:rgba(90,200,216,.15);color:#5AC8D8;border:1px solid rgba(90,200,216,.4);border-radius:3px;padding:1px 5px;font-weight:700">🔷 CERTIFIÉE</span>':''}</td>
+      <td style="font-weight:500">${f.four||'—'}${f.sourceCertifiee?' <span title="Facture électronique certifiée (Factur-X) — données garanties exactes, aucune lecture IA" style="font-size:9px;background:rgba(90,200,216,.15);color:#5AC8D8;border:1px solid rgba(90,200,216,.4);border-radius:3px;padding:1px 5px;font-weight:700">🔷 CERTIFIÉE</span>':''}${f.prelevementAuto?` <span title="Prélèvement automatique${f.dateprelevement?' le '+fmtDate(f.dateprelevement):''}" style="font-size:9px;background:rgba(224,161,94,.15);color:var(--orange);border:1px solid rgba(224,161,94,.4);border-radius:3px;padding:1px 5px;font-weight:700">🏦 PRÉLÈVEMENT</span>`:''}</td>
       <td style="color:var(--text2);font-size:11px">${getCatDisplayText(f)}</td>
       <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(f.ttc)}</td>
@@ -4360,6 +4472,8 @@ async function ajouterFacture(){
     ht,tva,ttc:ttcInput,
     statut:document.getElementById('f-statut').value,
     regleby:document.getElementById('f-regleby').value,
+    prelevementAuto:!!document.getElementById('f-prelauto')?.checked,
+    dateprelevement:document.getElementById('f-dateprel')?.value||'',
     cmd:baseCmd,
     desc: baseDesc,
     hasPdf:!!pendingPdfB64,
@@ -5469,6 +5583,9 @@ function openEdit(idx){
     eDevisSel.value=devisLie?devisLie.num:'';
   }
   document.getElementById('e-regleby').value=f.regleby||'';
+  document.getElementById('e-prelauto').checked=!!f.prelevementAuto;
+  document.getElementById('e-dateprel').value=f.dateprelevement||'';
+  document.getElementById('e-dateprel-wrap').style.display=f.prelevementAuto?'block':'none';
   document.getElementById('e-datepay').value=f.datepay||'';
   document.getElementById('e-ttc').value=f.ttc;
   document.getElementById('e-tva').value=f.tva;
@@ -5557,6 +5674,8 @@ function saveEdit(){
     log:document.getElementById('e-log').value,
     statut:document.getElementById('e-statut').value,
     regleby:document.getElementById('e-regleby').value,
+    prelevementAuto:!!document.getElementById('e-prelauto')?.checked,
+    dateprelevement:document.getElementById('e-dateprel')?.value||'',
     datepay:document.getElementById('e-datepay').value,
     ht,tva,ttc:ttcEdit,
     cmd:document.getElementById('e-cmd').value.trim(),
@@ -5686,6 +5805,8 @@ function saveEditAsSplit(){
     ht,tva,ttc:ttcInput,
     statut:document.getElementById('e-statut').value,
     regleby:document.getElementById('e-regleby').value,
+    prelevementAuto:!!document.getElementById('e-prelauto')?.checked,
+    dateprelevement:document.getElementById('e-dateprel')?.value||'',
     datepay:document.getElementById('e-datepay').value,
     cmd:baseCmd,
     desc: baseDesc,
@@ -6290,6 +6411,26 @@ async function downloadDriveFileAsBase64(driveLink){
     return null;
   }
 }
+// Récupère le document le plus récent d'une catégorie donnée (DPE, ERP...) pour un logement —
+// utilisé pour joindre automatiquement les annexes obligatoires au bail signé (email au
+// locataire + copie archivée), sans que le bailleur ait à les rechercher/joindre à la main.
+function recupererDernierDocGL(logKey,categorie){
+  const docs=loadGLDocs().filter(d=>d.categorie===categorie&&d.logement===logKey)
+    .sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
+  return docs[0]||null;
+}
+// Télécharge le contenu binaire (PDF/image) d'un document de gestion locative — depuis Drive
+// s'il y a un lien, sinon via son htmlContent local s'il en a un (rare pour DPE/ERP, qui sont
+// généralement des scans uploadés directement sans passer par une génération HTML).
+async function telechargerDocGLBase64(doc){
+  if(!doc)return null;
+  if(doc.lien){
+    await ensureDriveConnected();
+    const b64=await downloadDriveFileAsBase64(doc.lien);
+    if(b64)return b64;
+  }
+  return null;
+}
 // Convertit un PDF en base64 en une liste d'images PNG (une par page) via pdf.js, avec
 // correction d'orientation (paysage/rotation embarquée). Fonction globale — voir commentaire
 // détaillé historique dans exportZipFactures.
@@ -6810,7 +6951,11 @@ async function loadFromCloud(){
           localStorage.setItem(ctxKey('gl_docs'),JSON.stringify(fusion));
           // Pour les documents qui manquent encore de contenu (autre appareil, cache vidé...),
           // on va le rechercher en tâche de fond dans les documents séparés.
-          fusion.filter(doc=>doc.contenuExterne&&!doc.htmlContent).forEach(async doc=>{
+          // Pas de re-téléchargement depuis Firestore si un lien Drive existe déjà — sinon
+          // chaque rechargement de page annulerait la libération d'espace local ci-dessus.
+          // Le lien Drive suffit pour rouvrir le document (voirDernierBailSigne et le bouton
+          // "☁" de la gestion locative l'utilisent déjà directement).
+          fusion.filter(doc=>doc.contenuExterne&&!doc.htmlContent&&!doc.lien).forEach(async doc=>{
             try{
               const snapC=await window._getDoc(window._glDocContentDoc(doc.id));
               if(snapC.exists()&&snapC.data().htmlContent){
@@ -6887,9 +7032,12 @@ function getCurrentLocataire(logKey){
 //   nouveau contrat le cas échéant.
 const GL_CATEGORIES=[
   {key:'dpe',label:'DPE',scope:'logement'},
+  {key:'erp',label:"État des risques (ERP)",scope:'logement'},
   {key:'assurance',label:'Assurance locataire',scope:'contrat'},
   {key:'edl',label:'État des lieux',scope:'contrat'},
   {key:'bail',label:'Bail',scope:'contrat'},
+  {key:'avenant',label:'Avenants',scope:'contrat'},
+  {key:'identite',label:"Pièces d'identité",scope:'contrat'},
   {key:'autre',label:'Autre',scope:'logement'}
 ];
 function loadGLDocs(){
@@ -8367,6 +8515,16 @@ function renderParametres(){
           <div class="form-group"><label>Adresse</label><input id="ml-adresse" type="text" placeholder="ex: 12 rue de la Paix, 85000 ..."></div>
           <div class="form-group"><label>⚡ PDL électricité</label><input id="ml-pdl" type="text" placeholder="14 chiffres (point de livraison)" maxlength="14"></div>
           <div class="form-group"><label>💧 N° compteur eau</label><input id="ml-compteur-eau" type="text" placeholder="ex: 123456789"></div>
+          <div class="form-group" style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:14px;margin-top:2px">
+            <label style="font-weight:600;color:var(--text2)">📋 Fiche technique du logement</label>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:10px">Utilisée pour la surface légale sur le bail, et pour générer automatiquement les pièces de l'état des lieux.</div>
+          </div>
+          <div class="form-group"><label>Surface habitable (m²)</label><input id="ml-surface" type="number" step="0.1" min="0" placeholder="ex: 45.5"></div>
+          <div class="form-group"><label>Nombre de pièces</label><input id="ml-nb-pieces" type="number" min="1" placeholder="ex: 3"></div>
+          <div class="form-group"><label>Chambres</label><input id="ml-nb-chambres" type="number" min="0" placeholder="ex: 2"></div>
+          <div class="form-group"><label>Salles d'eau (bain/douche)</label><input id="ml-nb-sdb" type="number" min="0" placeholder="ex: 1"></div>
+          <div class="form-group"><label>WC séparés</label><input id="ml-nb-wc" type="number" min="0" placeholder="ex: 1"></div>
+          <div class="form-group"><label>Chauffage</label><input id="ml-chauffage" type="text" placeholder="ex: Électrique, Gaz individuel..."></div>
           <div class="form-group"><label>Couleur</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="ml-colors">
               ${LOG_COLORS.map(c=>`<div onclick="selectLogColor('${c}')" style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;border:2px solid transparent;transition:.15s" data-color="${c}"></div>`).join('')}
@@ -8503,6 +8661,12 @@ function ouvrirModalLogement(idx){
   document.getElementById('ml-adresse').value=lg?lg.adresse||'':'';
   document.getElementById('ml-pdl').value=lg?lg.pdl||'':'';
   document.getElementById('ml-compteur-eau').value=lg?lg.compteurEau||'':'';
+  document.getElementById('ml-surface').value=lg?lg.surfaceM2||'':'';
+  document.getElementById('ml-nb-pieces').value=lg?lg.nbPieces||'':'';
+  document.getElementById('ml-nb-chambres').value=lg?lg.nbChambres||'':'';
+  document.getElementById('ml-nb-sdb').value=lg?lg.nbSallesEau||'':'';
+  document.getElementById('ml-nb-wc').value=lg?lg.nbWC||'':'';
+  document.getElementById('ml-chauffage').value=lg?lg.chauffage||'':'';
   const color=lg?lg.color:LOG_COLORS[0];
   document.getElementById('ml-color').value=color;
   selectLogColor(color);
@@ -8527,14 +8691,20 @@ function sauvegarderLogement(){
   const adresse=document.getElementById('ml-adresse').value.trim();
   const pdl=(document.getElementById('ml-pdl')?.value||'').trim();
   const compteurEau=(document.getElementById('ml-compteur-eau')?.value||'').trim();
+  const surfaceM2=+document.getElementById('ml-surface')?.value||0;
+  const nbPieces=+document.getElementById('ml-nb-pieces')?.value||0;
+  const nbChambres=+document.getElementById('ml-nb-chambres')?.value||0;
+  const nbSallesEau=+document.getElementById('ml-nb-sdb')?.value||0;
+  const nbWC=+document.getElementById('ml-nb-wc')?.value||0;
+  const chauffage=(document.getElementById('ml-chauffage')?.value||'').trim();
   const color=document.getElementById('ml-color').value;
   const hasPrevisionnel=document.getElementById('ml-previsionnel')?document.getElementById('ml-previsionnel').checked:true;
   const logs=loadLogements();
   if(_editLogIdx!==null){
-    logs[_editLogIdx]={...logs[_editLogIdx],label,adresse,pdl,compteurEau,color,hasPrevisionnel};
+    logs[_editLogIdx]={...logs[_editLogIdx],label,adresse,pdl,compteurEau,surfaceM2,nbPieces,nbChambres,nbSallesEau,nbWC,chauffage,color,hasPrevisionnel};
   }else{
     const key='L'+(Date.now().toString(36).slice(-4).toUpperCase());
-    logs.push({key,label,adresse,pdl,compteurEau,color,actif:true,hasPrevisionnel});
+    logs.push({key,label,adresse,pdl,compteurEau,surfaceM2,nbPieces,nbChambres,nbSallesEau,nbWC,chauffage,color,actif:true,hasPrevisionnel});
   }
   saveLogements(logs);
   document.getElementById('modal-logement').style.display='none';
@@ -10482,6 +10652,12 @@ function openLocModal(id,logKeyDefault){
     document.getElementById('loc-prenom').value=l.prenom||'';
     document.getElementById('loc-tel').value=l.telephone||'';
     document.getElementById('loc-email').value=l.email||'';
+    document.getElementById('loc-nom2').value=l.nom2||'';
+    document.getElementById('loc-prenom2').value=l.prenom2||'';
+    document.getElementById('loc-tel2').value=l.telephone2||'';
+    document.getElementById('loc-email2').value=l.email2||'';
+    document.getElementById('loc-cotitulaire-toggle').checked=!!l.nom2;
+    document.getElementById('loc-cotitulaire-bloc').style.display=l.nom2?'grid':'none';
     document.getElementById('loc-entree').value=l.dateEntree||'';
     document.getElementById('loc-sortie').value=l.dateSortie||'';
     document.getElementById('loc-loyer').value=l.loyerHC||'';
@@ -10495,6 +10671,12 @@ function openLocModal(id,logKeyDefault){
     document.getElementById('loc-prenom').value='';
     document.getElementById('loc-tel').value='';
     document.getElementById('loc-email').value='';
+    document.getElementById('loc-nom2').value='';
+    document.getElementById('loc-prenom2').value='';
+    document.getElementById('loc-tel2').value='';
+    document.getElementById('loc-email2').value='';
+    document.getElementById('loc-cotitulaire-toggle').checked=false;
+    document.getElementById('loc-cotitulaire-bloc').style.display='none';
     document.getElementById('loc-entree').value=todayStr();
     document.getElementById('loc-sortie').value='';
     document.getElementById('loc-loyer').value='';
@@ -10564,6 +10746,10 @@ function saveLocataireForm(){
     prenom:document.getElementById('loc-prenom').value.trim(),
     telephone:document.getElementById('loc-tel').value.trim(),
     email:document.getElementById('loc-email').value.trim(),
+    nom2:document.getElementById('loc-cotitulaire-toggle').checked?document.getElementById('loc-nom2').value.trim():'',
+    prenom2:document.getElementById('loc-cotitulaire-toggle').checked?document.getElementById('loc-prenom2').value.trim():'',
+    telephone2:document.getElementById('loc-cotitulaire-toggle').checked?document.getElementById('loc-tel2').value.trim():'',
+    email2:document.getElementById('loc-cotitulaire-toggle').checked?document.getElementById('loc-email2').value.trim():'',
     dateEntree:document.getElementById('loc-entree').value,
     dateSortie:document.getElementById('loc-sortie').value,
     loyerHC:+document.getElementById('loc-loyer').value||0,
@@ -11050,7 +11236,9 @@ async function validerModalQuittance(locId){
 // ── SIGNATURE TACTILE DU BAIL ────────────────────────────────────────────
 let _sigBailLocId=null;
 let _otpBailCode=null,_otpBailExpiry=null,_otpBailVerifie=false;
-let _sigDistanceDocId=null,_sigDistanceUnsub=null,_sigDistanceLocataireB64=null;
+let _sigDistanceDocId=null,_sigDistanceUnsub=null,_sigDistanceLocataireB64=null,_sigDistanceLocataireTrace=null,_sigDistanceLocataireIdPhotoRecto=null,_sigDistanceLocataireIdPhotoVerso=null;
+let _otpBailCode2=null,_otpBailExpiry2=null,_otpBailVerifie2=false;
+let _sigDistanceDocId2=null,_sigDistanceUnsub2=null,_sigDistanceLocataireB64_2=null,_sigDistanceLocataireTrace2=null,_sigDistanceLocataireIdPhotoRecto2=null,_sigDistanceLocataireIdPhotoVerso2=null;
 const _sigPadState={bailleur:{ctx:null,drew:false},locataire:{ctx:null,drew:false}};
 function _initSignaturePad(who){
   const canvas=document.getElementById('sigpad-'+who);
@@ -11081,7 +11269,10 @@ function ouvrirSignatureBail(locId){
   _sigBailLocId=locId;
   _otpBailCode=null;_otpBailExpiry=null;_otpBailVerifie=false;
   arreterEcouteSignatureDistance();
-  _sigDistanceDocId=null;_sigDistanceLocataireB64=null;
+  _sigDistanceDocId=null;_sigDistanceLocataireB64=null;_sigDistanceLocataireTrace=null;_sigDistanceLocataireIdPhotoRecto=null;_sigDistanceLocataireIdPhotoVerso=null;
+  arreterEcouteSignatureDistance2();
+  _otpBailCode2=null;_otpBailExpiry2=null;_otpBailVerifie2=false;
+  _sigDistanceDocId2=null;_sigDistanceLocataireB64_2=null;_sigDistanceLocataireTrace2=null;_sigDistanceLocataireIdPhotoRecto2=null;_sigDistanceLocataireIdPhotoVerso2=null;
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   let modal=document.getElementById('modal-signature-bail');
@@ -11122,6 +11313,12 @@ function ouvrirSignatureBail(locId){
         </div>
         <canvas id="sigpad-locataire" style="width:100%;height:110px;background:#fff;border-radius:8px;border:1px solid var(--border2);touch-action:none;cursor:crosshair"></canvas>
         <div style="font-size:10px;color:var(--text3);margin-top:6px">À faire signer par le locataire sur cet appareil, ou envoie-lui le lien ci-dessous pour qu'il signe depuis son propre téléphone.</div>
+        <div style="margin-top:10px">
+          <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Pièce d'identité — recto (recommandé, si signature sur cet appareil)</label>
+          <input type="file" id="id-photo-bail-input" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px;margin-bottom:6px">
+          <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Verso</label>
+          <input type="file" id="id-photo-bail-input-verso" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px">
+        </div>
       </div>
 
       <div style="background:rgba(185,142,212,.06);border:1px solid rgba(185,142,212,.25);border-radius:10px;padding:14px 16px;margin-bottom:16px">
@@ -11146,13 +11343,52 @@ function ouvrirSignatureBail(locId){
         `:`<div style="font-size:11px;color:var(--orange)">Renseigne un email pour ce locataire (fiche locataire) pour activer la vérification par code.</div>`}
       </div>
 
+      ${loc.nom2?(()=>{const emailLoc2=loc.email2?loc.email2:'';return`
+      <div style="border-top:2px dashed var(--border2);margin:20px 0;padding-top:20px">
+        <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:12px">👥 2e titulaire — ${(loc.prenom2?loc.prenom2+' ':'')+(loc.nom2||'')}</div>
+
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label style="font-size:11px;color:var(--text2);font-weight:600">Signature du 2e locataire</label>
+            <button onclick="effacerSignature('locataire2')" style="background:none;border:none;color:var(--text3);font-size:10px;text-decoration:underline;cursor:pointer">Effacer</button>
+          </div>
+          <canvas id="sigpad-locataire2" style="width:100%;height:110px;background:#fff;border-radius:8px;border:1px solid var(--border2);touch-action:none;cursor:crosshair"></canvas>
+          <div style="margin-top:10px">
+            <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Pièce d'identité — recto (recommandé, si signature sur cet appareil)</label>
+            <input type="file" id="id-photo-bail-input2" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px;margin-bottom:6px">
+            <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Verso</label>
+            <input type="file" id="id-photo-bail-input2-verso" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px">
+          </div>
+        </div>
+
+        <div style="background:rgba(185,142,212,.06);border:1px solid rgba(185,142,212,.25);border-radius:10px;padding:14px 16px;margin-bottom:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--purple);margin-bottom:6px">📱 Ou faire signer à distance, sur son propre téléphone</div>
+          ${emailLoc2?`
+            <button onclick="envoyerLienSignatureDistance2()" id="btn-lien-signature-distance2" style="background:rgba(185,142,212,.12);border:1px solid rgba(185,142,212,.4);border-radius:7px;padding:8px 14px;color:var(--purple);font-size:11px;font-weight:600;cursor:pointer">📧 Envoyer le lien de signature</button>
+            <div id="lien-signature-status2" style="font-size:11px;margin-top:10px;display:none"></div>
+          `:`<div style="font-size:11px;color:var(--orange)">Renseigne un email pour ce 2e titulaire pour activer la signature à distance.</div>`}
+        </div>
+
+        <div style="background:rgba(90,200,216,.06);border:1px solid rgba(90,200,216,.25);border-radius:10px;padding:14px 16px;margin-bottom:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px">📧 Vérification d'identité (recommandé)</div>
+          ${emailLoc2?`
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button onclick="envoyerCodeVerificationBail2()" id="btn-envoyer-code-bail2" style="background:rgba(90,200,216,.12);border:1px solid rgba(90,200,216,.4);border-radius:7px;padding:8px 14px;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer">Envoyer le code</button>
+              <input type="text" id="otp-bail-input2" placeholder="Code reçu par email" maxlength="6" style="flex:1;min-width:140px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px 12px;color:var(--text);font-size:13px;letter-spacing:3px;text-align:center;font-family:var(--font)">
+              <button onclick="validerCodeVerificationBail2()" style="background:rgba(127,191,158,.12);border:1px solid rgba(127,191,158,.4);border-radius:7px;padding:8px 14px;color:var(--green);font-size:11px;font-weight:600;cursor:pointer">Vérifier</button>
+            </div>
+            <div id="otp-bail-status2" style="font-size:11px;margin-top:8px;display:none"></div>
+          `:''}
+        </div>
+      </div>`;})():''}
+
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
         <button onclick="arreterEcouteSignatureDistance();document.getElementById('modal-signature-bail').remove();genererBail(_sigBailLocId)" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text2);font-size:12px;cursor:pointer">Générer sans signer</button>
         <button onclick="validerSignatureBail()" style="background:var(--accent);color:#0a0e1a;border:1px solid var(--accent);border-radius:8px;padding:10px 18px;font-size:12px;font-weight:700;cursor:pointer">✓ Valider et générer le bail signé</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
-  setTimeout(()=>{_initSignaturePad('bailleur');_initSignaturePad('locataire');},50);
+  setTimeout(()=>{_initSignaturePad('bailleur');_initSignaturePad('locataire');if(loc&&loc.nom2)_initSignaturePad('locataire2');},50);
 }
 // Appelé quand on coche/décoche "Inclure l'état des lieux d'entrée" directement depuis la
 // fenêtre de signature du bail — plus besoin de passer par le bouton "🔑 EDL entrée" en amont :
@@ -11265,6 +11501,9 @@ async function envoyerLienSignatureDistance(){
     const d=snap.data();
     if(d.statut==='signe'&&d.locataireSignature){
       _sigDistanceLocataireB64=d.locataireSignature;
+      _sigDistanceLocataireTrace={ip:d.locataireIP||'',horodatage:d.locataireHorodatage||'',userAgent:d.locataireUserAgent||''};
+      _sigDistanceLocataireIdPhotoRecto=d.locataireIdPhotoRecto||null;
+      _sigDistanceLocataireIdPhotoVerso=d.locataireIdPhotoVerso||null;
       const canvas=document.getElementById('sigpad-locataire');
       if(canvas){
         const c=canvas.getContext('2d');
@@ -11272,12 +11511,287 @@ async function envoyerLienSignatureDistance(){
         img.onload=()=>{c.clearRect(0,0,canvas.width,canvas.height);c.drawImage(img,0,0,canvas.width/(window.devicePixelRatio||1),canvas.height/(window.devicePixelRatio||1));};
         img.src=d.locataireSignature;
       }
-      if(statusEl){statusEl.style.color='var(--green)';statusEl.textContent='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.';}
+      if(statusEl){
+        statusEl.style.color='var(--green)';
+        const nbPhotos=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
+        statusEl.innerHTML='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
+          +(nbPhotos?'<br>✓ Pièce d\'identité reçue ('+(nbPhotos===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>')
+          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso,'verif-identite-1');
+        if(d.locataireIdPhotoRecto)_lancerVerificationIdentiteGemini(d.locataireIdPhotoRecto,nomCompletLoc(loc),'verif-identite-1');
+      }
     }
   });
 }
+// Ouvre une image (photo de pièce d'identité) en grand, dans un cadre simple par-dessus la
+// fenêtre en cours — pour vérifier visuellement que c'est bien le bon document avant de valider.
+function _ouvrirApercuImage(src){
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out';
+  overlay.innerHTML=`<img src="${src}" style="max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.6)">`;
+  overlay.onclick=()=>overlay.remove();
+  document.body.appendChild(overlay);
+}
+// Construit les miniatures cliquables recto/verso à afficher sous le statut de signature à
+// distance — un simple texte "reçue" ne permet pas de vérifier que c'est le bon document.
+function _apercuPiecesIdentiteHtml(recto,verso,verifId){
+  if(!recto&&!verso)return'';
+  const miniature=(src,label)=>`<img src="${src}" onclick="_ouvrirApercuImage(this.src)" title="Cliquer pour agrandir — ${label}" style="height:70px;border-radius:6px;border:1px solid var(--border2);cursor:zoom-in;object-fit:cover">`;
+  return `<div style="display:flex;gap:8px;margin-top:8px;align-items:center">${recto?miniature(recto,'recto'):''}${verso?miniature(verso,'verso'):''}</div><div id="${verifId}" style="font-size:11px;margin-top:6px"></div>`;
+}
+// Lance la vérification Gemini (lecture du nom sur la pièce, comparaison au nom attendu) et
+// met à jour l'élément de statut correspondant. Best-effort : ne bloque jamais la signature,
+// c'est une aide visuelle pour le bailleur avant de valider, pas une validation légale automatique.
+async function _lancerVerificationIdentiteGemini(recto,nomAttendu,verifElId){
+  const el=document.getElementById(verifElId);
+  if(!el||!recto||!nomAttendu)return;
+  if(!getGeminiKeys().length){
+    el.innerHTML='<span style="color:var(--text3)">ℹ Ajoute une clé API Gemini (Paramètres) pour vérifier automatiquement la correspondance du nom.</span>';
+    return;
+  }
+  el.innerHTML='<span style="color:var(--text3)">⏳ Vérification du nom sur la pièce (IA)…</span>';
+  const res=await verifierIdentiteAvecGemini(recto,nomAttendu);
+  if(!res){
+    el.innerHTML='<span style="color:var(--text3)">ℹ Vérification automatique indisponible — vérifie visuellement.</span>';
+    return;
+  }
+  el.innerHTML=res.correspond
+    ?`<span style="color:var(--green)">✓ Nom lu sur la pièce (${res.nomLu||'?'}) — correspond au bail</span>`
+    :`<span style="color:var(--red)">⚠ Nom lu sur la pièce (${res.nomLu||'illisible'}) — ne correspond PAS clairement à "${nomAttendu}", vérifie manuellement</span>`;
+}
 function arreterEcouteSignatureDistance(){
   if(_sigDistanceUnsub){try{_sigDistanceUnsub();}catch(e){}_sigDistanceUnsub=null;}
+}
+// ── Les 4 fonctions ci-dessous sont l'équivalent, pour le 2e titulaire du bail, de
+// envoyerCodeVerificationBail/envoyerLienSignatureDistance/arreterEcouteSignatureDistance/
+// validerCodeVerificationBail — mêmes principes, ciblent loc.email2/loc.nom2 et les variables
+// globales suffixées "2".
+async function envoyerCodeVerificationBail2(){
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(_sigBailLocId));
+  if(!loc||!loc.email2)return;
+  const btn=document.getElementById('btn-envoyer-code-bail2');
+  const statusEl=document.getElementById('otp-bail-status2');
+  if(btn){btn.disabled=true;btn.textContent='Envoi…';}
+  const code=_genererCode6();
+  const cfg=getCTXConfig();
+  const ok=await envoyerEmailImmediat(loc.email2,'Code de vérification — signature de votre bail',
+    `Bonjour ${loc.nom2||''},\n\nVoici votre code de vérification pour confirmer la signature de votre bail avec ${cfg.nom} :\n\n${code}\n\nCe code est valable 10 minutes. Ne le communiquez à personne.\n\nCordialement,\n${cfg.nom}`,
+    null,
+    construireEmailHTML({
+      titre:'Code de vérification',
+      intro:`Bonjour ${loc.nom2||''},\n\nVoici votre code pour confirmer la signature de votre bail avec ${cfg.nom} :`,
+      code:code,
+      note:'Ce code est valable 10 minutes. Ne le communiquez à personne.'
+    }));
+  if(btn){btn.disabled=false;btn.textContent='Renvoyer le code';}
+  if(!ok){
+    if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Échec de l\'envoi de l\'email — voir la console (F12) pour le détail.';}
+    return;
+  }
+  _otpBailCode2=code;
+  _otpBailExpiry2=Date.now()+10*60*1000;
+  _otpBailVerifie2=false;
+  if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--text2)';statusEl.textContent='✓ Code envoyé à '+loc.email2+' — valable 10 minutes.';}
+}
+async function envoyerLienSignatureDistance2(){
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(_sigBailLocId));
+  if(!loc||!loc.email2)return;
+  const cfg=getCTXConfig();
+  const lg=getLogementsActifs().find(x=>x.key===loc.logement);
+  const btn=document.getElementById('btn-lien-signature-distance2');
+  const statusEl=document.getElementById('lien-signature-status2');
+  if(btn){btn.disabled=true;btn.textContent='Envoi…';}
+  const id=genererIdQuittancePublique();
+  let sigPourApercu=null;
+  if(_edlPretPourSignature&&_edlPretPourSignature.locId===String(_sigBailLocId)&&document.getElementById('chk-inclure-edl')?.checked){
+    const edlBody=construireEdlBodyHTML(_sigBailLocId,_edlPretPourSignature.type,null);
+    if(edlBody)sigPourApercu={edlBodyHtml:edlBody};
+  }
+  const bailHtmlNonSigne=rendreLecturePourMobile(construireBailHTML(_sigBailLocId,sigPourApercu))||'';
+  try{
+    await window._setDoc(window._doc(window._db,'signatures_attente',id),{
+      structureId:window._structureId,
+      ownerUid:window._currentUid,
+      locId:String(_sigBailLocId),
+      locataireNom:loc.nom2||'',
+      bailleurNom:cfg.nom||'',
+      logementLabel:lg?lg.label:'',
+      logementAdresse:lg?lg.adresse:'',
+      bailHtml:bailHtmlNonSigne,
+      statut:'en_attente',
+      expireLe:Date.now()+7*24*60*60*1000,
+      createdAt:new Date().toISOString()
+    });
+  }catch(e){
+    console.error('Création du lien de signature (2e titulaire) échouée:',e);
+    if(btn){btn.disabled=false;btn.textContent='📧 Envoyer le lien de signature';}
+    if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Erreur lors de la création du lien.';}
+    return;
+  }
+  const lien=window.location.origin+window.location.pathname.replace(/structure\.html$/,'')+'signature.html?id='+id;
+  const ok=await envoyerEmailImmediat(loc.email2,'Signature de votre bail — '+cfg.nom,
+    `Bonjour ${loc.nom2||''},\n\nVotre bailleur ${cfg.nom} vous invite à signer votre bail en ligne, directement depuis votre téléphone ou ordinateur.\n\nCliquez sur ce lien pour signer :\n${lien}\n\nCe lien est valable 7 jours.\n\nCordialement,\n${cfg.nom}`,
+    null,
+    construireEmailHTML({
+      titre:'Signature de votre bail',
+      intro:`Bonjour ${loc.nom2||''},\n\nVotre bailleur ${cfg.nom} vous invite à signer votre bail en ligne, directement depuis votre téléphone ou ordinateur. Le contenu complet du bail s'affichera avant la signature.`,
+      boutonTexte:'✍️ Signer mon bail',
+      boutonUrl:lien,
+      note:'Ce lien est valable 7 jours. Si vous n\'attendiez pas cet email, vous pouvez l\'ignorer.'
+    }));
+  if(btn){btn.disabled=false;btn.textContent='📧 Renvoyer le lien';}
+  if(!ok){
+    if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Échec de l\'envoi de l\'email — voir la console (F12) pour le détail.';}
+    return;
+  }
+  _sigDistanceDocId2=id;
+  if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--text2)';statusEl.textContent='✓ Lien envoyé à '+loc.email2+'. ⏳ En attente de sa signature…';}
+  arreterEcouteSignatureDistance2();
+  _sigDistanceUnsub2=window._onSnapshot(window._doc(window._db,'signatures_attente',id),(snap)=>{
+    if(!snap.exists())return;
+    const d=snap.data();
+    if(d.statut==='signe'&&d.locataireSignature){
+      _sigDistanceLocataireB64_2=d.locataireSignature;
+      _sigDistanceLocataireTrace2={ip:d.locataireIP||'',horodatage:d.locataireHorodatage||'',userAgent:d.locataireUserAgent||''};
+      _sigDistanceLocataireIdPhotoRecto2=d.locataireIdPhotoRecto||null;
+      _sigDistanceLocataireIdPhotoVerso2=d.locataireIdPhotoVerso||null;
+      const canvas=document.getElementById('sigpad-locataire2');
+      if(canvas){
+        const c=canvas.getContext('2d');
+        const img=new Image();
+        img.onload=()=>{c.clearRect(0,0,canvas.width,canvas.height);c.drawImage(img,0,0,canvas.width/(window.devicePixelRatio||1),canvas.height/(window.devicePixelRatio||1));};
+        img.src=d.locataireSignature;
+      }
+      if(statusEl){
+        statusEl.style.color='var(--green)';
+        const nbPhotos2=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
+        statusEl.innerHTML='✓ Le 2e locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
+          +(nbPhotos2?'<br>✓ Pièce d\'identité reçue ('+(nbPhotos2===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>')
+          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso,'verif-identite-2');
+        if(d.locataireIdPhotoRecto)_lancerVerificationIdentiteGemini(d.locataireIdPhotoRecto,(loc.prenom2?loc.prenom2+' ':'')+(loc.nom2||''),'verif-identite-2');
+      }
+    }
+  });
+}
+function arreterEcouteSignatureDistance2(){
+  if(_sigDistanceUnsub2){try{_sigDistanceUnsub2();}catch(e){}_sigDistanceUnsub2=null;}
+}
+function validerCodeVerificationBail2(){
+  const input=document.getElementById('otp-bail-input2');
+  const statusEl=document.getElementById('otp-bail-status2');
+  const saisi=(input?.value||'').trim();
+  if(!_otpBailCode2){
+    if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--orange)';statusEl.textContent='Envoie d\'abord le code avant de le vérifier.';}
+    return;
+  }
+  if(Date.now()>_otpBailExpiry2){
+    if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Code expiré — renvoie-en un nouveau.';}
+    _otpBailVerifie2=false;
+    return;
+  }
+  if(saisi!==_otpBailCode2){
+    if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--red)';statusEl.textContent='✗ Code incorrect.';}
+    _otpBailVerifie2=false;
+    return;
+  }
+  _otpBailVerifie2=true;
+  if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--green)';statusEl.textContent='✓ Identité du 2e locataire vérifiée.';}
+}
+// Capture une trace de traçabilité (IP + horodatage précis + appareil) au moment de la
+// signature — renforce la valeur de preuve de la signature électronique simple en cas de
+// litige, sans coût ni service tiers. Échec silencieux : ne bloque jamais la signature.
+async function _capturerTraceSignature(){
+  let ip='';
+  try{
+    const r=await fetch('https://api.ipify.org?format=json');
+    const d=await r.json();
+    ip=d.ip||'';
+  }catch(e){}
+  return {ip, horodatage:new Date().toISOString(), userAgent:navigator.userAgent||''};
+}
+// Lit un champ <input type=file> et redimensionne/compresse l'image (photo de pièce
+// d'identité, souvent plusieurs Mo en sortie directe d'appareil photo) pour rester largement
+// sous la limite de 1 Mo par document Firestore.
+// Empreinte SHA-256 d'une image (data URI) — imprimée sur le bail signé lui-même : preuve
+// que le fichier consultable aujourd'hui (sur Drive) est EXACTEMENT celui déjà référencé dans
+// le document daté et signé, sans possibilité de le faire passer pour substitué après coup.
+async function sha256Hex(dataUrl){
+  if(!dataUrl)return'';
+  try{
+    const base64=dataUrl.split(',')[1]||'';
+    const bytes=atob(base64);
+    const arr=new Uint8Array(bytes.length);
+    for(let i=0;i<bytes.length;i++)arr[i]=bytes.charCodeAt(i);
+    const hashBuffer=await crypto.subtle.digest('SHA-256',arr);
+    return Array.from(new Uint8Array(hashBuffer)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }catch(e){console.error('Calcul empreinte SHA-256 échoué:',e);return'';}
+}
+// Demande à Gemini de lire le nom imprimé sur une pièce d'identité et de le comparer au nom
+// attendu du locataire — signal d'alerte utile avant de valider, jamais bloquant (l'IA peut
+// se tromper : c'est une aide à la vérification, pas une validation légale automatique).
+async function verifierIdentiteAvecGemini(imageB64,nomAttendu){
+  if(!getGeminiKeys().length||!imageB64||!nomAttendu)return null;
+  try{
+    const base64Data=imageB64.split(',')[1];
+    const data=await callGeminiAPI('gemini-3.1-flash-lite',{
+      contents:[{parts:[
+        {inline_data:{mime_type:'image/jpeg',data:base64Data}},
+        {text:`Voici la photo d'une pièce d'identité (carte d'identité, passeport ou titre de séjour). Lis le nom et le prénom imprimés dessus. Compare-les au nom attendu : "${nomAttendu}". Réponds UNIQUEMENT en JSON valide, sans markdown : {"nomLu":"nom et prénom tels que lus sur le document, chaîne vide si illisible","correspond":true ou false}. "correspond" doit être true si le nom lu correspond au nom attendu (tolère les différences d'ordre nom/prénom, majuscules, accents), false sinon.`}
+      ]}],
+      generationConfig:{temperature:0}
+    });
+    const texte=data?.candidates?.[0]?.content?.parts?.[0]?.text||'';
+    const m=texte.match(/\{[\s\S]*\}/);
+    if(!m)return null;
+    return JSON.parse(m[0]);
+  }catch(e){console.error('Vérification identité Gemini échouée (non bloquant):',e);return null;}
+}
+function _lireEtCompresserFichierImage(inputEl){
+  return new Promise(resolve=>{
+    const file=inputEl&&inputEl.files&&inputEl.files[0];
+    if(!file){resolve(null);return;}
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const maxDim=1400;
+        const scale=Math.min(1,maxDim/Math.max(img.width,img.height));
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.round(img.width*scale);
+        canvas.height=Math.round(img.height*scale);
+        const c=canvas.getContext('2d');
+        c.drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL('image/jpeg',0.7));
+      };
+      img.onerror=()=>resolve(reader.result);
+      img.src=reader.result;
+    };
+    reader.onerror=()=>resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+// Enregistre la photo de pièce d'identité prise au moment d'une signature — STRICTEMENT en
+// document privé de la gestion locative (jamais imprimée sur le bail/avenant, jamais jointe
+// à l'email envoyé au locataire) : c'est une donnée personnelle sensible au sens du RGPD, sa
+// diffusion doit rester limitée au strict nécessaire (preuve conservée par le bailleur).
+async function _sauvegarderPhotoIdentite(locId,idPhotoB64,libelleDoc){
+  if(!idPhotoB64)return;
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(locId));
+  if(!loc)return;
+  let lien='';
+  try{
+    const fileName='CNI_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'_'+todayStr()+'.jpg';
+    lien=await uploadToDriveGestionLocative(idPhotoB64,fileName,loc.logement)||'';
+  }catch(e){console.error('Upload Drive pièce d\'identité échoué (non bloquant) :',e);}
+  const docs=loadGLDocs();
+  docs.push({
+    id:'identite_'+Date.now(), logement:loc.logement, categorie:'identite',
+    libelle:libelleDoc+' — '+fmtDate(todayStr()), dateCreation:todayStr(),
+    dateExpiration:'', lien, htmlContent: lien?'':`<div style="text-align:center;padding:20px"><img src="${idPhotoB64}" style="max-width:100%;border-radius:8px"></div>`
+  });
+  saveGLDocs(docs);
 }
 function validerCodeVerificationBail(){
   const input=document.getElementById('otp-bail-input');
@@ -11300,32 +11814,83 @@ function validerCodeVerificationBail(){
   _otpBailVerifie=true;
   if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--green)';statusEl.textContent='✓ Identité du locataire vérifiée.';}
 }
-function validerSignatureBail(){
+async function validerSignatureBail(){
+  const locs0=loadLocataires();
+  const loc0=locs0.find(l=>String(l.id)===String(_sigBailLocId));
   const bCanvas=document.getElementById('sigpad-bailleur');
   const lCanvas=document.getElementById('sigpad-locataire');
+  const lCanvas2=document.getElementById('sigpad-locataire2');
   const sig={date:todayStr()};
   if(_sigPadState.bailleur.drew)sig.bailleur=bCanvas.toDataURL('image/png');
   if(_sigDistanceLocataireB64)sig.locataire=_sigDistanceLocataireB64;
   else if(_sigPadState.locataire.drew)sig.locataire=lCanvas.toDataURL('image/png');
+  if(loc0&&loc0.nom2){
+    if(_sigDistanceLocataireB64_2)sig.locataire2=_sigDistanceLocataireB64_2;
+    else if(_sigPadState.locataire2&&_sigPadState.locataire2.drew)sig.locataire2=lCanvas2.toDataURL('image/png');
+  }
   if(!sig.locataire){
     if(!confirm('Le locataire n\'a pas encore signé — générer quand même le bail (la case signature locataire restera vide, à compléter plus tard) ?'))return;
   } else if(!_otpBailVerifie&&!_sigDistanceLocataireB64){
     if(!confirm('L\'identité du locataire n\'a pas été vérifiée par code email — la signature aura une valeur de preuve plus faible en cas de litige. Continuer quand même ?'))return;
   }
+  if(loc0&&loc0.nom2){
+    if(!sig.locataire2){
+      if(!confirm('Le 2e titulaire n\'a pas encore signé — générer quand même le bail (sa case signature restera vide, à compléter plus tard) ?'))return;
+    } else if(!_otpBailVerifie2&&!_sigDistanceLocataireB64_2){
+      if(!confirm('L\'identité du 2e titulaire n\'a pas été vérifiée par code email — sa signature aura une valeur de preuve plus faible en cas de litige. Continuer quand même ?'))return;
+    }
+  }
   if(_otpBailVerifie){
-    const locs=loadLocataires();
-    const loc=locs.find(l=>String(l.id)===String(_sigBailLocId));
     sig.emailVerifie=true;
-    sig.emailVerifieAdresse=loc?loc.email:'';
+    sig.emailVerifieAdresse=loc0?loc0.email:'';
   } else if(_sigDistanceLocataireB64){
-    const locs=loadLocataires();
-    const loc=locs.find(l=>String(l.id)===String(_sigBailLocId));
     sig.emailVerifie=true;
-    sig.emailVerifieAdresse=loc?loc.email:'';
+    sig.emailVerifieAdresse=loc0?loc0.email:'';
     sig.viaLienDistance=true;
+  }
+  if(_otpBailVerifie2){
+    sig.emailVerifie2=true;
+    sig.emailVerifieAdresse2=loc0?loc0.email2:'';
+  } else if(_sigDistanceLocataireB64_2){
+    sig.emailVerifie2=true;
+    sig.emailVerifieAdresse2=loc0?loc0.email2:'';
+    sig.viaLienDistance2=true;
+  }
+  // Trace de traçabilité du bailleur, capturée sur cet appareil. Pour chaque locataire : sa
+  // propre trace (IP/appareil distincts) s'il a signé à distance sur son téléphone, sinon
+  // la même trace que le bailleur si signé en personne sur ce même appareil.
+  if(sig.bailleur)sig.traceBailleur=await _capturerTraceSignature();
+  if(sig.locataire){
+    if(_sigDistanceLocataireTrace)sig.traceLocataire=_sigDistanceLocataireTrace;
+    else sig.traceLocataire=sig.traceBailleur||await _capturerTraceSignature();
+    // Pièce d'identité (recto/verso) : celle transmise à distance par le locataire, sinon
+    // celle éventuellement jointe sur cet appareil au moment de la signature en personne.
+    if(_sigDistanceLocataireIdPhotoRecto||_sigDistanceLocataireIdPhotoVerso){
+      sig.locataireIdPhotoRecto=_sigDistanceLocataireIdPhotoRecto;
+      sig.locataireIdPhotoVerso=_sigDistanceLocataireIdPhotoVerso;
+    } else {
+      sig.locataireIdPhotoRecto=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input'));
+      sig.locataireIdPhotoVerso=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input-verso'));
+    }
+    sig.locataireIdPhotoRectoHash=await sha256Hex(sig.locataireIdPhotoRecto);
+    sig.locataireIdPhotoVersoHash=await sha256Hex(sig.locataireIdPhotoVerso);
+  }
+  if(sig.locataire2){
+    if(_sigDistanceLocataireTrace2)sig.traceLocataire2=_sigDistanceLocataireTrace2;
+    else sig.traceLocataire2=sig.traceBailleur||await _capturerTraceSignature();
+    if(_sigDistanceLocataireIdPhotoRecto2||_sigDistanceLocataireIdPhotoVerso2){
+      sig.locataireIdPhotoRecto2=_sigDistanceLocataireIdPhotoRecto2;
+      sig.locataireIdPhotoVerso2=_sigDistanceLocataireIdPhotoVerso2;
+    } else {
+      sig.locataireIdPhotoRecto2=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input2'));
+      sig.locataireIdPhotoVerso2=await _lireEtCompresserFichierImage(document.getElementById('id-photo-bail-input2-verso'));
+    }
+    sig.locataireIdPhotoRecto2Hash=await sha256Hex(sig.locataireIdPhotoRecto2);
+    sig.locataireIdPhotoVerso2Hash=await sha256Hex(sig.locataireIdPhotoVerso2);
   }
   const inclureEdl=_edlPretPourSignature&&_edlPretPourSignature.locId===String(_sigBailLocId)&&document.getElementById('chk-inclure-edl')?.checked;
   arreterEcouteSignatureDistance();
+  arreterEcouteSignatureDistance2();
   document.getElementById('modal-signature-bail')?.remove();
   if(inclureEdl){
     sig.edlBodyHtml=construireEdlBodyHTML(_sigBailLocId,_edlPretPourSignature.type,sig);
@@ -11341,9 +11906,12 @@ function validerSignatureBail(){
   }
   _edlPretPourSignature=null;
   // Le bailleur signe soit en dessinant à la main, soit implicitement via son tampon déjà
-  // enregistré (fallback utilisé dans le PDF final) — les deux comptent comme "signé".
+  // enregistré (fallback utilisé dans le PDF final) — les deux comptent comme "signé". Le bail
+  // n'est considéré comme entièrement signé que si TOUS les titulaires (le 2e y compris s'il
+  // existe) ont signé.
   const bailleurSigneReel=sig.bailleur||(window._structureInfo&&window._structureInfo.tamponBase64)||'';
-  if(bailleurSigneReel&&sig.locataire){
+  const tousSignataires=bailleurSigneReel&&sig.locataire&&(!(loc0&&loc0.nom2)||sig.locataire2);
+  if(tousSignataires){
     const locsMaj=loadLocataires();
     const idxMaj=locsMaj.findIndex(l=>String(l.id)===String(_sigBailLocId));
     if(idxMaj>-1){
@@ -11354,7 +11922,11 @@ function validerSignatureBail(){
     // Sauvegarde le bail signé dans la gestion locative, sinon impossible à retrouver ensuite —
     // recliquer sur "Bail" régénérait jusqu'ici toujours une version vierge, sans les signatures.
     const bailHtmlFinal=construireBailHTML(_sigBailLocId,sig);
-    if(bailHtmlFinal)sauvegarderBailDansGestion(_sigBailLocId,bailHtmlFinal);
+    if(bailHtmlFinal)await sauvegarderBailDansGestion(_sigBailLocId,bailHtmlFinal,sig);
+    if(sig.locataireIdPhotoRecto)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhotoRecto,'Pièce d\'identité (recto) — bail');
+    if(sig.locataireIdPhotoVerso)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhotoVerso,'Pièce d\'identité (verso) — bail');
+    if(sig.locataireIdPhotoRecto2)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhotoRecto2,'Pièce d\'identité (recto) — bail (2e titulaire)');
+    if(sig.locataireIdPhotoVerso2)await _sauvegarderPhotoIdentite(_sigBailLocId,sig.locataireIdPhotoVerso2,'Pièce d\'identité (verso) — bail (2e titulaire)');
   }
   genererBail(_sigBailLocId,sig);
   envoyerCopieBailSigneAuLocataire(_sigBailLocId,sig);
@@ -11368,14 +11940,29 @@ async function envoyerCopieBailSigneAuLocataire(locId,sig){
   if(!sig||!sig.bailleur||!sig.locataire)return;
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
-  if(!loc||!loc.email)return;
+  if(!loc)return;
+  if(loc.nom2&&!sig.locataire2)return; // 2e titulaire pas encore signé : pas de copie tant que tout le monde n'a pas signé
   const cfg=getCTXConfig();
   try{
     const pdfBase64=await bailPdfBase64(locId,sig);
     if(!pdfBase64){console.error('Copie du bail au locataire : génération du PDF échouée.');return;}
-    await envoyerEmailImmediat(loc.email,'Votre bail signé — '+cfg.nom,
-      `Bonjour ${loc.nom||''},\n\nVotre bail avec ${cfg.nom} vient d'être signé par les deux parties. Vous trouverez votre exemplaire en pièce jointe de cet email.\n\nConservez-le précieusement.\n\nCordialement,\n${cfg.nom}`,
-      {filename:'Bail_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',base64Data:pdfBase64});
+    const pieces=[{filename:'Bail_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',base64Data:pdfBase64}];
+    // Annexes légalement obligatoires (DPE, état des risques) — jointes automatiquement si
+    // déjà uploadées dans la gestion locative du logement, sans que le bailleur ait à y penser
+    // à chaque signature. Best-effort : leur absence n'empêche jamais l'envoi du bail lui-même.
+    for(const cat of['dpe','erp']){
+      try{
+        const doc=recupererDernierDocGL(loc.logement,cat);
+        const b64=doc?await telechargerDocGLBase64(doc):null;
+        if(b64)pieces.push({filename:(cat==='dpe'?'DPE':'Etat_des_risques')+'_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',base64Data:b64.split(',')[1]||b64});
+      }catch(e){console.warn('Jointure annexe '+cat+' échouée (non bloquant):',e);}
+    }
+    const destinataires=[loc.email,loc.email2].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i); // dédoublonne si même email pour les deux titulaires
+    for(const dest of destinataires){
+      await envoyerEmailImmediat(dest,'Votre bail signé — '+cfg.nom,
+        `Bonjour,\n\nVotre bail avec ${cfg.nom} vient d'être signé par ${loc.nom2?'toutes les parties':'les deux parties'}. Vous trouverez votre exemplaire en pièce jointe de cet email${pieces.length>1?', accompagné du DPE et/ou de l\'état des risques si disponibles':''}.\n\nConservez-le précieusement.\n\nCordialement,\n${cfg.nom}`,
+        pieces);
+    }
   }catch(e){
     console.error('Erreur envoi copie bail au locataire:',e);
   }
@@ -11389,7 +11976,7 @@ async function envoyerCopieBailSigneAuLocataire(locId,sig){
 // ═══════════════════════════════════════════════════════════════════════
 let _avenantLocId=null;
 let _otpAvenantCode=null,_otpAvenantExpiry=0,_otpAvenantVerifie=false;
-let _sigAvenantDistanceDocId=null,_sigAvenantDistanceLocataireB64=null,_sigAvenantDistanceUnsub=null;
+let _sigAvenantDistanceDocId=null,_sigAvenantDistanceLocataireB64=null,_sigAvenantDistanceUnsub=null,_sigAvenantDistanceLocataireTrace=null,_sigAvenantDistanceLocataireIdPhotoRecto=null,_sigAvenantDistanceLocataireIdPhotoVerso=null;
 
 const AVENANT_MODELES=[
   {titre:'Remise d\'une clé supplémentaire',texte:'Il est remis ce jour au locataire un exemplaire supplémentaire des clés du logement, en plus de celles déjà remises à la prise d\'effet du bail. Le locataire reconnaît la bonne réception de cette clé et s\'engage à la restituer avec les autres exemplaires à la sortie des lieux.'},
@@ -11402,7 +11989,7 @@ function ouvrirAvenant(locId){
   _avenantLocId=locId;
   _otpAvenantCode=null;_otpAvenantExpiry=0;_otpAvenantVerifie=false;
   arreterEcouteSignatureAvenantDistance();
-  _sigAvenantDistanceDocId=null;_sigAvenantDistanceLocataireB64=null;
+  _sigAvenantDistanceDocId=null;_sigAvenantDistanceLocataireB64=null;_sigAvenantDistanceLocataireTrace=null;_sigAvenantDistanceLocataireIdPhotoRecto=null;_sigAvenantDistanceLocataireIdPhotoVerso=null;
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   let modal=document.getElementById('modal-avenant');
@@ -11463,6 +12050,12 @@ function ouvrirAvenant(locId){
           <button onclick="effacerSignature('locataire')" style="background:none;border:none;color:var(--text3);font-size:10px;text-decoration:underline;cursor:pointer">Effacer</button>
         </div>
         <canvas id="sigpad-locataire" style="width:100%;height:110px;background:#fff;border-radius:8px;border:1px solid var(--border2);touch-action:none;cursor:crosshair"></canvas>
+        <div style="margin-top:10px">
+          <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Pièce d'identité — recto (recommandé, si signature sur cet appareil)</label>
+          <input type="file" id="id-photo-avenant-input" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px;margin-bottom:6px">
+          <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Verso</label>
+          <input type="file" id="id-photo-avenant-input-verso" accept="image/*" style="width:100%;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px">
+        </div>
       </div>
 
       <div style="background:rgba(185,142,212,.06);border:1px solid rgba(185,142,212,.25);border-radius:10px;padding:14px 16px;margin-bottom:16px">
@@ -11613,6 +12206,9 @@ async function envoyerLienSignatureAvenantDistance(){
     const d=snap.data();
     if(d.statut==='signe'&&d.locataireSignature){
       _sigAvenantDistanceLocataireB64=d.locataireSignature;
+      _sigAvenantDistanceLocataireTrace={ip:d.locataireIP||'',horodatage:d.locataireHorodatage||'',userAgent:d.locataireUserAgent||''};
+      _sigAvenantDistanceLocataireIdPhotoRecto=d.locataireIdPhotoRecto||null;
+      _sigAvenantDistanceLocataireIdPhotoVerso=d.locataireIdPhotoVerso||null;
       const canvas=document.getElementById('sigpad-locataire');
       if(canvas){
         const c=canvas.getContext('2d');
@@ -11620,14 +12216,21 @@ async function envoyerLienSignatureAvenantDistance(){
         img.onload=()=>{c.clearRect(0,0,canvas.width,canvas.height);c.drawImage(img,0,0,canvas.width/(window.devicePixelRatio||1),canvas.height/(window.devicePixelRatio||1));};
         img.src=d.locataireSignature;
       }
-      if(statusEl){statusEl.style.color='var(--green)';statusEl.textContent='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.';}
+      if(statusEl){
+        statusEl.style.color='var(--green)';
+        const nbPhotosAv=[d.locataireIdPhotoRecto,d.locataireIdPhotoVerso].filter(Boolean).length;
+        statusEl.innerHTML='✓ Le locataire a signé depuis son téléphone à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' ! Tu peux valider ci-dessous.'
+          +(nbPhotosAv?'<br>✓ Pièce d\'identité reçue ('+(nbPhotosAv===2?'recto + verso':'recto')+')':'<br><span style="color:var(--orange)">Aucune pièce d\'identité transmise.</span>')
+          +_apercuPiecesIdentiteHtml(d.locataireIdPhotoRecto,d.locataireIdPhotoVerso,'verif-identite-av');
+        if(d.locataireIdPhotoRecto)_lancerVerificationIdentiteGemini(d.locataireIdPhotoRecto,dest.nom,'verif-identite-av');
+      }
     }
   });
 }
 function arreterEcouteSignatureAvenantDistance(){
   if(_sigAvenantDistanceUnsub){try{_sigAvenantDistanceUnsub();}catch(e){}_sigAvenantDistanceUnsub=null;}
 }
-function validerSignatureAvenant(){
+async function validerSignatureAvenant(){
   const bCanvas=document.getElementById('sigpad-bailleur');
   const lCanvas=document.getElementById('sigpad-locataire');
   const titre=document.getElementById('avenant-titre')?.value||'Avenant';
@@ -11651,6 +12254,21 @@ function validerSignatureAvenant(){
     sig.emailVerifieAdresse=dest.email;
     sig.viaLienDistance=!!_sigAvenantDistanceLocataireB64;
   }
+  // Trace de traçabilité (IP + horodatage précis + appareil), même principe que pour le bail.
+  if(sig.bailleur)sig.traceBailleur=await _capturerTraceSignature();
+  if(sig.locataire){
+    if(_sigAvenantDistanceLocataireTrace)sig.traceLocataire=_sigAvenantDistanceLocataireTrace;
+    else sig.traceLocataire=sig.traceBailleur||await _capturerTraceSignature();
+    if(_sigAvenantDistanceLocataireIdPhotoRecto||_sigAvenantDistanceLocataireIdPhotoVerso){
+      sig.locataireIdPhotoRecto=_sigAvenantDistanceLocataireIdPhotoRecto;
+      sig.locataireIdPhotoVerso=_sigAvenantDistanceLocataireIdPhotoVerso;
+    } else {
+      sig.locataireIdPhotoRecto=await _lireEtCompresserFichierImage(document.getElementById('id-photo-avenant-input'));
+      sig.locataireIdPhotoVerso=await _lireEtCompresserFichierImage(document.getElementById('id-photo-avenant-input-verso'));
+    }
+    sig.locataireIdPhotoRectoHash=await sha256Hex(sig.locataireIdPhotoRecto);
+    sig.locataireIdPhotoVersoHash=await sha256Hex(sig.locataireIdPhotoVerso);
+  }
   arreterEcouteSignatureAvenantDistance();
   document.getElementById('modal-avenant')?.remove();
   if(sig.bailleur&&sig.locataire){
@@ -11665,6 +12283,8 @@ function validerSignatureAvenant(){
   }
   genererAvenant(_avenantLocId,titre,texte,sig);
   sauvegarderAvenantDansGestion(_avenantLocId,titre,texte,sig);
+  if(sig.locataireIdPhotoRecto)await _sauvegarderPhotoIdentite(_avenantLocId,sig.locataireIdPhotoRecto,'Pièce d\'identité (recto) — avenant '+titre);
+  if(sig.locataireIdPhotoVerso)await _sauvegarderPhotoIdentite(_avenantLocId,sig.locataireIdPhotoVerso,'Pièce d\'identité (verso) — avenant '+titre);
   envoyerCopieAvenantSigneAuLocataire(_avenantLocId,titre,texte,sig,dest.email);
 }
 function construireAvenantHTML(locId,titre,texte,sig){
@@ -11738,6 +12358,7 @@ function construireAvenantHTML(locId,titre,texte,sig){
       </div>
     </div>
     ${(sigBailleur&&sigLocataire)?`<div style="margin-top:16px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;padding:10px 16px;font-size:11px;color:#276749;text-align:center">✓ Document signé électroniquement par les deux parties le ${dateSignature} (signature manuscrite électronique — valeur de signature électronique simple au sens du règlement eIDAS)${sig&&sig.emailVerifie?(sig.viaLienDistance?`<br>✓ Locataire signé à distance via un lien reçu à ${sig.emailVerifieAdresse}`:`<br>✓ Identité du locataire vérifiée par code envoyé à ${sig.emailVerifieAdresse}`):''}</div>`:''}
+    ${_traceabiliteHtml(sig)}
 
     <div class="mentions-legales">
       Cet avenant complète et fait partie intégrante du bail de location en cours entre les parties. Toutes les clauses du bail non modifiées par le présent avenant restent applicables. Document généré le ${fmtDate(todayStr())} par ${cfg.nom}. Établi en deux exemplaires originaux, un pour chaque partie.
@@ -11756,21 +12377,36 @@ function genererAvenant(locId,titre,texte,sig){
   const loc=locs.find(l=>String(l.id)===String(locId));
   openPrintOverlay(html,`${titre} — ${loc?.nom||''}`);
 }
-function sauvegarderAvenantDansGestion(locId,titre,texte,sig){
+async function sauvegarderAvenantDansGestion(locId,titre,texte,sig){
   if(!window._canEdit)return;
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   if(!loc)return;
   const html=construireAvenantHTML(locId,titre,texte,sig);
   if(!html)return;
+  // La copie archivée inclut la pièce d'identité en pages supplémentaires du même PDF —
+  // uniquement ici (Drive + gestion locative), jamais dans la copie envoyée par email.
+  const htmlArchive=_pagesPiecesIdentiteHtml(sig)?html.replace('</body></html>',_pagesPiecesIdentiteHtml(sig)+'</body></html>'):html;
+  // Sauvegarde aussi sur Drive (même dossier "Gestion locative" que les diagnostics/attestations)
+  // — pas seulement en local et dans Firestore. Best-effort : un échec Drive n'empêche jamais
+  // l'enregistrement, qui reste consultable localement dans tous les cas.
+  let lien='';
+  try{
+    const pdfB64=await _htmlDocumentToPdfBase64(htmlArchive);
+    if(pdfB64){
+      const fileName='Avenant_'+titre.replace(/[^a-zA-Z0-9]/g,'_')+'_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'_'+todayStr()+'.pdf';
+      lien=await uploadToDriveGestionLocative(pdfB64,fileName,loc.logement)||'';
+    }
+  }catch(e){console.error('Upload Drive avenant échoué (non bloquant) :',e);}
   const docs=loadGLDocs();
   const id='avenant_'+Date.now();
   docs.push({
     id, logement:loc.logement, categorie:'avenant',
     libelle:titre+' — '+fmtDate(todayStr()), dateCreation:todayStr(),
-    dateExpiration:'', lien:'', htmlContent:html
+    dateExpiration:'', lien, htmlContent:htmlArchive
   });
   saveGLDocs(docs);
+  if(lien)_libererCopieLocaleGLDoc(id);
 }
 async function avenantPdfBase64(locId,titre,texte,sig){
   const html=construireAvenantHTML(locId,titre,texte,sig);
@@ -11811,19 +12447,50 @@ async function envoyerCopieAvenantSigneAuLocataire(locId,titre,texte,sig,destEma
   }
 }
 
-function sauvegarderBailDansGestion(locId,html){
+// Pages "pièce d'identité" ajoutées UNIQUEMENT à la copie archivée du bail (Drive + gestion
+// locative) — jamais à la copie envoyée par email au locataire (il a déjà son document, pas
+// besoin de le lui renvoyer), ni à l'aperçu immédiat après signature. Une page par face fournie.
+function _pagesPiecesIdentiteHtml(sig){
+  if(!sig)return'';
+  const pages=[];
+  if(sig.locataireIdPhotoRecto)pages.push({src:sig.locataireIdPhotoRecto,label:'Pièce d\'identité — recto'});
+  if(sig.locataireIdPhotoVerso)pages.push({src:sig.locataireIdPhotoVerso,label:'Pièce d\'identité — verso'});
+  if(sig.locataireIdPhotoRecto2)pages.push({src:sig.locataireIdPhotoRecto2,label:'Pièce d\'identité 2e titulaire — recto'});
+  if(sig.locataireIdPhotoVerso2)pages.push({src:sig.locataireIdPhotoVerso2,label:'Pièce d\'identité 2e titulaire — verso'});
+  if(!pages.length)return'';
+  return pages.map(p=>`<div style="page-break-before:always;padding-top:10mm;text-align:center">
+    <div style="font-size:11px;color:#718096;margin-bottom:10px">${p.label}</div>
+    <img src="${p.src}" style="max-width:100%;max-height:250mm;border-radius:6px;border:1px solid #e2e8f0">
+  </div>`).join('');
+}
+async function sauvegarderBailDansGestion(locId,html,sig){
   if(!window._canEdit)return;
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   if(!loc)return;
+  // La copie archivée inclut les pièces d'identité en pages supplémentaires du même PDF —
+  // uniquement ici (Drive + gestion locative), jamais dans la copie envoyée par email.
+  const htmlArchive=_pagesPiecesIdentiteHtml(sig)?html.replace('</body></html>',_pagesPiecesIdentiteHtml(sig)+'</body></html>'):html;
+  // Sauvegarde aussi sur Drive (même dossier "Gestion locative" que les diagnostics/attestations)
+  // — pas seulement en local et dans Firestore. Best-effort : un échec Drive n'empêche jamais
+  // l'enregistrement, qui reste consultable localement dans tous les cas.
+  let lien='';
+  try{
+    const pdfB64=await _htmlDocumentToPdfBase64(htmlArchive);
+    if(pdfB64){
+      const fileName='Bail_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'_'+todayStr()+'.pdf';
+      lien=await uploadToDriveGestionLocative(pdfB64,fileName,loc.logement)||'';
+    }
+  }catch(e){console.error('Upload Drive bail échoué (non bloquant) :',e);}
   const docs=loadGLDocs();
   const id='bail_'+Date.now();
   docs.push({
     id, logement:loc.logement, categorie:'bail',
     libelle:'Bail signé — '+fmtDate(todayStr()), dateCreation:todayStr(),
-    dateExpiration:'', lien:'', htmlContent:html
+    dateExpiration:'', lien, htmlContent:htmlArchive
   });
   saveGLDocs(docs);
+  if(lien)_libererCopieLocaleGLDoc(id);
 }
 // Rouvre le dernier bail SIGNÉ sauvegardé pour ce locataire, au lieu d'en régénérer un
 // vierge (ce que faisait genererBail() seul — perdait les signatures à chaque réouverture).
@@ -11834,9 +12501,33 @@ function voirDernierBailSigne(locId){
   const docs=loadGLDocs().filter(d=>d.categorie==='bail'&&d.logement===loc.logement)
     .sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
   if(!docs.length)return genererBail(locId);
-  openPrintOverlay(docs[0].htmlContent,`Bail signé — ${loc.nom||''}`);
+  // La copie locale a pu être libérée une fois la sauvegarde Drive confirmée (pour ne pas
+  // saturer le stockage du navigateur) — dans ce cas, on ouvre directement le lien Drive.
+  if(docs[0].htmlContent)openPrintOverlay(docs[0].htmlContent,`Bail signé — ${loc.nom||''}`);
+  else if(docs[0].lien)window.open(docs[0].lien,'_blank');
+  else alert('Ce bail signé n\'est plus disponible ni en local ni sur Drive.');
 }
 
+// Petit texte de traçabilité (IP + horodatage précis) sous la mention eIDAS — renforce la
+// valeur de preuve du document en cas de litige, sans coût ni service tiers.
+function _traceabiliteHtml(sig){
+  if(!sig)return'';
+  const fmtTrace=t=>{
+    if(!t||!t.horodatage)return'';
+    const dt=new Date(t.horodatage);
+    const dateStr=isNaN(dt)?'':dt.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    return (t.ip?'IP '+t.ip:'')+(dateStr?(t.ip?', ':'')+'le '+dateStr:'');
+  };
+  const b=fmtTrace(sig.traceBailleur), l=fmtTrace(sig.traceLocataire), l2=fmtTrace(sig.traceLocataire2);
+  const hashes=[sig.locataireIdPhotoRectoHash,sig.locataireIdPhotoVersoHash,sig.locataireIdPhotoRecto2Hash,sig.locataireIdPhotoVerso2Hash].filter(Boolean);
+  // Empreinte SHA-256 de chaque pièce d'identité, imprimée directement sur le document daté
+  // et signé — permet de prouver, en cas de litige, que le fichier consultable aujourd'hui
+  // (sur Drive) est EXACTEMENT celui déjà référencé au moment de la signature, et non substitué.
+  const idPhoto=hashes.length?`<div style="margin-top:2px;font-size:9px;color:#7FBF9E">✓ Pièce d'identité produite au moment de la signature (jointe à l'exemplaire archivé du bailleur, jamais transmise avec la copie envoyée par email au locataire)<br><span style="font-family:monospace;color:#718096">Empreinte SHA-256 : ${hashes.map(h=>h.slice(0,16)+'…').join(' / ')}</span></div>`:'';
+  if(!b&&!l&&!l2&&!idPhoto)return'';
+  const parts=[b?'Bailleur : '+b:'',l?'Locataire : '+l:'',l2?'2e locataire : '+l2:''].filter(Boolean).join(' · ');
+  return `<div style="margin-top:6px;font-size:9px;color:#a0aec0;text-align:center">${parts?`Traçabilité — ${parts}`:''}${idPhoto}</div>`;
+}
 function construireBailHTML(locId,sig){
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
@@ -11847,6 +12538,7 @@ function construireBailHTML(locId,sig){
   const logoB64=getLogoB64();
   const sigBailleur=(sig&&sig.bailleur)||(window._structureInfo&&window._structureInfo.tamponBase64)||'';
   const sigLocataire=(sig&&sig.locataire)||'';
+  const sigLocataire2=(sig&&sig.locataire2)||'';
   const dateSignature=sig&&sig.date?fmtDate(sig.date):fmtDate(todayStr());
   const mInfo=getMontantPeriode(loc,monthKey(new Date().getFullYear(),new Date().getMonth()+1));
   const loyer=mInfo.loyerHC;
@@ -11953,6 +12645,9 @@ function construireBailHTML(locId,sig){
       <div class="info-grid">
         <span class="info-label">Adresse</span><span class="info-val">${adresse}</span>
         <span class="info-label">Type de bien</span><span class="info-val">Logement ${typeLogement}</span>
+        ${lg&&lg.surfaceM2?`<span class="info-label">Surface habitable</span><span class="info-val">${lg.surfaceM2} m²</span>`:''}
+        ${lg&&lg.nbPieces?`<span class="info-label">Nombre de pièces</span><span class="info-val">${lg.nbPieces}</span>`:''}
+        ${lg&&lg.chauffage?`<span class="info-label">Chauffage</span><span class="info-val">${lg.chauffage}</span>`:''}
         <span class="info-label">Usage</span><span class="info-val">Résidence principale</span>
       </div>
     </div>
@@ -11978,6 +12673,8 @@ function construireBailHTML(locId,sig){
         <p>Le loyer est payable mensuellement, à terme échu, le 1er de chaque mois, par virement bancaire ou tout autre moyen convenu entre les parties.</p>
         <p>Le loyer sera révisé chaque année à la date anniversaire du bail sur la base de l'Indice de Référence des Loyers (IRL) publié par l'INSEE.</p>
         <p>Le dépôt de garantie ne peut être utilisé par le locataire pour se substituer au paiement du loyer. Il sera restitué dans un délai maximal d'un mois (logement meublé) ou deux mois (logement nu) après la remise des clés, déductions faites des sommes restant dues.</p>
+        <p><strong>Clause résolutoire :</strong> à défaut de paiement du loyer, des charges, du dépôt de garantie, ou de non-souscription d'une assurance habitation, et un mois après un commandement de payer ou de faire demeuré infructueux, le présent bail sera résilié de plein droit, sans qu'il soit besoin de remplir aucune formalité judiciaire, sous réserve pour le bailleur de saisir le juge afin de faire constater la résiliation et d'ordonner l'expulsion, conformément à l'article 24 de la loi n°89-462 du 6 juillet 1989.</p>
+        ${loc.nom2?`<p><strong>Solidarité entre locataires :</strong> ${nomCompletLoc(loc)} et ${(loc.prenom2?loc.prenom2+' ':'')+(loc.nom2||'')} sont cotitulaires du présent bail. Ils sont tenus solidairement et indivisiblement au paiement de l'intégralité du loyer, des charges et de toute somme due au titre du présent contrat, chacun d'eux pouvant être poursuivi pour la totalité de la dette. Cette solidarité se poursuit, le cas échéant, jusqu'au terme du bail ou du congé donné conjointement par les deux locataires.</p>`:''}
       </div>
     </div>
 
@@ -12061,8 +12758,19 @@ function construireBailHTML(locId,sig){
           <div style="font-size:10px;color:#718096">"Lu et approuvé"</div>
         </div>
       </div>
+      ${loc.nom2?`<div class="sig-block">
+        <div style="font-weight:700;margin-bottom:4px">Le 2e Locataire</div>
+        <div style="font-size:11px;color:#718096;margin-bottom:4px">${(loc.prenom2?loc.prenom2+' ':'')+(loc.nom2||'')||'_____________'}</div>
+        <div style="font-size:11px;color:#718096">Lu et approuvé</div>
+        ${sigLocataire2?`<img src="${sigLocataire2}" alt="Signature 2e locataire" style="height:60px;width:auto;object-fit:contain;margin:10px auto;display:block">`:'<div style="height:60px"></div>'}
+        <div class="sig-line">
+          <div style="font-size:10px;color:#718096">Signature précédée de la mention</div>
+          <div style="font-size:10px;color:#718096">"Lu et approuvé"</div>
+        </div>
+      </div>`:''}
     </div>
-    ${(sigBailleur&&sigLocataire)?`<div style="margin-top:16px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;padding:10px 16px;font-size:11px;color:#276749;text-align:center">✓ Document signé électroniquement par les deux parties le ${dateSignature} (signature manuscrite électronique — valeur de signature électronique simple au sens du règlement eIDAS)${sig&&sig.emailVerifie?(sig.viaLienDistance?`<br>✓ Locataire signé à distance via un lien reçu à ${sig.emailVerifieAdresse}`:`<br>✓ Identité du locataire vérifiée par code envoyé à ${sig.emailVerifieAdresse}`):''}</div>`:''}
+    ${(sigBailleur&&sigLocataire&&(!loc.nom2||sigLocataire2))?`<div style="margin-top:16px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;padding:10px 16px;font-size:11px;color:#276749;text-align:center">✓ Document signé électroniquement par ${loc.nom2?'toutes les parties':'les deux parties'} le ${dateSignature} (signature manuscrite électronique — valeur de signature électronique simple au sens du règlement eIDAS)${sig&&sig.emailVerifie?(sig.viaLienDistance?`<br>✓ Locataire signé à distance via un lien reçu à ${sig.emailVerifieAdresse}`:`<br>✓ Identité du locataire vérifiée par code envoyé à ${sig.emailVerifieAdresse}`):''}${sig&&sig.emailVerifie2?(sig.viaLienDistance2?`<br>✓ 2e locataire signé à distance via un lien reçu à ${sig.emailVerifieAdresse2}`:`<br>✓ Identité du 2e locataire vérifiée par code envoyé à ${sig.emailVerifieAdresse2}`):''}</div>`:''}
+    ${_traceabiliteHtml(sig)}
 
     <div class="mentions-legales">
       Bail établi conformément à la loi n°89-462 du 6 juillet 1989, modifiée par la loi ALUR du 24 mars 2014 et la loi ELAN du 23 novembre 2018.
@@ -12081,26 +12789,16 @@ function construireBailHTML(locId,sig){
   return html;
 }
 
-function genererBail(locId,sig){
+async function genererBail(locId,sig){
   const html=construireBailHTML(locId,sig);
   if(!html)return;
   const locs=loadLocataires();
   const loc=locs.find(l=>String(l.id)===String(locId));
   const typeLogement=window._isMeuble?'meublé':'nu';
   openPrintOverlay(html,`Bail ${typeLogement} — ${loc.nom||''}`, (!sig||!sig.locataire)?{bailLocId:locId}:null);
-  // Une fois signé par les deux parties, on fige une copie immuable dans la gestion locative —
-  // sinon le bail reste régénéré à la volée à partir des données ACTUELLES du locataire, et
-  // toute modification ultérieure du loyer/dates ferait apparaître un document différent de
-  // celui réellement signé, tout en gardant le même badge "bail signé".
-  if(sig&&sig.bailleur&&sig.locataire){
-    const docs=loadGLDocs();
-    docs.push({
-      id:'bail_'+Date.now(), logement:loc.logement, categorie:'bail',
-      libelle:'Bail signé — '+fmtDate(todayStr()), dateCreation:todayStr(),
-      dateExpiration:'', lien:'', htmlContent:html
-    });
-    saveGLDocs(docs);
-  }
+  // La sauvegarde figée (local + Drive + Firestore) est centralisée dans
+  // sauvegarderBailDansGestion(), appelée par validerSignatureBail() une fois les deux
+  // signatures confirmées — pas ici, pour éviter un double enregistrement.
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -12119,6 +12817,30 @@ const EDL_PIECES_DEFAULT=[
 ];
 
 const ETATS=['Neuf','Très bon état','Bon état','État d\'usage','Usé','Dégradé'];
+
+// Construit la liste des pièces de l'état des lieux à partir de la fiche technique du
+// logement (nombre de chambres/salles d'eau/WC) — évite de repartir à chaque fois d'un
+// modèle générique à 2 chambres fixes. Si la fiche technique n'est pas renseignée, on garde
+// l'ancien modèle par défaut (rétrocompatible avec les logements déjà configurés).
+function genererPiecesEdlDepuisLogement(lg){
+  if(!lg||(!lg.nbChambres&&!lg.nbSallesEau&&!lg.nbWC))return JSON.parse(JSON.stringify(EDL_PIECES_DEFAULT));
+  const chambreTpl=['Sol','Murs','Plafond','Fenêtres / Volets','Radiateur','Placard','Prises électriques','Interrupteurs','Éclairage'];
+  const sdbTpl=['Sol','Murs','Plafond','Fenêtres / Volets','Baignoire / Douche','Lavabo / Robinetterie','Miroir','Radiateur sèche-serviettes','VMC / Aération','Éclairage'];
+  const wcTpl=['Sol','Murs','Plafond','WC / Chasse d\'eau','Porte','Éclairage'];
+  const pieces=[
+    {id:'entree',label:'Entrée / Couloir',elements:['Sol','Murs','Plafond','Porte d\'entrée','Serrure / verrou','Sonnette','Interphone','Boîte aux lettres','Éclairage']},
+    {id:'sejour',label:'Séjour / Salon',elements:['Sol','Murs','Plafond','Fenêtres / Volets','Radiateur','Prises électriques','Interrupteurs','Éclairage']},
+    {id:'cuisine',label:'Cuisine',elements:['Sol','Murs','Plafond','Fenêtres / Volets','Plaques de cuisson','Four / Micro-ondes','Réfrigérateur','Évier / Robinetterie','Placards','Hotte','Lave-vaisselle','Prises électriques','Éclairage']}
+  ];
+  for(let i=1;i<=(lg.nbChambres||0);i++)pieces.push({id:'chambre'+i,label:'Chambre '+i,elements:[...chambreTpl]});
+  const nbSallesEau=lg.nbSallesEau||0;
+  for(let i=1;i<=nbSallesEau;i++)pieces.push({id:'sdb'+i,label:nbSallesEau>1?'Salle de bain '+i:'Salle de bain',elements:[...sdbTpl]});
+  const nbWC=lg.nbWC||0;
+  for(let i=1;i<=nbWC;i++)pieces.push({id:'wc'+i,label:nbWC>1?'WC '+i:'WC séparés',elements:[...wcTpl]});
+  pieces.push({id:'garage',label:'Garage / Cave',elements:['Sol','Murs','Porte / Portail','Éclairage']});
+  pieces.push({id:'exterieur',label:'Extérieur / Terrasse',elements:['Sol / Terrasse','Portail / Portillon','Boîte aux lettres','Éclairage extérieur']});
+  return pieces;
+}
 
 let _edlData={}; // {pieceId:{element:{etat,observation}}}
 let _edlType='entree'; // 'entree' ou 'sortie'
@@ -12169,7 +12891,8 @@ function ouvrirEdl(locId, type){
       });
     });
   } else {
-    _edlPieces=JSON.parse(JSON.stringify(EDL_PIECES_DEFAULT));
+    const lg0=getLogementsActifs().find(x=>x.key===(loc0&&loc0.logement));
+    _edlPieces=genererPiecesEdlDepuisLogement(lg0);
   }
 
   // Pré-remplir "Bon état" pour état d'entrée
@@ -13193,7 +13916,7 @@ function renderGestionLocativeDetail(){
 
   const docsHtml=GL_CATEGORIES.map(cat=>{
     const docsCat=docs.filter(d=>d.categorie===cat.key);
-    const catIcons={'bail':'📄','etat-des-lieux':'🔑','assurance':'🛡','dpe':'🌡','autre':'📎'};
+    const catIcons={'bail':'📄','edl':'🔑','assurance':'🛡','dpe':'🌡','erp':'⚠️','avenant':'📎','identite':'🪪','autre':'📎'};
     const icon=catIcons[cat.key]||'📎';
     const lignes=docsCat.length?docsCat.map(d=>{
       const s=glDocStatus(d);
@@ -13351,7 +14074,12 @@ function toBase64Std(str){
 async function envoyerEmailImmediat(destinataire,sujet,corps,attachment,html){
   try{
     const payload={destinataire,sujet,corps};
-    if(attachment&&attachment.base64Data){payload.pieceJointe={filename:attachment.filename,base64Data:attachment.base64Data};}
+    // "attachment" peut être un seul objet {filename,base64Data} (usage historique) ou un
+    // tableau de plusieurs pièces jointes (ex: bail signé + DPE + état des risques ensemble).
+    const liste=Array.isArray(attachment)?attachment:(attachment?[attachment]:[]);
+    const piecesValides=liste.filter(a=>a&&a.base64Data&&a.filename);
+    if(piecesValides.length===1){payload.pieceJointe={filename:piecesValides[0].filename,base64Data:piecesValides[0].base64Data};}
+    else if(piecesValides.length>1){payload.piecesJointes=piecesValides.map(a=>({filename:a.filename,base64Data:a.base64Data}));}
     if(html)payload.html=html;
     const res=await window._envoyerEmailResend(payload);
     if(!res||!res.data||!res.data.ok){
@@ -13620,7 +14348,59 @@ async function validerRelance(locId){
 // ═══════════════════════════════════════════════════════════════════════
 // HISTORIQUE EDL — Stocker dans GL Docs
 // ═══════════════════════════════════════════════════════════════════════
-function sauvegarderEdlDansGestion(locId, type, html){
+// Convertit un document HTML déjà rendu (bail/EDL/avenant) en PDF binaire (data URI complète,
+// utilisable directement par uploadToDriveGestionLocative) — réutilisé pour sauvegarder une
+// copie de secours sur Drive de chaque document signé, en plus du stockage local/Firestore.
+async function _htmlDocumentToPdfBase64(html){
+  try{
+    const blob=await html2pdf().from(html,'string').set({
+      margin:0,
+      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+    }).toPdf().output('blob');
+    if(!blob||blob.size<3000)return null;
+    return await new Promise(resolve=>{
+      const reader=new FileReader();
+      reader.onloadend=()=>resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  }catch(e){console.error('Conversion HTML → PDF échouée :',e);return null;}
+}
+// Une fois qu'un document de gestion locative a une copie Drive confirmée (lien), la copie
+// HTML complète en local devient superflue (déjà sauvegardée sur Drive ET dans Firestore
+// gldocs_content au moment du saveGLDocs précédent) — on la retire du stockage LOCAL
+// uniquement, pour ne pas remplir la mémoire du navigateur au fil des baux/EDL/avenants
+// signés (qui embarquent des images de signature, parfois une pièce d'identité).
+function _libererCopieLocaleGLDoc(docId){
+  try{
+    const docs=JSON.parse(localStorage.getItem(ctxKey('gl_docs'))||'[]');
+    const idx=docs.findIndex(d=>d.id===docId);
+    if(idx>-1&&docs[idx].htmlContent){
+      docs[idx].htmlContent='';
+      localStorage.setItem(ctxKey('gl_docs'),JSON.stringify(docs));
+    }
+  }catch(e){console.warn('Libération copie locale document échouée (non bloquant) :',e);}
+}
+// Nettoyage RÉTROACTIF, exécuté une fois au chargement : tous les documents créés AVANT
+// l'existence de _libererCopieLocaleGLDoc (ou dont l'upload Drive avait réussi mais sans
+// libération locale) gardaient leur copie HTML complète en local pour toujours — ce qui finit
+// par saturer le stockage du navigateur au fil des baux/EDL/avenants/pièces d'identité
+// accumulés. On libère ici tout document qui a déjà un lien Drive confirmé, quelle que soit
+// sa date de création.
+function libererCopiesLocalesGLDocsRetroactif(){
+  try{
+    const docs=JSON.parse(localStorage.getItem(ctxKey('gl_docs'))||'[]');
+    let nbLiberes=0;
+    docs.forEach(d=>{
+      if(d.lien&&d.htmlContent){d.htmlContent='';nbLiberes++;}
+    });
+    if(nbLiberes>0){
+      localStorage.setItem(ctxKey('gl_docs'),JSON.stringify(docs));
+      console.log(nbLiberes+' copie(s) locale(s) de document(s) libérée(s) (déjà sauvegardées sur Drive).');
+    }
+  }catch(e){console.warn('Nettoyage rétroactif des documents échoué (non bloquant) :',e);}
+}
+async function sauvegarderEdlDansGestion(locId, type, html){
   if(!window._canEdit){ alert("Tu es en lecture seule sur cette structure — impossible de modifier ces données."); return; }
   const docs=loadGLDocs();
   const locs=loadLocataires();
@@ -13628,12 +14408,24 @@ function sauvegarderEdlDansGestion(locId, type, html){
   if(!loc)return;
   const id='edl_'+Date.now();
   const label=`État des lieux d'${type==='entree'?'entrée':'sortie'} — ${fmtDate(todayStr())}`;
+  // Sauvegarde aussi sur Drive (même dossier "Gestion locative" que les diagnostics/attestations)
+  // — pas seulement en local et dans Firestore. Best-effort : un échec Drive (pas connecté, etc.)
+  // n'empêche jamais l'enregistrement, qui reste consultable localement dans tous les cas.
+  let lien='';
+  try{
+    const pdfB64=await _htmlDocumentToPdfBase64(html);
+    if(pdfB64){
+      const fileName='EDL_'+(type==='entree'?'ENTREE':'SORTIE')+'_'+(loc.nom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')+'_'+todayStr()+'.pdf';
+      lien=await uploadToDriveGestionLocative(pdfB64,fileName,loc.logement)||'';
+    }
+  }catch(e){console.error('Upload Drive EDL échoué (non bloquant) :',e);}
   docs.push({
     id, logement:loc.logement, categorie:'edl',
     libelle:label, dateCreation:todayStr(),
-    dateExpiration:'', lien:'', htmlContent:html
+    dateExpiration:'', lien, htmlContent:html
   });
   saveGLDocs(docs);
+  if(lien)_libererCopieLocaleGLDoc(id);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -16157,7 +16949,12 @@ async function uploadToDriveGestionLocative(b64, fileName, logKey){
 
     // Structure : <Nom structure> Gestion locative / Logement A / fichier.pdf
     const rootFolderName=(getCTXConfig().driveFolderName||'Gestion locative').replace('Factures','Gestion locative');
-    const cacheKey = 'drive_folder_gl_'+logKey;
+    // La clé de cache doit être propre à CETTE structure (ctxKey) ET intégrer le nom du
+    // dossier attendu : sans ça, un changement de nom (casse différente lors du rebranding
+    // Novimmo, structure différente avec le même identifiant de logement A/B/C...) continuait
+    // à réutiliser un ancien dossier Drive périmé — d'où plusieurs dossiers "Gestion locative"
+    // en double, et des documents "manquants" (en réalité montés dans le mauvais dossier).
+    const cacheKey = ctxKey('drive_folder_gl_'+rootFolderName.replace(/[^a-zA-Z0-9]/g,'_')+'_'+logKey);
     let logFolderId = localStorage.getItem(cacheKey);
     if(!logFolderId){
       const rootId = await getOrCreateFolderGL(rootFolderName, null);
@@ -16945,27 +17742,37 @@ async function ouvrirDossierDriveAnneeDevis(){
   btn.innerHTML='⏳ Recherche...';btn.disabled=true;
 
   try{
-    const qRoot="name='"+rootName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-    const respRoot=await fetch(
-      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
-      {headers:{'Authorization':'Bearer '+driveAccessToken}}
-    );
-    const dataRoot=await respRoot.json();
-    const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
-    if(!rootId){
-      alert('Dossier "'+rootName+'" introuvable sur Drive. Lance d\'abord une synchronisation (☁ Sync Drive) pour le créer.');
-      return;
-    }
-    const qYear="name='"+year+"' and mimeType='application/vnd.google-apps.folder' and '"+rootId+"' in parents and trashed=false";
-    const respYear=await fetch(
-      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qYear),
-      {headers:{'Authorization':'Bearer '+driveAccessToken}}
-    );
-    const dataYear=await respYear.json();
-    const yearFolderId=dataYear.files&&dataYear.files[0]&&dataYear.files[0].id;
+    // On vérifie d'abord le cache local (posé lors des uploads précédents) — plus fiable que
+    // de rechercher le dossier par son nom via l'API : les uploads utilisent déjà ce cache et
+    // fonctionnent, alors qu'une recherche par nom peut échouer pour un dossier créé avant le
+    // rebranding Novimmo (voir limitation OAuth drive.file connue).
+    const cacheKey=ctxKey('drive_folder_devis_'+year);
+    let yearFolderId=localStorage.getItem(cacheKey);
+
     if(!yearFolderId){
-      alert(`Aucun dossier Drive pour l'année ${year} (pas encore de devis synchronisé pour cette année).`);
-      return;
+      const qRoot="name='"+rootName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const respRoot=await fetch(
+        "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
+        {headers:{'Authorization':'Bearer '+driveAccessToken}}
+      );
+      const dataRoot=await respRoot.json();
+      const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
+      if(!rootId){
+        alert('Dossier "'+rootName+'" introuvable par recherche directe — c\'est normal si ce dossier a été créé avant le rebranding Novimmo. Ouvre n\'importe quel devis ayant un bouton "Drive" fonctionnel, ça mettra ce dossier en cache pour que ce bouton fonctionne ensuite.');
+        return;
+      }
+      const qYear="name='"+year+"' and mimeType='application/vnd.google-apps.folder' and '"+rootId+"' in parents and trashed=false";
+      const respYear=await fetch(
+        "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qYear),
+        {headers:{'Authorization':'Bearer '+driveAccessToken}}
+      );
+      const dataYear=await respYear.json();
+      yearFolderId=dataYear.files&&dataYear.files[0]&&dataYear.files[0].id;
+      if(!yearFolderId){
+        alert(`Aucun dossier Drive pour l'année ${year} (pas encore de devis synchronisé pour cette année).`);
+        return;
+      }
+      localStorage.setItem(cacheKey,yearFolderId);
     }
     window.open('https://accounts.google.com/AccountChooser?Email='+encodeURIComponent(localStorage.getItem(CTX+'_drive_email')||'')+'&continue='+encodeURIComponent('https://drive.google.com/drive/folders/'+yearFolderId),'_blank');
   }catch(e){
@@ -17048,29 +17855,39 @@ async function ouvrirDossierDriveAnnee(){
   btn.innerHTML='⏳ Recherche...';btn.disabled=true;
 
   try{
-    // Chercher le dossier racine
-    const qRoot="name='"+getCTXConfig().driveFolderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-    const respRoot=await fetch(
-      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
-      {headers:{'Authorization':'Bearer '+driveAccessToken}}
-    );
-    const dataRoot=await respRoot.json();
-    const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
-    if(!rootId){
-      alert('Dossier "'+getCTXConfig().driveFolderName+'" introuvable sur Drive. Lance d\'abord une synchronisation (☁ Sync Drive) pour le créer.');
-      return;
-    }
-    // Chercher le sous-dossier de l'année demandée
-    const qYear="name='"+year+"' and mimeType='application/vnd.google-apps.folder' and '"+rootId+"' in parents and trashed=false";
-    const respYear=await fetch(
-      "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qYear),
-      {headers:{'Authorization':'Bearer '+driveAccessToken}}
-    );
-    const dataYear=await respYear.json();
-    const yearFolderId=dataYear.files&&dataYear.files[0]&&dataYear.files[0].id;
+    // On vérifie d'abord le cache local (posé lors des uploads précédents) — plus fiable que
+    // de rechercher le dossier par son nom via l'API : les uploads utilisent déjà ce cache et
+    // fonctionnent, alors qu'une recherche par nom peut échouer pour un dossier créé avant le
+    // rebranding Novimmo (voir limitation OAuth drive.file connue).
+    const cacheKey=ctxKey('drive_folder_'+year);
+    let yearFolderId=localStorage.getItem(cacheKey);
+
     if(!yearFolderId){
-      alert(`Aucun dossier Drive pour l'année ${year} (pas encore de facture synchronisée pour cette année).`);
-      return;
+      // Chercher le dossier racine
+      const qRoot="name='"+getCTXConfig().driveFolderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const respRoot=await fetch(
+        "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qRoot),
+        {headers:{'Authorization':'Bearer '+driveAccessToken}}
+      );
+      const dataRoot=await respRoot.json();
+      const rootId=dataRoot.files&&dataRoot.files[0]&&dataRoot.files[0].id;
+      if(!rootId){
+        alert('Dossier "'+getCTXConfig().driveFolderName+'" introuvable par recherche directe — c\'est normal si ce dossier a été créé avant le rebranding Novimmo (l\'app ne peut alors pas le RETROUVER par recherche, seulement l\'ouvrir via un lien déjà connu). Ouvre n\'importe quelle facture ayant un bouton "Drive" fonctionnel, ça mettra ce dossier en cache pour que ce bouton fonctionne ensuite.');
+        return;
+      }
+      // Chercher le sous-dossier de l'année demandée
+      const qYear="name='"+year+"' and mimeType='application/vnd.google-apps.folder' and '"+rootId+"' in parents and trashed=false";
+      const respYear=await fetch(
+        "https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(qYear),
+        {headers:{'Authorization':'Bearer '+driveAccessToken}}
+      );
+      const dataYear=await respYear.json();
+      yearFolderId=dataYear.files&&dataYear.files[0]&&dataYear.files[0].id;
+      if(!yearFolderId){
+        alert(`Aucun dossier Drive pour l'année ${year} (pas encore de facture synchronisée pour cette année).`);
+        return;
+      }
+      localStorage.setItem(cacheKey,yearFolderId);
     }
     // Ouvrir le dossier dans un nouvel onglet — Drive applique le tri choisi par l'utilisateur,
     // pense à cliquer sur l'en-tête "Nom" pour trier par numéro de facture si besoin.
@@ -17570,6 +18387,7 @@ window._authReady.then(async () => {
   });
   renderNavigation('synthese');
   initGoogleDrive();
+  libererCopiesLocalesGLDocsRetroactif();
   // Charger depuis le cloud puis afficher
   if(window._dbReady){
     loadFromCloud().then(()=>{renderSynthese();});
