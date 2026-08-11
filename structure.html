@@ -2969,6 +2969,181 @@ function reinitialiserSignatureBail(locId){
 }
 // Nom + prénom affichés ensemble (bail, EDL, avenants, en-tête de fiche...) — le prénom est
 // optionnel, donc on ne l'ajoute que s'il est renseigné.
+// ═══════════════════════════════════════════════════════════════════════
+// FACTURES AU LOCATAIRE — pour facturer un montant ponctuel hors loyer (clé perdue/cassée,
+// badge à remplacer, dégradation constatée en cours de bail...). À l'inverse des devis/
+// factures fournisseurs (des DÉPENSES), ce sont des CRÉANCES : de l'argent que le locataire
+// doit au bailleur, suivies à part, en paiement séparé (pas ajoutées au loyer).
+// ═══════════════════════════════════════════════════════════════════════
+const FACTURE_LOCATAIRE_MOTIFS=['Clé perdue ou cassée','Badge / télécommande à remplacer','Dégradation constatée','Frais de relance','Autre'];
+
+function loadFacturesLocataires(){
+  let d=localStorage.getItem(ctxKey('factures_locataires'));
+  return d?JSON.parse(d):[];
+}
+function saveFacturesLocataires(list){
+  if(!safeSetItem(ctxKey('factures_locataires'),JSON.stringify(list)))return false;
+  syncToCloud();
+  return true;
+}
+function ouvrirFacturationLocataire(locId){
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(locId));
+  if(!loc)return;
+  let modal=document.getElementById('modal-facture-locataire');
+  if(modal)modal.remove();
+  modal=document.createElement('div');
+  modal.id='modal-facture-locataire';
+  modal.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2500;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:26px;width:460px;max-width:96vw;max-height:92vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h2 style="margin:0;font-size:16px">🧾 Facturer ${nomCompletLoc(loc)}</h2>
+        <button onclick="document.getElementById('modal-facture-locataire').remove()" style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer">×</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Facture un montant ponctuel, hors loyer — suivie en paiement séparé, à part.</div>
+
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="font-size:10px">Motif</label>
+        <select id="fl-motif" onchange="document.getElementById('fl-motif-autre').style.display=this.value==='Autre'?'block':'none'" style="font-size:12px">
+          ${FACTURE_LOCATAIRE_MOTIFS.map(m=>`<option value="${m}">${m}</option>`).join('')}
+        </select>
+        <input type="text" id="fl-motif-autre" placeholder="Précise le motif..." style="display:none;margin-top:8px;font-size:12px">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="font-size:10px">Description (optionnel)</label>
+        <textarea id="fl-description" rows="3" placeholder="Détail, contexte..." style="font-size:12px;resize:vertical"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:20px">
+        <label style="font-size:10px">Montant TTC (€)</label>
+        <input type="number" id="fl-montant" step="0.01" min="0" placeholder="ex: 45.00" style="font-size:14px;font-weight:700">
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('modal-facture-locataire').remove()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text2);font-size:12px;cursor:pointer">Annuler</button>
+        <button onclick="validerFacturationLocataire('${locId}')" style="background:var(--accent);color:#0a0e1a;border:1px solid var(--accent);border-radius:8px;padding:10px 18px;font-size:12px;font-weight:700;cursor:pointer">✓ Générer et envoyer la facture</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+async function validerFacturationLocataire(locId){
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(locId));
+  if(!loc)return;
+  const motifSel=document.getElementById('fl-motif').value;
+  const motif=motifSel==='Autre'?(document.getElementById('fl-motif-autre').value.trim()||'Autre'):motifSel;
+  const description=document.getElementById('fl-description').value.trim();
+  const montant=+document.getElementById('fl-montant').value||0;
+  if(!montant||montant<=0){alert('Renseigne un montant valide.');return;}
+
+  const list=loadFacturesLocataires();
+  const id='factloc_'+Date.now();
+  const num='FACT-LOC-'+new Date().getFullYear()+'-'+String(list.filter(f=>f.logement===loc.logement).length+1).padStart(3,'0');
+  const facture={id,locId:String(locId),logement:loc.logement,num,date:todayStr(),motif,description,montant,statut:'impayee',datePaiement:''};
+
+  const html=construireFactureLocataireHTML(loc,facture);
+  document.getElementById('modal-facture-locataire')?.remove();
+  openPrintOverlay(html,`Facture ${num} — ${nomCompletLoc(loc)}`);
+
+  // Sauvegarde dans la gestion locative + Drive, best-effort (comme les autres documents).
+  let lien='';
+  try{
+    const pdfB64=await _htmlDocumentToPdfBase64(html);
+    if(pdfB64){
+      lien=await uploadToDriveGestionLocative(pdfB64,num.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',loc.logement)||'';
+    }
+  }catch(e){console.error('Upload Drive facture locataire échoué (non bloquant):',e);}
+  facture.lien=lien;
+  list.push(facture);
+  saveFacturesLocataires(list);
+  const glDocs=loadGLDocs();
+  const glId='factureloc_'+Date.now();
+  glDocs.push({id:glId,logement:loc.logement,categorie:'facture_locataire',libelle:num+' — '+motif+' ('+fmt(montant)+')',dateCreation:todayStr(),dateExpiration:'',lien,htmlContent:html});
+  saveGLDocs(glDocs);
+  if(lien)_libererCopieLocaleGLDoc(glId);
+
+  // Envoi automatique au locataire, si un email est renseigné.
+  if(loc.email){
+    try{
+      const pdfB64=await _htmlDocumentToPdfBase64(html);
+      if(pdfB64){
+        const cfg=getCTXConfig();
+        await envoyerEmailImmediat(loc.email,'Facture '+num+' — '+cfg.nom,
+          `Bonjour ${loc.nom||''},\n\nVeuillez trouver ci-joint une facture d'un montant de ${fmt(montant)} concernant : ${motif}.${description?'\n\n'+description:''}\n\nMerci de bien vouloir procéder au règlement dans les meilleurs délais, par les mêmes moyens que d'habitude.\n\nCordialement,\n${cfg.nom}`,
+          {filename:num.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',base64Data:pdfB64.split(',')[1]||pdfB64});
+      }
+    }catch(e){console.error('Envoi email facture locataire échoué (non bloquant):',e);}
+  }
+  renderLocataires();
+}
+function construireFactureLocataireHTML(loc,facture){
+  const cfg=getCTXConfig();
+  const lg=getLogementsActifs().find(x=>x.key===loc.logement);
+  const logoB64=getLogoB64();
+  const adresseBailleur=CTX_CONFIG[CTX].sousTitre||'';
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${facture.num}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a202c;font-size:12px;line-height:1.6;padding:20mm 25mm;max-width:210mm;margin:0 auto}
+    .header-doc{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #5AC8D8;padding-bottom:14px;margin-bottom:20px}
+    .montant-box{background:#ebf8ff;border:1px solid #bee3f8;border-radius:10px;padding:18px 22px;margin:24px 0;text-align:center}
+    @media print{@page{size:A4 portrait;margin:15mm 20mm}body{padding:0}}
+  </style></head><body>
+    <div class="header-doc">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="${logoB64}" alt="Logo" style="height:55px;width:auto;object-fit:contain">
+        <div>
+          <div style="font-weight:700;font-size:13px">${cfg.nom}</div>
+          <div style="font-size:11px;color:#718096">${adresseBailleur}</div>
+        </div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#718096">
+        <div style="font-size:16px;font-weight:900;color:#5AC8D8;margin-bottom:4px">FACTURE</div>
+        <div>N° ${facture.num}</div>
+        <div>Date : ${fmtDate(facture.date)}</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div style="font-size:10px;font-weight:700;color:#5AC8D8;text-transform:uppercase;margin-bottom:4px">Facturé à</div>
+      <div style="font-weight:600">${nomCompletLoc(loc)}</div>
+      <div style="color:#718096">${lg?lg.adresse:''}</div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:6px">
+      <thead><tr style="background:#ebf8ff">
+        <th style="padding:8px 12px;text-align:left;font-size:10px;color:#5AC8D8">Motif</th>
+        <th style="padding:8px 12px;text-align:right;font-size:10px;color:#5AC8D8;width:120px">Montant</th>
+      </tr></thead>
+      <tbody><tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0">${facture.motif}${facture.description?'<div style="font-size:10px;color:#718096;margin-top:4px">'+facture.description+'</div>':''}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600">${fmt(facture.montant)}</td>
+      </tr></tbody>
+    </table>
+
+    <div class="montant-box">
+      <div style="font-size:11px;color:#718096;margin-bottom:4px">TOTAL TTC À RÉGLER</div>
+      <div style="font-size:24px;font-weight:900;color:#2b6cb0">${fmt(facture.montant)}</div>
+    </div>
+
+    <div style="font-size:11px;color:#718096">Merci de bien vouloir procéder au règlement dans les meilleurs délais.</div>
+
+    <div style="margin-top:30px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${NOVIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec Novimmo — gestion locative simplifiée</span>
+    </div>
+  </body></html>`;
+}
+function marquerFactureLocatairePayee(factureId){
+  const list=loadFacturesLocataires();
+  const idx=list.findIndex(f=>f.id===factureId);
+  if(idx<0)return;
+  list[idx].statut='payee';
+  list[idx].datePaiement=todayStr();
+  saveFacturesLocataires(list);
+  renderLocataires();
+}
+
 function nomCompletLoc(loc){
   if(!loc)return'';
   const prenom=(loc.prenom||'').trim();
@@ -6919,12 +7094,13 @@ async function syncToCloud(){
     const ccaNomsMoi=loadCCANomsMoi();
     const ccaRembourseFactures=loadCCARembourseFactures();
     const ccaVirements=loadCCAVirements();
+    const facturesLocataires=loadFacturesLocataires();
     const syncEl=document.getElementById('sync-status');
     if(syncEl){syncEl.textContent='⟳ Sync...';syncEl.style.color='#E0A15E';}
     const updatedAt=new Date().toISOString();
     await window._setDoc(window._appDataDoc(),{
       budget,factures,devis,fin,locataires,logements,projection,fc:fcData,glDocs:glDocsLight,
-      ccaNomsMoi,ccaRembourseFactures,ccaVirements,
+      ccaNomsMoi,ccaRembourseFactures,ccaVirements,facturesLocataires,
       updated:updatedAt
     });
     // Sync séparée des biens patrimoine — document indépendant, isolé dans son propre try/catch :
@@ -7017,6 +7193,7 @@ async function loadFromCloud(){
         if(d.ccaNomsMoi)localStorage.setItem(ctxKey('cca_noms_moi'),JSON.stringify(d.ccaNomsMoi));
         if(d.ccaRembourseFactures)localStorage.setItem(ctxKey('cca_rembourse_factures'),JSON.stringify(d.ccaRembourseFactures));
         if(d.ccaVirements)localStorage.setItem(ctxKey('cca_virements'),JSON.stringify(d.ccaVirements));
+        if(d.facturesLocataires)localStorage.setItem(ctxKey('factures_locataires'),JSON.stringify(d.facturesLocataires));
         if(d.updated)localStorage.setItem(ctxKey('last_synced_at'),d.updated);
       }
     }
@@ -7085,6 +7262,7 @@ const GL_CATEGORIES=[
   {key:'bail',label:'Bail',scope:'contrat'},
   {key:'avenant',label:'Avenants',scope:'contrat'},
   {key:'identite',label:"Pièces d'identité",scope:'contrat'},
+  {key:'facture_locataire',label:'Factures locataire',scope:'contrat'},
   {key:'autre',label:'Autre',scope:'logement'}
 ];
 function loadGLDocs(){
@@ -7492,6 +7670,7 @@ function renderLocataires(){
         <button class="btn btn-sm" style="background:rgba(185,142,212,.1);border-color:rgba(185,142,212,.3);color:var(--purple)" onclick="ouvrirEdl('${cur.id}','entree')">🔑 EDL entrée</button>
         <button class="btn btn-sm" style="background:rgba(246,135,179,.1);border-color:rgba(246,135,179,.3);color:#f687b3" onclick="ouvrirEdl('${cur.id}','sortie')">🚪 EDL sortie</button>
         <button class="btn btn-sm" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.3);color:var(--accent)" title="Ouvre directement le dossier Drive de ce logement (bail, EDL, avenants, pièces d'identité...)" onclick="ouvrirDossierDriveLocataire('${cur.logement}')">📂 Dossier Drive</button>
+        <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirFacturationLocataire('${cur.id}')">🧾 Facturer${(()=>{const n=loadFacturesLocataires().filter(f=>f.locId===String(cur.id)&&f.statut==='impayee').length;return n?` (${n} impayée${n>1?'s':''})`:'';})()}</button>
         <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirModalIRL('${cur.id}')">📈 Révision IRL</button>
         <button class="btn btn-sm" style="background:rgba(160,174,192,.1);border-color:rgba(160,174,192,.3);color:var(--text2)" onclick="ouvrirModalCourriers('${cur.id}')">✉️ Courriers</button>
         ${Object.values(cur.paiements||{}).some(p=>!p.paye&&!p.vacant)?`<button class="btn btn-sm" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.3);color:var(--red)" onclick="ouvrirModalRelance('${cur.id}')">📧 Relance</button>`:''}
@@ -7505,6 +7684,24 @@ function renderLocataires(){
       <div class="loc-metric"><div class="loc-metric-val">${fmt(cur.depot||0)}</div><div class="loc-metric-label">Dépôt de garantie</div></div>
       <div class="loc-metric"><div class="loc-metric-val" style="color:var(--purple)">${fmt(getMontantPeriode(cur,mk).loyerHC*12)}</div><div class="loc-metric-label">Loyer annuel HC</div></div>
     </div>
+
+    ${(()=>{const facturesLoc=loadFacturesLocataires().filter(f=>f.locId===String(cur.id)).sort((a,b)=>b.date.localeCompare(a.date));
+      if(!facturesLoc.length)return'';
+      return `<div class="table-wrap" style="padding:16px 20px;margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:12px">🧾 Factures hors loyer</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${facturesLoc.map(f=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:7px">
+              <span style="color:var(--text2)">${f.num} — ${f.motif} <span style="color:var(--text3);font-size:10px">(${fmtDate(f.date)})</span></span>
+              <span style="display:flex;gap:10px;align-items:center">
+                <span style="font-weight:600;color:var(--text)">${fmt(f.montant)}</span>
+                ${f.statut==='payee'
+                  ?`<span style="color:var(--green);font-size:11px;font-weight:700">✓ Payée le ${fmtDate(f.datePaiement)}</span>`
+                  :`<button onclick="marquerFactureLocatairePayee('${f.id}')" style="background:rgba(127,191,158,.12);border:1px solid rgba(127,191,158,.4);border-radius:6px;padding:4px 10px;color:var(--green);font-size:10px;font-weight:600;cursor:pointer">Marquer payée</button>`}
+              </span>
+            </div>`).join('')}
+        </div>
+      </div>`;})()}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
       <div class="table-wrap" style="padding:20px 22px">
@@ -14161,7 +14358,7 @@ function renderGestionLocativeDetail(){
 
   const docsHtml=GL_CATEGORIES.map(cat=>{
     const docsCat=docs.filter(d=>d.categorie===cat.key);
-    const catIcons={'bail':'📄','edl':'🔑','assurance':'🛡','dpe':'🌡','erp':'⚠️','avenant':'📎','identite':'🪪','autre':'📎'};
+    const catIcons={'bail':'📄','edl':'🔑','assurance':'🛡','dpe':'🌡','erp':'⚠️','avenant':'📎','identite':'🪪','facture_locataire':'🧾','autre':'📎'};
     const icon=catIcons[cat.key]||'📎';
     const lignes=docsCat.length?docsCat.map(d=>{
       const s=glDocStatus(d);
