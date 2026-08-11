@@ -5517,7 +5517,7 @@ async function renderMicroEntreprise(){
     <tr>
       <td>${f.num}</td>
       <td>${f.clientNom||'—'}</td>
-      <td style="text-align:right;font-weight:600">${fmt(f.montant)}</td>
+      <td style="text-align:right;font-weight:600">${fmt(typeof f.totalTTC==='number'?f.totalTTC:f.montant)}</td>
       <td>${f.statut==='payee'?`<span style="color:var(--green);font-weight:700;font-size:11px">✓ Payée le ${fmtDate(f.datePaiement)}</span>`:`<span style="color:var(--orange);font-weight:700;font-size:11px">⏳ Impayée</span>`}</td>
       <td style="text-align:right;white-space:nowrap">
         ${f.statut!=='payee'?`<button class="btn-icon" onclick="marquerFactureMEPayee('${f.id}')" title="Marquer payée (ajoute au CA)">✓</button>`:''}
@@ -5699,6 +5699,7 @@ async function supprimerCA_ME(id){
 }
 
 // ── FACTURES CLIENTS (Micro-entreprise) ─────────────────────────────────────
+let _fmeLignes=[]; // [{description,quantite,prixUnitaireHT,tauxTVA}] — tauxTVA: 'franchise'|0|5.5|10|20
 function ouvrirFactureClientME(){
   let modal=document.getElementById('modal-facture-me');
   if(modal)modal.remove();
@@ -5706,35 +5707,105 @@ function ouvrirFactureClientME(){
   modal.id='modal-facture-me';
   modal.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2500;align-items:center;justify-content:center;padding:16px';
   modal.innerHTML=`
-    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:26px;width:460px;max-width:96vw;max-height:92vh;overflow-y:auto">
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:26px;width:640px;max-width:96vw;max-height:92vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <h2 style="margin:0;font-size:16px">🧾 Nouvelle facture client</h2>
         <button onclick="document.getElementById('modal-facture-me').remove()" style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer">×</button>
       </div>
-      <div class="form-group" style="margin-bottom:12px"><label style="font-size:10px">Nom du client (ou société)</label><input type="text" id="fme-client-nom" style="font-size:12px"></div>
-      <div class="form-group" style="margin-bottom:12px"><label style="font-size:10px">Adresse (optionnel)</label><input type="text" id="fme-client-adresse" style="font-size:12px"></div>
-      <div class="form-group" style="margin-bottom:12px"><label style="font-size:10px">Email (optionnel — pour envoi automatique)</label><input type="email" id="fme-client-email" style="font-size:12px"></div>
-      <div class="form-group" style="margin-bottom:12px"><label style="font-size:10px">Description de la prestation</label><textarea id="fme-description" rows="3" style="font-size:12px;resize:vertical"></textarea></div>
-      <div class="form-group" style="margin-bottom:20px"><label style="font-size:10px">Montant TTC (€)</label><input type="number" id="fme-montant" step="0.01" min="0" style="font-size:14px;font-weight:700"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="form-group" style="margin:0"><label style="font-size:10px">Nom du client (ou société)</label><input type="text" id="fme-client-nom" style="font-size:12px"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:10px">Email (optionnel — envoi automatique)</label><input type="email" id="fme-client-email" style="font-size:12px"></div>
+        <div class="form-group" style="margin:0;grid-column:1/-1"><label style="font-size:10px">Adresse (optionnel)</label><input type="text" id="fme-client-adresse" style="font-size:12px"></div>
+      </div>
+
+      <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Lignes de la facture</label>
+      <div id="fme-lignes-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+      <button type="button" onclick="fmeAjouterLigne()" style="background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.3);border-radius:7px;padding:7px 14px;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;margin-bottom:16px">+ Ajouter une ligne</button>
+
+      <div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:12px" id="fme-recap"></div>
+
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button onclick="document.getElementById('modal-facture-me').remove()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text2);font-size:12px;cursor:pointer">Annuler</button>
         <button onclick="validerFactureClientME()" style="background:var(--accent);color:#0a0e1a;border:1px solid var(--accent);border-radius:8px;padding:10px 18px;font-size:12px;font-weight:700;cursor:pointer">✓ Générer la facture</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
+  _fmeLignes=[{description:'',quantite:1,prixUnitaireHT:0,tauxTVA:'franchise'}];
+  fmeRenderLignes();
+}
+function fmeAjouterLigne(){
+  _fmeLignes.push({description:'',quantite:1,prixUnitaireHT:0,tauxTVA:'franchise'});
+  fmeRenderLignes();
+}
+function fmeSupprimerLigne(i){
+  if(_fmeLignes.length<=1)return; // toujours garder au moins une ligne
+  _fmeLignes.splice(i,1);
+  fmeRenderLignes();
+}
+function fmeMajLigne(i,champ,valeur){
+  _fmeLignes[i][champ]=champ==='description'?valeur:(champ==='tauxTVA'?(valeur==='franchise'?'franchise':+valeur):+valeur||0);
+  fmeRenderRecap();
+}
+function fmeCalculerTotaux(lignes){
+  let totalHT=0,totalTVA=0;
+  const tvaParTaux={}; // {taux: {baseHT, montantTVA}}
+  lignes.forEach(l=>{
+    const montantHT=(l.quantite||0)*(l.prixUnitaireHT||0);
+    const tauxNum=l.tauxTVA==='franchise'?0:l.tauxTVA;
+    const montantTVA=montantHT*(tauxNum/100);
+    totalHT+=montantHT;
+    totalTVA+=montantTVA;
+    if(l.tauxTVA!=='franchise'){
+      const key=String(l.tauxTVA);
+      if(!tvaParTaux[key])tvaParTaux[key]={baseHT:0,montantTVA:0};
+      tvaParTaux[key].baseHT+=montantHT;
+      tvaParTaux[key].montantTVA+=montantTVA;
+    }
+  });
+  return{totalHT,totalTVA,totalTTC:totalHT+totalTVA,tvaParTaux,franchiseIntegrale:lignes.every(l=>l.tauxTVA==='franchise')};
+}
+function fmeRenderLignes(){
+  const box=document.getElementById('fme-lignes-container');
+  if(!box)return;
+  box.innerHTML=_fmeLignes.map((l,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 60px 90px 110px 30px;gap:6px;align-items:center;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;padding:8px">
+      <input type="text" placeholder="Description de la prestation" value="${l.description.replace(/"/g,'&quot;')}" oninput="fmeMajLigne(${i},'description',this.value)" style="font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text)">
+      <input type="number" min="0" step="1" placeholder="Qté" value="${l.quantite}" oninput="fmeMajLigne(${i},'quantite',this.value)" style="font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);width:100%">
+      <input type="number" min="0" step="0.01" placeholder="PU HT €" value="${l.prixUnitaireHT}" oninput="fmeMajLigne(${i},'prixUnitaireHT',this.value)" style="font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);width:100%">
+      <select onchange="fmeMajLigne(${i},'tauxTVA',this.value)" style="font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 4px;color:var(--text)">
+        <option value="franchise" ${l.tauxTVA==='franchise'?'selected':''}>Franchise TVA</option>
+        <option value="0" ${l.tauxTVA===0?'selected':''}>0%</option>
+        <option value="5.5" ${l.tauxTVA===5.5?'selected':''}>5,5%</option>
+        <option value="10" ${l.tauxTVA===10?'selected':''}>10%</option>
+        <option value="20" ${l.tauxTVA===20?'selected':''}>20%</option>
+      </select>
+      <button type="button" onclick="fmeSupprimerLigne(${i})" title="Retirer cette ligne" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;justify-self:center">×</button>
+    </div>`).join('');
+  fmeRenderRecap();
+}
+function fmeRenderRecap(){
+  const box=document.getElementById('fme-recap');
+  if(!box)return;
+  const t=fmeCalculerTotaux(_fmeLignes);
+  box.innerHTML=`
+    <div style="display:flex;justify-content:space-between;color:var(--text2)"><span>Total HT</span><span>${fmt(t.totalHT)}</span></div>
+    ${Object.keys(t.tvaParTaux).length?Object.entries(t.tvaParTaux).map(([taux,v])=>`<div style="display:flex;justify-content:space-between;color:var(--text3);font-size:11px"><span>dont TVA ${taux}% (base ${fmt(v.baseHT)})</span><span>${fmt(v.montantTVA)}</span></div>`).join(''):`<div style="display:flex;justify-content:space-between;color:var(--text3);font-size:11px"><span>TVA non applicable (franchise)</span><span>0,00 €</span></div>`}
+    <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--text);font-size:14px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><span>Total TTC</span><span>${fmt(t.totalTTC)}</span></div>
+  `;
 }
 async function validerFactureClientME(){
   const clientNom=document.getElementById('fme-client-nom').value.trim();
   const clientAdresse=document.getElementById('fme-client-adresse').value.trim();
   const clientEmail=document.getElementById('fme-client-email').value.trim();
-  const description=document.getElementById('fme-description').value.trim();
-  const montant=+document.getElementById('fme-montant').value||0;
-  if(!clientNom||!description||!montant||montant<=0){alert('Renseigne au moins le nom du client, la description et un montant valide.');return;}
+  const lignesValides=_fmeLignes.filter(l=>l.description.trim()&&l.quantite>0&&l.prixUnitaireHT>0);
+  if(!clientNom||!lignesValides.length){alert('Renseigne au moins le nom du client et une ligne complète (description, quantité, prix unitaire).');return;}
+  const totaux=fmeCalculerTotaux(lignesValides);
+  if(totaux.totalTTC<=0){alert('Le montant total doit être supérieur à 0.');return;}
 
   const data=await loadDataME();
   if(!Array.isArray(data.facturesClients))data.facturesClients=[];
   const num='FACT-'+new Date().getFullYear()+'-'+String(data.facturesClients.length+1).padStart(3,'0');
-  const facture={id:meUid(),num,date:todayStr(),clientNom,clientAdresse,clientEmail,description,montant,statut:'impayee',datePaiement:''};
+  const facture={id:meUid(),num,date:todayStr(),clientNom,clientAdresse,clientEmail,lignes:lignesValides,totalHT:totaux.totalHT,totalTVA:totaux.totalTVA,totalTTC:totaux.totalTTC,statut:'impayee',datePaiement:''};
 
   const html=construireFactureClientMEHTML(facture);
   document.getElementById('modal-facture-me')?.remove();
@@ -5746,7 +5817,7 @@ async function validerFactureClientME(){
       if(pdfB64){
         const cfg=getCTXConfig();
         await envoyerEmailImmediat(clientEmail,'Facture '+num+' — '+cfg.nom,
-          `Bonjour,\n\nVeuillez trouver ci-joint la facture ${num} d'un montant de ${fmt(montant)}.\n\n${description}\n\nMerci de bien vouloir procéder au règlement dans les meilleurs délais.\n\nCordialement,\n${cfg.nom}`,
+          `Bonjour,\n\nVeuillez trouver ci-joint la facture ${num} d'un montant de ${fmt(totaux.totalTTC)} TTC.\n\nMerci de bien vouloir procéder au règlement dans les meilleurs délais.\n\nCordialement,\n${cfg.nom}`,
           {filename:num+'.pdf',base64Data:pdfB64.split(',')[1]||pdfB64});
       }
     }catch(e){console.error('Envoi email facture client ME échoué (non bloquant):',e);}
@@ -5760,12 +5831,33 @@ function construireFactureClientMEHTML(f){
   const cfg=getCTXConfig();
   const adresseEmetteur=CTX_CONFIG[CTX].sousTitre||'';
   const logoB64=getLogoB64();
+  // Rétrocompatibilité : les factures créées avant le passage au multi-lignes n'ont qu'une
+  // description/montant unique — on les affiche comme une ligne unique en franchise de TVA.
+  const lignes=Array.isArray(f.lignes)&&f.lignes.length?f.lignes:[{description:f.description||'',quantite:1,prixUnitaireHT:f.montant||0,tauxTVA:'franchise'}];
+  const totaux=fmeCalculerTotaux(lignes);
+  const totalTTC=(typeof f.totalTTC==='number')?f.totalTTC:totaux.totalTTC;
+  const totalHT=(typeof f.totalHT==='number')?f.totalHT:totaux.totalHT;
+  const totalTVA=(typeof f.totalTVA==='number')?f.totalTVA:totaux.totalTVA;
+  const avecTVA=!totaux.franchiseIntegrale;
+
+  const lignesHtml=lignes.map(l=>{
+    const montantHT=(l.quantite||0)*(l.prixUnitaireHT||0);
+    const tauxLabel=l.tauxTVA==='franchise'?'Franchise':(l.tauxTVA+'%');
+    return `<tr>
+      <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0">${l.description}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:center">${l.quantite}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right">${fmt(l.prixUnitaireHT)}</td>
+      ${avecTVA?`<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:center">${tauxLabel}</td>`:''}
+      <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600">${fmt(montantHT)}</td>
+    </tr>`;
+  }).join('');
+
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${f.num}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',Arial,sans-serif;color:#1a202c;font-size:12px;line-height:1.6;padding:20mm 25mm;max-width:210mm;margin:0 auto}
     .header-doc{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #5AC8D8;padding-bottom:14px;margin-bottom:20px}
-    .montant-box{background:#ebf8ff;border:1px solid #bee3f8;border-radius:10px;padding:18px 22px;margin:24px 0;text-align:center}
+    .montant-box{background:#ebf8ff;border:1px solid #bee3f8;border-radius:10px;padding:14px 22px;margin:20px 0}
     @media print{@page{size:A4 portrait;margin:15mm 20mm}body{padding:0}}
   </style></head><body>
     <div class="header-doc">
@@ -5791,22 +5883,23 @@ function construireFactureClientMEHTML(f){
 
     <table style="width:100%;border-collapse:collapse;margin-bottom:6px">
       <thead><tr style="background:#ebf8ff">
-        <th style="padding:8px 12px;text-align:left;font-size:10px;color:#5AC8D8">Description</th>
-        <th style="padding:8px 12px;text-align:right;font-size:10px;color:#5AC8D8;width:120px">Montant</th>
+        <th style="padding:8px 10px;text-align:left;font-size:10px;color:#5AC8D8">Description</th>
+        <th style="padding:8px 10px;text-align:center;font-size:10px;color:#5AC8D8;width:50px">Qté</th>
+        <th style="padding:8px 10px;text-align:right;font-size:10px;color:#5AC8D8;width:80px">PU HT</th>
+        ${avecTVA?`<th style="padding:8px 10px;text-align:center;font-size:10px;color:#5AC8D8;width:70px">TVA</th>`:''}
+        <th style="padding:8px 10px;text-align:right;font-size:10px;color:#5AC8D8;width:90px">Total HT</th>
       </tr></thead>
-      <tbody><tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0">${f.description}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600">${fmt(f.montant)}</td>
-      </tr></tbody>
+      <tbody>${lignesHtml}</tbody>
     </table>
 
     <div class="montant-box">
-      <div style="font-size:11px;color:#718096;margin-bottom:4px">TOTAL TTC À RÉGLER</div>
-      <div style="font-size:24px;font-weight:900;color:#2b6cb0">${fmt(f.montant)}</div>
+      <div style="display:flex;justify-content:space-between;padding:2px 0;color:#718096"><span>Total HT</span><span>${fmt(totalHT)}</span></div>
+      ${avecTVA?Object.entries(totaux.tvaParTaux).map(([taux,v])=>`<div style="display:flex;justify-content:space-between;padding:2px 0;color:#718096;font-size:11px"><span>dont TVA ${taux}% (base ${fmt(v.baseHT)})</span><span>${fmt(v.montantTVA)}</span></div>`).join(''):''}
+      <div style="display:flex;justify-content:space-between;padding-top:8px;margin-top:6px;border-top:1px solid #bee3f8;font-size:18px;font-weight:900;color:#2b6cb0"><span>TOTAL TTC</span><span>${fmt(totalTTC)}</span></div>
     </div>
 
     <div style="font-size:10px;color:#718096;line-height:1.6">
-      TVA non applicable, article 293 B du Code Général des Impôts.<br>
+      ${avecTVA?'':'TVA non applicable, article 293 B du Code Général des Impôts.<br>'}
       Dispensé d'immatriculation au Registre du Commerce et des Sociétés (RCS) et au Répertoire des Métiers (RM).<br>
       Pas d'escompte pour paiement anticipé. En cas de retard de paiement, indemnité forfaitaire de 40€ pour frais de recouvrement (art. L441-10 du Code de commerce).
     </div>
@@ -5825,7 +5918,7 @@ async function marquerFactureMEPayee(factureId){
   f.statut='payee';
   f.datePaiement=todayStr();
   // Ajoute automatiquement l'encaissement au CA — évite de le ressaisir à la main.
-  data.ca.push({id:meUid(),date:f.datePaiement,montant:f.montant,origine:'Facture '+f.num+' — '+f.clientNom});
+  data.ca.push({id:meUid(),date:f.datePaiement,montant:(typeof f.totalTTC==='number'?f.totalTTC:f.montant),origine:'Facture '+f.num+' — '+f.clientNom});
   await saveDataME(data);
   renderMicroEntreprise();
 }
