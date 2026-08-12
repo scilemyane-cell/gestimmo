@@ -1666,6 +1666,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>Devis associé <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label>
         <select id="e-devis"><option value="">— Aucun —</option></select>
       </div>
+      <div class="form-group" style="grid-column:1/-1;background:rgba(224,161,94,.06);border:1px solid rgba(224,161,94,.25);border-radius:8px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px">
+          <input type="checkbox" id="e-est-acompte" style="width:16px;height:16px">
+          <span>🧾 Cette facture est elle-même un acompte payé au fournisseur</span>
+        </label>
+        <label style="font-size:10px">Facture d'acompte déjà réglée à déduire <span style="color:var(--text3)">(optionnel)</span></label>
+        <select id="e-acompte" onchange="appliquerAcompteSurFacture('e')"><option value="">— Aucune —</option></select>
+      </div>
       <div class="form-group"><label>Statut</label>
         <select id="e-statut">
           <option value="En attente">En attente</option><option value="Payée">Payée</option><option value="Partiel">Partiel</option>
@@ -6565,7 +6573,10 @@ function openEdit(idx){
   document.getElementById('e-regleby').value=f.regleby||'';
   document.getElementById('e-prelauto').checked=!!f.prelevementAuto;
   document.getElementById('e-dateprel').value=f.dateprelevement||'';
-  document.getElementById('e-dateprel-wrap').style.display=f.prelevementAuto?'block':'none';
+  document.getElementById('e-est-acompte').checked=f.type==='acompte';
+  populateAcompteFactureSelects();
+  const eAcompteSel=document.getElementById('e-acompte');
+  if(eAcompteSel)eAcompteSel.value=f.acompteFactureNum||'';  document.getElementById('e-dateprel-wrap').style.display=f.prelevementAuto?'block':'none';
   document.getElementById('e-datepay').value=f.datepay||'';
   document.getElementById('e-ttc').value=f.ttc;
   document.getElementById('e-tva').value=f.tva;
@@ -6663,6 +6674,21 @@ function saveEdit(){
     inclus:document.getElementById('e-inclus').checked,
     hasPdf:editPdfB64?true:hadPdf
   };
+  if(document.getElementById('e-est-acompte')?.checked)d.factures[editIdx].type='acompte';
+  else delete d.factures[editIdx].type;
+  const eAcompteAssocie=document.getElementById('e-acompte')?document.getElementById('e-acompte').value:'';
+  if(eAcompteAssocie){
+    const acompteFacture=d.factures.find(f=>f.num===eAcompteAssocie);
+    if(acompteFacture){
+      d.factures[editIdx].acompteFactureNum=acompteFacture.num;
+      d.factures[editIdx].acompteMontant=acompteFacture.ttc;
+      acompteFacture.consommee=true;
+      acompteFacture.consommeeParFactureNum=nouveauNum;
+    }
+  } else {
+    delete d.factures[editIdx].acompteFactureNum;
+    delete d.factures[editIdx].acompteMontant;
+  }
   saveFactures(d.factures);
   delierDevisDeFacture(ancienNum);
   const devisSelectionne=document.getElementById('e-devis')?document.getElementById('e-devis').value:'';
@@ -6793,6 +6819,21 @@ function saveEditAsSplit(){
     inclus:document.getElementById('e-inclus').checked,
     repartition
   };
+  if(document.getElementById('e-est-acompte')?.checked)d.factures[editIdx].type='acompte';
+  else delete d.factures[editIdx].type;
+  const eAcompteAssocieSplit=document.getElementById('e-acompte')?document.getElementById('e-acompte').value:'';
+  if(eAcompteAssocieSplit){
+    const acompteFactureSplit=d.factures.find(f=>f.num===eAcompteAssocieSplit);
+    if(acompteFactureSplit){
+      d.factures[editIdx].acompteFactureNum=acompteFactureSplit.num;
+      d.factures[editIdx].acompteMontant=acompteFactureSplit.ttc;
+      acompteFactureSplit.consommee=true;
+      acompteFactureSplit.consommeeParFactureNum=baseNum;
+    }
+  } else {
+    delete d.factures[editIdx].acompteFactureNum;
+    delete d.factures[editIdx].acompteMontant;
+  }
   const ok=saveFactures(d.factures);
   if(!ok){alert('Erreur de stockage — données trop volumineuses.');return;}
   delierDevisDeFacture(original.num);
