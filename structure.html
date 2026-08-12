@@ -907,6 +907,26 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
 </div>
 
+<!-- FACTURATION LOCATAIRES (hors loyer) -->
+<div class="content" id="tab-facturation-loc">
+  <div class="section-title">Factures & acomptes locataires</div>
+  <div style="background:rgba(90,200,216,.08);border:1px solid rgba(90,200,216,.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--text2)">
+    ℹ️ Vue d'ensemble de toutes les factures hors loyer (clé perdue, badge, dégradation...) émises à tes locataires, tous logements confondus. Choisis d'abord un locataire pour créer une nouvelle facture.
+  </div>
+  <div class="table-wrap" style="padding:16px 20px;margin-bottom:24px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <select id="floc-select-locataire" style="font-size:12px;min-width:220px"></select>
+    <button class="btn" onclick="flocFacturerLocataireSelectionne()">🧾 Nouvelle facture</button>
+    <button class="btn btn-sm" onclick="flocAcompteLocataireSelectionne()" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)">🧾 Nouvelle facture d'acompte</button>
+  </div>
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table class="factures-table">
+      <thead><tr><th>N°</th><th>Type</th><th>Locataire</th><th>Logement</th><th style="text-align:right">Montant</th><th>Statut</th><th></th></tr></thead>
+      <tbody id="floc-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="floc-empty" style="display:none">Aucune facture émise pour l'instant.</div>
+  </div>
+</div>
+
 <!-- PROJECTION -->
 <div class="content" id="tab-projection">
   <div class="section-title">Paramètres de la projection</div>
@@ -3139,6 +3159,7 @@ async function validerFacturationAcompteLocataire(locId){
   saveGLDocs(glDocs);
   if(lien)_libererCopieLocaleGLDoc(glId);
   renderLocataires();
+  renderFacturationLoc();
 }
 async function validerFacturationLocataire(locId){
   const locs=loadLocataires();
@@ -3173,36 +3194,44 @@ async function validerFacturationLocataire(locId){
   document.getElementById('modal-facture-locataire')?.remove();
   openPrintOverlay(html,`Facture ${num} — ${nomCompletLoc(loc)}`);
 
-  // Sauvegarde dans la gestion locative + Drive, best-effort (comme les autres documents).
-  let lien='';
+  // Sauvegarde dans la gestion locative + Drive + email, best-effort — tout dans un seul bloc
+  // try/catch pour ne jamais laisser l'app dans un état bloqué si une étape échoue (Drive non
+  // connecté, réseau lent...), et un seul PDF généré (pas deux) pour ne pas doubler l'attente.
   try{
     const pdfB64=await _htmlDocumentToPdfBase64(html);
+    let lien='';
     if(pdfB64){
-      lien=await uploadToDriveGestionLocative(pdfB64,num.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',loc.logement)||'';
-    }
-  }catch(e){console.error('Upload Drive facture locataire échoué (non bloquant):',e);}
-  facture.lien=lien;
-  list.push(facture);
-  saveFacturesLocataires(list);
-  const glDocs=loadGLDocs();
-  const glId='factureloc_'+Date.now();
-  glDocs.push({id:glId,logement:loc.logement,categorie:'facture_locataire',libelle:num+' — '+motif+' ('+fmt(montant)+')',dateCreation:todayStr(),dateExpiration:'',lien,htmlContent:html});
-  saveGLDocs(glDocs);
-  if(lien)_libererCopieLocaleGLDoc(glId);
-
-  // Envoi automatique au locataire, si un email est renseigné.
-  if(loc.email){
-    try{
-      const pdfB64=await _htmlDocumentToPdfBase64(html);
-      if(pdfB64){
-        const cfg=getCTXConfig();
-        await envoyerEmailImmediat(loc.email,'Facture '+num+' — '+cfg.nom,
-          `Bonjour ${loc.nom||''},\n\nVeuillez trouver ci-joint une facture d'un montant de ${fmt(montant)} concernant : ${motif}.${description?'\n\n'+description:''}\n\nMerci de bien vouloir procéder au règlement dans les meilleurs délais, par les mêmes moyens que d'habitude.\n\nCordialement,\n${cfg.nom}`,
-          {filename:num.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',base64Data:pdfB64.split(',')[1]||pdfB64});
+      try{
+        lien=await uploadToDriveGestionLocative(pdfB64,num.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',loc.logement)||'';
+      }catch(e){console.error('Upload Drive facture locataire échoué (non bloquant):',e);}
+      if(loc.email){
+        try{
+          const cfg=getCTXConfig();
+          await envoyerEmailImmediat(loc.email,'Facture '+num+' — '+cfg.nom,
+            `Bonjour ${loc.nom||''},\n\nVeuillez trouver ci-joint une facture d'un montant de ${fmt(montant)} concernant : ${motif}.${description?'\n\n'+description:''}\n\nMerci de bien vouloir procéder au règlement dans les meilleurs délais, par les mêmes moyens que d'habitude.\n\nCordialement,\n${cfg.nom}`,
+            {filename:num.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',base64Data:pdfB64.split(',')[1]||pdfB64});
+        }catch(e){console.error('Envoi email facture locataire échoué (non bloquant):',e);}
       }
-    }catch(e){console.error('Envoi email facture locataire échoué (non bloquant):',e);}
+    }
+    facture.lien=lien;
+    list.push(facture);
+    saveFacturesLocataires(list);
+    const glDocs=loadGLDocs();
+    const glId='factureloc_'+Date.now();
+    glDocs.push({id:glId,logement:loc.logement,categorie:'facture_locataire',libelle:num+' — '+motif+' ('+fmt(montant)+')',dateCreation:todayStr(),dateExpiration:'',lien,htmlContent:html});
+    saveGLDocs(glDocs);
+    if(lien)_libererCopieLocaleGLDoc(glId);
+  }catch(e){
+    console.error('Génération/sauvegarde facture locataire échouée:',e);
+    // Même en cas d'échec du PDF/Drive/email, on garde au moins la facture enregistrée
+    // localement — mieux qu'une perte totale silencieuse.
+    facture.lien='';
+    list.push(facture);
+    saveFacturesLocataires(list);
+  }finally{
+    renderLocataires();
+    renderFacturationLoc();
   }
-  renderLocataires();
 }
 function construireFactureLocataireHTML(loc,facture){
   const cfg=getCTXConfig();
@@ -3274,6 +3303,55 @@ function marquerFactureLocatairePayee(factureId){
   list[idx].datePaiement=todayStr();
   saveFacturesLocataires(list);
   renderLocataires();
+  renderFacturationLoc();
+}
+function renderFacturationLoc(){
+  const locs=loadLocataires();
+  const sel=document.getElementById('floc-select-locataire');
+  if(sel){
+    const valeurActuelle=sel.value;
+    sel.innerHTML=locs.map(l=>`<option value="${l.id}">${nomCompletLoc(l)} — ${l.logement}</option>`).join('');
+    if(valeurActuelle&&locs.some(l=>String(l.id)===valeurActuelle))sel.value=valeurActuelle;
+  }
+  const list=loadFacturesLocataires().sort((a,b)=>b.date.localeCompare(a.date));
+  const tbody=document.getElementById('floc-tbody');
+  if(tbody)tbody.innerHTML=list.map(f=>{
+    const loc=locs.find(l=>String(l.id)===String(f.locId));
+    const estAcompte=f.type==='acompte';
+    return `<tr>
+      <td>${f.num}</td>
+      <td>${estAcompte?`<span style="font-size:10px;font-weight:700;color:var(--orange);background:rgba(224,161,94,.12);padding:2px 8px;border-radius:100px">Acompte${f.consommee?' · rattachée':''}</span>`:`<span style="font-size:10px;color:var(--text3)">Facture${f.acompteFactureId?' · avec acompte lié':''}</span>`}</td>
+      <td>${loc?nomCompletLoc(loc):'—'}</td>
+      <td>${f.logement||'—'}</td>
+      <td style="text-align:right;font-weight:600">${fmt(estAcompte?f.montant:(f.netAPayer!=null?f.netAPayer:f.montant))}</td>
+      <td>${f.statut==='payee'?`<span style="color:var(--green);font-weight:700;font-size:11px">✓ Payée le ${fmtDate(f.datePaiement)}</span>`:`<span style="color:var(--orange);font-weight:700;font-size:11px">⏳ Impayée</span>`}</td>
+      <td style="text-align:right;white-space:nowrap">
+        ${(!estAcompte&&f.statut!=='payee')?`<button class="btn-icon" onclick="marquerFactureLocatairePayee('${f.id}')" title="Marquer payée">✓</button>`:''}
+        <button class="btn-icon" onclick="revoirFactureLocataire('${f.id}')" title="Revoir le PDF">👁️</button>
+      </td>
+    </tr>`;
+  }).join('');
+  const empty=document.getElementById('floc-empty');
+  if(empty)empty.style.display=list.length?'none':'block';
+}
+function revoirFactureLocataire(factureId){
+  const list=loadFacturesLocataires();
+  const f=list.find(x=>x.id===factureId);
+  if(!f)return;
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(f.locId));
+  if(!loc)return;
+  openPrintOverlay(construireFactureLocataireHTML(loc,f),`${f.num} — ${nomCompletLoc(loc)}`);
+}
+function flocFacturerLocataireSelectionne(){
+  const id=document.getElementById('floc-select-locataire')?.value;
+  if(!id){alert('Choisis d\'abord un locataire.');return;}
+  ouvrirFacturationLocataire(id);
+}
+function flocAcompteLocataireSelectionne(){
+  const id=document.getElementById('floc-select-locataire')?.value;
+  if(!id){alert('Choisis d\'abord un locataire.');return;}
+  ouvrirFacturationAcompteLocataire(id);
 }
 
 function nomCompletLoc(loc){
@@ -4089,7 +4167,7 @@ function getTabGroups(){
   const groups = [];
   if(mods.construction) groups.push({id:'construction',label:'🏗️ Construction prévisionnelle',tabs:['synthese','logements','budget','dashboard']});
   if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['saisie','devis','factures','annuel','charges-recurrentes','banque','compte-courant']});
-  if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']});
+  if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite','facturation-loc']});
   if(mods.financement) groups.push({id:'financement',label:'💰 Financement',tabs:['projection','financement']});
   // Structure spéciale "Micro-entreprise" : réutilise le module Comptabilité existant (Saisir,
   // Factures, Par année, Charges récurrentes — mêmes fonctionnalités que la SCI/LMNP : OCR IA,
@@ -4114,7 +4192,7 @@ function getTabGroups(){
 function getTabLabels(){return{
   synthese:'Synthèse',logements:'Par logement',budget:'Budget prévisionnel',dashboard:'📊 Dashboard Prév.',
   devis:'📝 Devis',factures:'📋 Factures',saisie:'+ Saisir',annuel:'📅 Par année','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque','compte-courant':'🤝 Compte courant',
-  locataires:'Fiches & loyers','gestion-locative':'📁 Gestion locative',rentabilite:'📈 Rentabilité',
+  locataires:'Fiches & loyers','gestion-locative':'📁 Gestion locative',rentabilite:'📈 Rentabilité','facturation-loc':'🧾 Facturation',
   projection:'🔭 Projection 20 ans',financement:'💳 Crédit & charges',
   parametres:'⚙️ Paramètres',
   microentreprise:'Micro-entreprise',
@@ -4151,6 +4229,7 @@ function showTab(id){
   if(id==='locataires')renderLocataires();
   if(id==='gestion-locative')renderGestionLocative();
   if(id==='rentabilite')renderRentabilite();
+  if(id==='facturation-loc')renderFacturationLoc();
   if(id==='projection')renderProjection();
   if(id==='financement')renderFinancement();
   if(id==='cout-revient')renderCoutRevient();
@@ -6009,10 +6088,10 @@ async function validerFactureClientME(){
         if(anc){anc.consommee=false;delete anc.consommeeParFactureId;}
       }
     }
-    facture={id:_fmeEditId,num:ancienne?ancienne.num:('FACT-'+new Date().getFullYear()+'-'+String(data.facturesClients.length+1).padStart(3,'0')),date:ancienne?ancienne.date:todayStr(),clientNom,clientAdresse,clientEmail,lignes:lignesValides,totalHT:totaux.totalHT,totalTVA:totaux.totalTVA,totalTTC:totaux.totalTTC,acompte,acompteFactureId:acompteFactureId||undefined,netAPayer,statut:netAPayer<=0?'payee':'impayee',datePaiement:netAPayer<=0?(ancienne&&ancienne.datePaiement?ancienne.datePaiement:todayStr()):''};
+    facture={id:_fmeEditId,num:ancienne?ancienne.num:('FACT-'+new Date().getFullYear()+'-'+String(data.facturesClients.length+1).padStart(3,'0')),date:ancienne?ancienne.date:todayStr(),clientNom,clientAdresse,clientEmail,lignes:lignesValides,totalHT:totaux.totalHT,totalTVA:totaux.totalTVA,totalTTC:totaux.totalTTC,acompte,acompteFactureId:acompteFactureId||'',netAPayer,statut:netAPayer<=0?'payee':'impayee',datePaiement:netAPayer<=0?(ancienne&&ancienne.datePaiement?ancienne.datePaiement:todayStr()):''};
   } else {
     const num='FACT-'+new Date().getFullYear()+'-'+String(data.facturesClients.length+1).padStart(3,'0');
-    facture={id:meUid(),num,date:todayStr(),clientNom,clientAdresse,clientEmail,lignes:lignesValides,totalHT:totaux.totalHT,totalTVA:totaux.totalTVA,totalTTC:totaux.totalTTC,acompte,acompteFactureId:acompteFactureId||undefined,netAPayer,statut:netAPayer<=0?'payee':'impayee',datePaiement:netAPayer<=0?todayStr():''};
+    facture={id:meUid(),num,date:todayStr(),clientNom,clientAdresse,clientEmail,lignes:lignesValides,totalHT:totaux.totalHT,totalTVA:totaux.totalTVA,totalTTC:totaux.totalTTC,acompte,acompteFactureId:acompteFactureId||'',netAPayer,statut:netAPayer<=0?'payee':'impayee',datePaiement:netAPayer<=0?todayStr():''};
   }
   if(acompteFactureId){
     const acompteFactureRef=data.facturesClients.find(f=>f.id===acompteFactureId);
