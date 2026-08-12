@@ -707,18 +707,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     <div class="empty-state" id="me-ca-empty" style="display:none">Aucun encaissement enregistré pour l'instant.</div>
   </div>
 
-  <div class="section-title">Facturer un client</div>
-  <div class="table-wrap" style="padding:16px 20px;margin-bottom:24px">
-    <button class="btn" onclick="ouvrirFactureClientME()">🧾 Nouvelle facture client</button>
-  </div>
-  <div class="table-wrap" style="margin-bottom:24px">
-    <table class="factures-table">
-      <thead><tr><th>N°</th><th>Client</th><th style="text-align:right">Montant</th><th>Statut</th><th></th></tr></thead>
-      <tbody id="me-factures-tbody"></tbody>
-    </table>
-    <div class="empty-state" id="me-factures-empty" style="display:none">Aucune facture client créée pour l'instant.</div>
-  </div>
-
   <div class="section-title">Cotisations URSSAF &amp; versement libératoire</div>
   <div class="table-wrap" style="padding:16px 20px;margin-bottom:24px">
     <div class="form-grid">
@@ -762,6 +750,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <tbody id="me-charges-tbody"></tbody>
     </table>
     <div class="empty-state" id="me-charges-empty" style="display:none">Aucune charge enregistrée.</div>
+  </div>
+</div>
+
+<!-- FACTURATION (Micro-entreprise) -->
+<div class="content" id="tab-facturation">
+  <div class="section-title">Facturer un client</div>
+  <div class="table-wrap" style="padding:16px 20px;margin-bottom:24px;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn" onclick="ouvrirFactureClientME()">🧾 Nouvelle facture</button>
+    <button class="btn btn-sm" onclick="ouvrirFactureAcompteME()" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" title="Émettre un document séparé pour un acompte, rattachable ensuite à la facture finale">🧾 Nouvelle facture d'acompte</button>
+  </div>
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table class="factures-table">
+      <thead><tr><th>N°</th><th>Type</th><th>Client</th><th style="text-align:right">Montant</th><th>Statut</th><th></th></tr></thead>
+      <tbody id="me-factures-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="me-factures-empty" style="display:none">Aucune facture créée pour l'instant.</div>
   </div>
 </div>
 
@@ -3983,6 +3987,7 @@ function getTabGroups(){
     if(window._authUid!==window.NOVIMMO_ME_UID) return [paramGroup]; // sécurité : accès refusé, seuls les paramètres restent visibles
     return [
       {id:'comptabilite',label:'🧾 Dépenses',tabs:['saisie','factures','annuel','charges-recurrentes']},
+      {id:'facturation',label:'💳 Facturation',tabs:['facturation']},
       {id:'microentreprise',label:'📊 Micro-entreprise',tabs:['microentreprise','fiscalite']},
       paramGroup
     ];
@@ -3997,6 +4002,7 @@ function getTabLabels(){return{
   projection:'🔭 Projection 20 ans',financement:'💳 Crédit & charges',
   parametres:'⚙️ Paramètres',
   microentreprise:'Micro-entreprise',
+  facturation:'Facturation',
   fiscalite:'📋 Fiscalité'
 };}
 const TAB_GROUPS=getTabGroups();
@@ -4034,6 +4040,7 @@ function showTab(id){
   if(id==='cout-revient')renderCoutRevient();
   if(id==='parametres'){renderParametres();renderFacturesOrphelines();renderDevisOrphelins();}
   if(id==='microentreprise')renderMicroEntreprise();
+  if(id==='facturation')renderFacturation();
   if(id==='fiscalite')renderFiscalite();
   if(id==='budget')renderBudget();
   if(id==='dashboard')renderDashboard();
@@ -5509,24 +5516,6 @@ async function renderMicroEntreprise(){
   const caEmpty=document.getElementById('me-ca-empty');
   if(caEmpty)caEmpty.style.display=data.ca.length?'none':'block';
 
-  // Table des factures clients
-  const facturesClients=Array.isArray(data.facturesClients)?data.facturesClients:[];
-  const factTbody=document.getElementById('me-factures-tbody');
-  const factTriees=facturesClients.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  if(factTbody)factTbody.innerHTML=factTriees.map(f=>`
-    <tr>
-      <td>${f.num}</td>
-      <td>${f.clientNom||'—'}</td>
-      <td style="text-align:right;font-weight:600">${fmt(typeof f.totalTTC==='number'?f.totalTTC:f.montant)}</td>
-      <td>${f.statut==='payee'?`<span style="color:var(--green);font-weight:700;font-size:11px">✓ Payée le ${fmtDate(f.datePaiement)}</span>`:`<span style="color:var(--orange);font-weight:700;font-size:11px">⏳ Impayée</span>`}</td>
-      <td style="text-align:right;white-space:nowrap">
-        ${f.statut!=='payee'?`<button class="btn-icon" onclick="marquerFactureMEPayee('${f.id}')" title="Marquer payée (ajoute au CA)">✓</button>`:''}
-        <button class="btn-icon" onclick="revoirFactureME('${f.id}')" title="Revoir le PDF">👁️</button>
-      </td>
-    </tr>`).join('');
-  const factEmpty=document.getElementById('me-factures-empty');
-  if(factEmpty)factEmpty.style.display=facturesClients.length?'none':'block';
-
   // Cotisations à provisionner (sur le CA de l'année en cours)
   const cotisUrssaf=totalCAAnnee*(data.tauxUrssaf/100);
   const cotisVL=totalCAAnnee*(data.tauxVL/100);
@@ -5699,8 +5688,43 @@ async function supprimerCA_ME(id){
 }
 
 // ── FACTURES CLIENTS (Micro-entreprise) ─────────────────────────────────────
+async function renderFacturation(){
+  const data=await loadDataME();
+  const facturesClients=Array.isArray(data.facturesClients)?data.facturesClients:[];
+  const factTbody=document.getElementById('me-factures-tbody');
+  const factTriees=facturesClients.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(factTbody)factTbody.innerHTML=factTriees.map(f=>{
+    const estAcompte=f.type==='acompte';
+    return `<tr>
+      <td>${f.num}</td>
+      <td>${estAcompte?`<span style="font-size:10px;font-weight:700;color:var(--orange);background:rgba(224,161,94,.12);padding:2px 8px;border-radius:100px">Acompte${f.consommee?' · rattachée':''}</span>`:`<span style="font-size:10px;color:var(--text3)">Facture${f.acompteFactureId?' · avec acompte lié':''}</span>`}</td>
+      <td>${f.clientNom||'—'}</td>
+      <td style="text-align:right;font-weight:600">${fmt(typeof f.totalTTC==='number'?f.totalTTC:f.montant)}</td>
+      <td>${f.statut==='payee'?`<span style="color:var(--green);font-weight:700;font-size:11px">✓ Payée le ${fmtDate(f.datePaiement)}</span>`:`<span style="color:var(--orange);font-weight:700;font-size:11px">⏳ Impayée</span>`}</td>
+      <td style="text-align:right;white-space:nowrap">
+        ${(!estAcompte&&f.statut!=='payee')?`<button class="btn-icon" onclick="marquerFactureMEPayee('${f.id}')" title="Marquer payée (ajoute au CA)">✓</button>`:''}
+        <button class="btn-icon" onclick="ouvrirFactureClientME('${f.id}')" title="Modifier en cas d'erreur">✏️</button>
+        <button class="btn-icon" onclick="revoirFactureME('${f.id}')" title="Revoir le PDF">👁️</button>
+      </td>
+    </tr>`;
+  }).join('');
+  const factEmpty=document.getElementById('me-factures-empty');
+  if(factEmpty)factEmpty.style.display=facturesClients.length?'none':'block';
+}
 let _fmeLignes=[]; // [{description,quantite,prixUnitaireHT,tauxTVA}] — tauxTVA: 'franchise'|0|5.5|10|20
-function ouvrirFactureClientME(){
+let _fmeEditId=null; // id de la facture en cours de modification, null si nouvelle facture
+async function ouvrirFactureClientME(factureId){
+  const dataPourAcomptes=await loadDataME();
+  let factureExistante=null;
+  if(factureId){
+    factureExistante=(dataPourAcomptes.facturesClients||[]).find(f=>f.id===factureId);
+    if(!factureExistante)return;
+  }
+  // Factures d'acompte disponibles à rattacher : de type 'acompte', pas encore consommées par
+  // une autre facture (ou déjà rattachées à CELLE qu'on modifie, pour ne pas la faire
+  // disparaître de la liste en cours d'édition).
+  const acomptesDisponibles=(dataPourAcomptes.facturesClients||[]).filter(f=>f.type==='acompte'&&(!f.consommee||f.id===(factureExistante&&factureExistante.acompteFactureId)));
+  _fmeEditId=factureId||null;
   let modal=document.getElementById('modal-facture-me');
   if(modal)modal.remove();
   modal=document.createElement('div');
@@ -5709,9 +5733,10 @@ function ouvrirFactureClientME(){
   modal.innerHTML=`
     <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:26px;width:640px;max-width:96vw;max-height:92vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2 style="margin:0;font-size:16px">🧾 Nouvelle facture client</h2>
+        <h2 style="margin:0;font-size:16px">🧾 ${factureExistante?'Modifier la facture '+factureExistante.num:'Nouvelle facture client'}</h2>
         <button onclick="document.getElementById('modal-facture-me').remove()" style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer">×</button>
       </div>
+      ${factureExistante&&factureExistante.statut==='payee'?`<div style="background:rgba(224,161,94,.1);border:1px solid rgba(224,161,94,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:11px;color:var(--orange)">⚠ Cette facture est déjà marquée payée. La modifier remettra son solde en attente de paiement et corrigera ton chiffre d'affaires en conséquence.</div>`:''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
         <div class="form-group" style="margin:0"><label style="font-size:10px">Nom du client (ou société)</label><input type="text" id="fme-client-nom" style="font-size:12px"></div>
         <div class="form-group" style="margin:0"><label style="font-size:10px">Email (optionnel — envoi automatique)</label><input type="email" id="fme-client-email" style="font-size:12px"></div>
@@ -5722,16 +5747,55 @@ function ouvrirFactureClientME(){
       <div id="fme-lignes-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
       <button type="button" onclick="fmeAjouterLigne()" style="background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.3);border-radius:7px;padding:7px 14px;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;margin-bottom:16px">+ Ajouter une ligne</button>
 
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="font-size:10px">Facture d'acompte à déduire (optionnel)</label>
+        <select id="fme-acompte-liee" onchange="fmeSelectionAcompteLiee(this)" style="font-size:12px">
+          <option value="">— Aucune / montant manuel —</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label style="font-size:10px">Acompte déjà versé par le client (€) — optionnel</label>
+        <input type="number" id="fme-acompte" step="0.01" min="0" placeholder="0.00" oninput="fmeRenderRecap()" style="font-size:12px">
+      </div>
+
       <div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:12px" id="fme-recap"></div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button onclick="document.getElementById('modal-facture-me').remove()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text2);font-size:12px;cursor:pointer">Annuler</button>
-        <button onclick="validerFactureClientME()" style="background:var(--accent);color:#0a0e1a;border:1px solid var(--accent);border-radius:8px;padding:10px 18px;font-size:12px;font-weight:700;cursor:pointer">✓ Générer la facture</button>
+        <button onclick="validerFactureClientME()" style="background:var(--accent);color:#0a0e1a;border:1px solid var(--accent);border-radius:8px;padding:10px 18px;font-size:12px;font-weight:700;cursor:pointer">${factureExistante?'✓ Enregistrer les modifications':'✓ Générer la facture'}</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
-  _fmeLignes=[{description:'',quantite:1,prixUnitaireHT:0,tauxTVA:'franchise'}];
+  const selAcompte=document.getElementById('fme-acompte-liee');
+  if(selAcompte){
+    selAcompte.innerHTML='<option value="">— Aucune / montant manuel —</option>'
+      +acomptesDisponibles.map(a=>`<option value="${a.id}" data-montant="${a.montant}" ${factureExistante&&factureExistante.acompteFactureId===a.id?'selected':''}>${a.num} — ${a.clientNom} (${fmt(a.montant)})</option>`).join('');
+  }
+  if(factureExistante){
+    document.getElementById('fme-client-nom').value=factureExistante.clientNom||'';
+    document.getElementById('fme-client-adresse').value=factureExistante.clientAdresse||'';
+    document.getElementById('fme-client-email').value=factureExistante.clientEmail||'';
+    document.getElementById('fme-acompte').value=factureExistante.acompte||'';
+    document.getElementById('fme-acompte').disabled=!!factureExistante.acompteFactureId;
+    _fmeLignes=Array.isArray(factureExistante.lignes)&&factureExistante.lignes.length
+      ?JSON.parse(JSON.stringify(factureExistante.lignes))
+      :[{description:factureExistante.description||'',quantite:1,prixUnitaireHT:factureExistante.montant||0,tauxTVA:'franchise'}];
+  } else {
+    _fmeLignes=[{description:'',quantite:1,prixUnitaireHT:0,tauxTVA:'franchise'}];
+  }
   fmeRenderLignes();
+}
+function fmeSelectionAcompteLiee(sel){
+  const opt=sel.selectedOptions[0];
+  const champMontant=document.getElementById('fme-acompte');
+  if(opt&&opt.value){
+    champMontant.value=opt.dataset.montant;
+    champMontant.disabled=true; // le montant vient de la facture d'acompte rattachée, pas modifiable ici
+  } else {
+    champMontant.value='';
+    champMontant.disabled=false;
+  }
+  fmeRenderRecap();
 }
 function fmeAjouterLigne(){
   _fmeLignes.push({description:'',quantite:1,prixUnitaireHT:0,tauxTVA:'franchise'});
@@ -5787,10 +5851,14 @@ function fmeRenderRecap(){
   const box=document.getElementById('fme-recap');
   if(!box)return;
   const t=fmeCalculerTotaux(_fmeLignes);
+  const acompte=+document.getElementById('fme-acompte')?.value||0;
+  const netAPayer=Math.max(0,t.totalTTC-acompte);
   box.innerHTML=`
     <div style="display:flex;justify-content:space-between;color:var(--text2)"><span>Total HT</span><span>${fmt(t.totalHT)}</span></div>
     ${Object.keys(t.tvaParTaux).length?Object.entries(t.tvaParTaux).map(([taux,v])=>`<div style="display:flex;justify-content:space-between;color:var(--text3);font-size:11px"><span>dont TVA ${taux}% (base ${fmt(v.baseHT)})</span><span>${fmt(v.montantTVA)}</span></div>`).join(''):`<div style="display:flex;justify-content:space-between;color:var(--text3);font-size:11px"><span>TVA non applicable (franchise)</span><span>0,00 €</span></div>`}
     <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--text);font-size:14px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><span>Total TTC</span><span>${fmt(t.totalTTC)}</span></div>
+    ${acompte>0?`<div style="display:flex;justify-content:space-between;color:var(--orange);font-size:12px;margin-top:6px"><span>Acompte déjà versé</span><span>− ${fmt(acompte)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--accent);font-size:14px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)"><span>Reste à payer</span><span>${fmt(netAPayer)}</span></div>`:''}
   `;
 }
 async function validerFactureClientME(){
@@ -5801,31 +5869,79 @@ async function validerFactureClientME(){
   if(!clientNom||!lignesValides.length){alert('Renseigne au moins le nom du client et une ligne complète (description, quantité, prix unitaire).');return;}
   const totaux=fmeCalculerTotaux(lignesValides);
   if(totaux.totalTTC<=0){alert('Le montant total doit être supérieur à 0.');return;}
+  const acompteFactureId=document.getElementById('fme-acompte-liee')?.value||'';
+  const acompte=Math.min(+document.getElementById('fme-acompte')?.value||0,totaux.totalTTC);
+  const netAPayer=totaux.totalTTC-acompte;
 
   const data=await loadDataME();
   if(!Array.isArray(data.facturesClients))data.facturesClients=[];
-  const num='FACT-'+new Date().getFullYear()+'-'+String(data.facturesClients.length+1).padStart(3,'0');
-  const facture={id:meUid(),num,date:todayStr(),clientNom,clientAdresse,clientEmail,lignes:lignesValides,totalHT:totaux.totalHT,totalTVA:totaux.totalTVA,totalTTC:totaux.totalTTC,statut:'impayee',datePaiement:''};
+  if(!Array.isArray(data.ca))data.ca=[];
+
+  let facture, idxExistant=-1, ancienne=null;
+  if(_fmeEditId){
+    idxExistant=data.facturesClients.findIndex(f=>f.id===_fmeEditId);
+    ancienne=idxExistant>-1?data.facturesClients[idxExistant]:null;
+    // On retire les lignes de CA que cette facture avait pu créer (acompte manuel et/ou solde
+    // déjà payé) — elles vont être recréées à jour ci-dessous avec les nouveaux montants, pour
+    // ne jamais laisser une trace obsolète dans le chiffre d'affaires.
+    if(ancienne){
+      data.ca=data.ca.filter(c=>c.id!==ancienne.acompteCaId&&c.id!==ancienne.soldeCaId);
+      // Si on change ou retire la facture d'acompte rattachée, on libère l'ancienne pour
+      // qu'elle redevienne disponible à rattacher ailleurs.
+      if(ancienne.acompteFactureId&&ancienne.acompteFactureId!==acompteFactureId){
+        const anc=data.facturesClients.find(f=>f.id===ancienne.acompteFactureId);
+        if(anc){anc.consommee=false;delete anc.consommeeParFactureId;}
+      }
+    }
+    facture={id:_fmeEditId,num:ancienne?ancienne.num:('FACT-'+new Date().getFullYear()+'-'+String(data.facturesClients.length+1).padStart(3,'0')),date:ancienne?ancienne.date:todayStr(),clientNom,clientAdresse,clientEmail,lignes:lignesValides,totalHT:totaux.totalHT,totalTVA:totaux.totalTVA,totalTTC:totaux.totalTTC,acompte,acompteFactureId:acompteFactureId||undefined,netAPayer,statut:netAPayer<=0?'payee':'impayee',datePaiement:netAPayer<=0?(ancienne&&ancienne.datePaiement?ancienne.datePaiement:todayStr()):''};
+  } else {
+    const num='FACT-'+new Date().getFullYear()+'-'+String(data.facturesClients.length+1).padStart(3,'0');
+    facture={id:meUid(),num,date:todayStr(),clientNom,clientAdresse,clientEmail,lignes:lignesValides,totalHT:totaux.totalHT,totalTVA:totaux.totalTVA,totalTTC:totaux.totalTTC,acompte,acompteFactureId:acompteFactureId||undefined,netAPayer,statut:netAPayer<=0?'payee':'impayee',datePaiement:netAPayer<=0?todayStr():''};
+  }
+  if(acompteFactureId){
+    const acompteFactureRef=data.facturesClients.find(f=>f.id===acompteFactureId);
+    if(acompteFactureRef){facture.acompteFactureNum=acompteFactureRef.num;facture.acompteFactureDate=acompteFactureRef.date;}
+  }
 
   const html=construireFactureClientMEHTML(facture);
   document.getElementById('modal-facture-me')?.remove();
-  openPrintOverlay(html,`${num} — ${clientNom}`);
+  openPrintOverlay(html,`${facture.num} — ${clientNom}`);
 
   if(clientEmail){
     try{
       const pdfB64=await _htmlDocumentToPdfBase64(html);
       if(pdfB64){
         const cfg=getCTXConfig();
-        await envoyerEmailImmediat(clientEmail,'Facture '+num+' — '+cfg.nom,
-          `Bonjour,\n\nVeuillez trouver ci-joint la facture ${num} d'un montant de ${fmt(totaux.totalTTC)} TTC.\n\nMerci de bien vouloir procéder au règlement dans les meilleurs délais.\n\nCordialement,\n${cfg.nom}`,
-          {filename:num+'.pdf',base64Data:pdfB64.split(',')[1]||pdfB64});
+        await envoyerEmailImmediat(clientEmail,'Facture '+facture.num+' — '+cfg.nom,
+          `Bonjour,\n\nVeuillez trouver ci-joint la facture ${facture.num} d'un montant de ${fmt(totaux.totalTTC)} TTC.${acompte>0?`\n\nAcompte déjà versé : ${fmt(acompte)}\nReste à payer : ${fmt(netAPayer)}`:''}\n\nMerci de bien vouloir procéder au règlement dans les meilleurs délais.\n\nCordialement,\n${cfg.nom}`,
+          {filename:facture.num+'.pdf',base64Data:pdfB64.split(',')[1]||pdfB64});
       }
     }catch(e){console.error('Envoi email facture client ME échoué (non bloquant):',e);}
   }
 
-  data.facturesClients.push(facture);
+  if(acompteFactureId){
+    // Acompte rattaché à une VRAIE facture d'acompte déjà émise — son montant a déjà été
+    // ajouté au CA au moment de sa propre création, donc pas de nouvelle ligne ici. On la
+    // marque juste comme consommée pour qu'elle ne réapparaisse plus dans la liste à rattacher.
+    const acompteFacture=data.facturesClients.find(f=>f.id===acompteFactureId);
+    if(acompteFacture){
+      acompteFacture.consommee=true;
+      acompteFacture.consommeeParFactureId=facture.id;
+    }
+  } else if(acompte>0){
+    // Acompte saisi manuellement (pas de facture d'acompte formelle associée) — on l'ajoute
+    // au CA tout de suite. On garde l'id de cette ligne pour pouvoir la corriger si la facture
+    // est modifiée ensuite.
+    const caId=meUid();
+    data.ca.push({id:caId,date:todayStr(),montant:acompte,origine:'Acompte facture '+facture.num+' — '+clientNom});
+    facture.acompteCaId=caId;
+  }
+  if(idxExistant>-1)data.facturesClients[idxExistant]=facture;
+  else data.facturesClients.push(facture);
+  _fmeEditId=null;
   await saveDataME(data);
   renderMicroEntreprise();
+  renderFacturation();
 }
 function construireFactureClientMEHTML(f){
   const cfg=getCTXConfig();
@@ -5896,6 +6012,8 @@ function construireFactureClientMEHTML(f){
       <div style="display:flex;justify-content:space-between;padding:2px 0;color:#718096"><span>Total HT</span><span>${fmt(totalHT)}</span></div>
       ${avecTVA?Object.entries(totaux.tvaParTaux).map(([taux,v])=>`<div style="display:flex;justify-content:space-between;padding:2px 0;color:#718096;font-size:11px"><span>dont TVA ${taux}% (base ${fmt(v.baseHT)})</span><span>${fmt(v.montantTVA)}</span></div>`).join(''):''}
       <div style="display:flex;justify-content:space-between;padding-top:8px;margin-top:6px;border-top:1px solid #bee3f8;font-size:18px;font-weight:900;color:#2b6cb0"><span>TOTAL TTC</span><span>${fmt(totalTTC)}</span></div>
+      ${f.acompte>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:#c05621;font-size:12px"><span>Acompte déjà versé</span><span>− ${fmt(f.acompte)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding-top:6px;margin-top:4px;border-top:1px dashed #bee3f8;font-size:15px;font-weight:800;color:#2b6cb0"><span>RESTE À PAYER</span><span>${fmt(f.netAPayer)}</span></div>${f.acompteFactureNum?`<div style="font-size:10px;color:#718096;margin-top:6px">Déduction faite de la facture d'acompte n° ${f.acompteFactureNum} du ${fmtDate(f.acompteFactureDate)}</div>`:''}`:''}
     </div>
 
     <div style="font-size:10px;color:#718096;line-height:1.6">
@@ -5917,16 +6035,137 @@ async function marquerFactureMEPayee(factureId){
   const f=data.facturesClients[idx];
   f.statut='payee';
   f.datePaiement=todayStr();
-  // Ajoute automatiquement l'encaissement au CA — évite de le ressaisir à la main.
-  data.ca.push({id:meUid(),date:f.datePaiement,montant:(typeof f.totalTTC==='number'?f.totalTTC:f.montant),origine:'Facture '+f.num+' — '+f.clientNom});
+  // Ajoute automatiquement l'encaissement au CA — évite de le ressaisir à la main. Seul le
+  // SOLDE restant est ajouté ici : l'acompte éventuel a déjà été encaissé (et déjà ajouté au
+  // CA) au moment de la création de la facture.
+  const montantAAjouter=(typeof f.netAPayer==='number')?f.netAPayer:(typeof f.totalTTC==='number'?f.totalTTC:f.montant);
+  if(montantAAjouter>0){
+    const caId=meUid();
+    data.ca.push({id:caId,date:f.datePaiement,montant:montantAAjouter,origine:'Facture '+f.num+' — '+f.clientNom+(f.acompte>0?' (solde)':'')});
+    f.soldeCaId=caId;
+  }
   await saveDataME(data);
   renderMicroEntreprise();
+  renderFacturation();
 }
 async function revoirFactureME(factureId){
   const data=await loadDataME();
   const f=(data.facturesClients||[]).find(x=>x.id===factureId);
   if(!f)return;
-  openPrintOverlay(construireFactureClientMEHTML(f),`${f.num} — ${f.clientNom}`);
+  const html=f.type==='acompte'?construireFactureAcompteMEHTML(f):construireFactureClientMEHTML(f);
+  openPrintOverlay(html,`${f.num} — ${f.clientNom}`);
+}
+
+// ── FACTURE D'ACOMPTE — document séparé, émis pour un acompte déjà reçu, rattachable ensuite
+// à la facture finale (déduction automatique du montant + référence croisée sur le PDF). ──
+function ouvrirFactureAcompteME(){
+  let modal=document.getElementById('modal-facture-acompte-me');
+  if(modal)modal.remove();
+  modal=document.createElement('div');
+  modal.id='modal-facture-acompte-me';
+  modal.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2500;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:26px;width:460px;max-width:96vw;max-height:92vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h2 style="margin:0;font-size:16px">🧾 Nouvelle facture d'acompte</h2>
+        <button onclick="document.getElementById('modal-facture-acompte-me').remove()" style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer">×</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Formalise un acompte déjà reçu du client. Ajoutée immédiatement à ton chiffre d'affaires, et rattachable à la facture finale pour déduction automatique.</div>
+      <div class="form-group" style="margin-bottom:12px"><label style="font-size:10px">Nom du client (ou société)</label><input type="text" id="fac-client-nom" style="font-size:12px"></div>
+      <div class="form-group" style="margin-bottom:12px"><label style="font-size:10px">Email (optionnel — envoi automatique)</label><input type="email" id="fac-client-email" style="font-size:12px"></div>
+      <div class="form-group" style="margin-bottom:12px"><label style="font-size:10px">Adresse (optionnel)</label><input type="text" id="fac-client-adresse" style="font-size:12px"></div>
+      <div class="form-group" style="margin-bottom:12px"><label style="font-size:10px">Description</label><input type="text" id="fac-description" placeholder="ex: Acompte sur prestation de..." style="font-size:12px"></div>
+      <div class="form-group" style="margin-bottom:20px"><label style="font-size:10px">Montant reçu (€)</label><input type="number" id="fac-montant" step="0.01" min="0" style="font-size:14px;font-weight:700"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('modal-facture-acompte-me').remove()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text2);font-size:12px;cursor:pointer">Annuler</button>
+        <button onclick="validerFactureAcompteME()" style="background:var(--accent);color:#0a0e1a;border:1px solid var(--accent);border-radius:8px;padding:10px 18px;font-size:12px;font-weight:700;cursor:pointer">✓ Générer la facture d'acompte</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+async function validerFactureAcompteME(){
+  const clientNom=document.getElementById('fac-client-nom').value.trim();
+  const clientAdresse=document.getElementById('fac-client-adresse').value.trim();
+  const clientEmail=document.getElementById('fac-client-email').value.trim();
+  const description=document.getElementById('fac-description').value.trim()||'Acompte';
+  const montant=+document.getElementById('fac-montant').value||0;
+  if(!clientNom||!montant||montant<=0){alert('Renseigne au moins le nom du client et un montant valide.');return;}
+
+  const data=await loadDataME();
+  if(!Array.isArray(data.facturesClients))data.facturesClients=[];
+  const num='ACOMPTE-'+new Date().getFullYear()+'-'+String(data.facturesClients.filter(f=>f.type==='acompte').length+1).padStart(3,'0');
+  const facture={id:meUid(),num,type:'acompte',date:todayStr(),clientNom,clientAdresse,clientEmail,description,montant,totalTTC:montant,statut:'payee',datePaiement:todayStr(),consommee:false};
+
+  const html=construireFactureAcompteMEHTML(facture);
+  document.getElementById('modal-facture-acompte-me')?.remove();
+  openPrintOverlay(html,`${num} — ${clientNom}`);
+
+  if(clientEmail){
+    try{
+      const pdfB64=await _htmlDocumentToPdfBase64(html);
+      if(pdfB64){
+        const cfg=getCTXConfig();
+        await envoyerEmailImmediat(clientEmail,'Facture d\'acompte '+num+' — '+cfg.nom,
+          `Bonjour,\n\nVeuillez trouver ci-joint la facture d'acompte ${num} confirmant la réception de ${fmt(montant)}.\n\nCordialement,\n${cfg.nom}`,
+          {filename:num+'.pdf',base64Data:pdfB64.split(',')[1]||pdfB64});
+      }
+    }catch(e){console.error('Envoi email facture acompte ME échoué (non bloquant):',e);}
+  }
+
+  const caId=meUid();
+  data.ca.push({id:caId,date:todayStr(),montant,origine:'Facture d\'acompte '+num+' — '+clientNom});
+  facture.caId=caId;
+  data.facturesClients.push(facture);
+  await saveDataME(data);
+  renderMicroEntreprise();
+  renderFacturation();
+}
+function construireFactureAcompteMEHTML(f){
+  const cfg=getCTXConfig();
+  const adresseEmetteur=CTX_CONFIG[CTX].sousTitre||'';
+  const logoB64=getLogoB64();
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${f.num}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a202c;font-size:12px;line-height:1.6;padding:20mm 25mm;max-width:210mm;margin:0 auto}
+    .header-doc{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #E0A15E;padding-bottom:14px;margin-bottom:20px}
+    .montant-box{background:#fffaf0;border:1px solid #fbd38d;border-radius:10px;padding:18px 22px;margin:24px 0;text-align:center}
+    @media print{@page{size:A4 portrait;margin:15mm 20mm}body{padding:0}}
+  </style></head><body>
+    <div class="header-doc">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="${logoB64}" alt="Logo" style="height:55px;width:auto;object-fit:contain">
+        <div>
+          <div style="font-weight:700;font-size:13px">${cfg.nom}</div>
+          <div style="font-size:11px;color:#718096">${adresseEmetteur}</div>
+        </div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#718096">
+        <div style="font-size:16px;font-weight:900;color:#c05621;margin-bottom:4px">FACTURE D'ACOMPTE</div>
+        <div>N° ${f.num}</div>
+        <div>Date : ${fmtDate(f.date)}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:20px">
+      <div style="font-size:10px;font-weight:700;color:#c05621;text-transform:uppercase;margin-bottom:4px">Reçu de</div>
+      <div style="font-weight:600">${f.clientNom}</div>
+      ${f.clientAdresse?`<div style="color:#718096">${f.clientAdresse}</div>`:''}
+    </div>
+    <div style="font-size:12px">${f.description}</div>
+    <div class="montant-box">
+      <div style="font-size:11px;color:#718096;margin-bottom:4px">MONTANT DE L'ACOMPTE REÇU</div>
+      <div style="font-size:24px;font-weight:900;color:#c05621">${fmt(f.montant)}</div>
+      <div style="font-size:10px;color:#718096;margin-top:6px">Réglé le ${fmtDate(f.datePaiement)}</div>
+    </div>
+    <div style="font-size:10px;color:#718096;line-height:1.6">
+      Ce document formalise la réception d'un acompte. Il sera déduit du montant de la facture finale à l'achèvement de la prestation.<br>
+      Dispensé d'immatriculation au Registre du Commerce et des Sociétés (RCS) et au Répertoire des Métiers (RM).
+    </div>
+    <div style="margin-top:30px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
+      <img src="${NOVIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
+      <span style="font-size:9px;color:#94a3b8;letter-spacing:.2px">Document généré avec Novimmo — gestion locative simplifiée</span>
+    </div>
+  </body></html>`;
 }
 
 async function ajouterDeclaration_ME(){
