@@ -3020,6 +3020,13 @@ function ouvrirFacturationLocataire(locId){
       <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Facture un montant ponctuel, hors loyer — suivie en paiement séparé, à part.</div>
 
       <div class="form-group" style="margin-bottom:12px">
+        <label style="font-size:10px">Facture d'acompte à déduire (optionnel)</label>
+        <select id="fl-acompte-liee" onchange="flSelectionAcompteLiee(this)" style="font-size:12px">
+          <option value="">— Aucune —</option>
+          ${loadFacturesLocataires().filter(f=>f.locId===String(locId)&&f.type==='acompte'&&!f.consommee).map(a=>`<option value="${a.id}" data-montant="${a.montant}">${a.num} — ${fmt(a.montant)} (${fmtDate(a.date)})</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
         <label style="font-size:10px">Motif</label>
         <select id="fl-motif" onchange="document.getElementById('fl-motif-autre').style.display=this.value==='Autre'?'block':'none'" style="font-size:12px">
           ${FACTURE_LOCATAIRE_MOTIFS.map(m=>`<option value="${m}">${m}</option>`).join('')}
@@ -3032,8 +3039,9 @@ function ouvrirFacturationLocataire(locId){
       </div>
       <div class="form-group" style="margin-bottom:20px">
         <label style="font-size:10px">Montant TTC (€)</label>
-        <input type="number" id="fl-montant" step="0.01" min="0" placeholder="ex: 45.00" style="font-size:14px;font-weight:700">
+        <input type="number" id="fl-montant" step="0.01" min="0" placeholder="ex: 45.00" oninput="flRenderRecapAcompte()" style="font-size:14px;font-weight:700">
       </div>
+      <div id="fl-recap-acompte" style="font-size:12px;margin-bottom:16px"></div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button onclick="document.getElementById('modal-facture-locataire').remove()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text2);font-size:12px;cursor:pointer">Annuler</button>
@@ -3041,6 +3049,96 @@ function ouvrirFacturationLocataire(locId){
       </div>
     </div>`;
   document.body.appendChild(modal);
+}
+function flRenderRecapAcompte(){
+  const box=document.getElementById('fl-recap-acompte');
+  const sel=document.getElementById('fl-acompte-liee');
+  if(!box||!sel)return;
+  const opt=sel.selectedOptions[0];
+  const montantTotal=+document.getElementById('fl-montant')?.value||0;
+  if(opt&&opt.value){
+    const acompte=+opt.dataset.montant;
+    const net=Math.max(0,montantTotal-acompte);
+    box.innerHTML=`<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+      <div style="display:flex;justify-content:space-between;color:var(--text2)"><span>Montant total</span><span>${fmt(montantTotal)}</span></div>
+      <div style="display:flex;justify-content:space-between;color:var(--orange)"><span>Acompte déjà versé</span><span>− ${fmt(acompte)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--accent);margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)"><span>Reste à payer</span><span>${fmt(net)}</span></div>
+    </div>`;
+  } else {
+    box.innerHTML='';
+  }
+}
+function flSelectionAcompteLiee(sel){flRenderRecapAcompte();}
+function ouvrirFacturationAcompteLocataire(locId){
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(locId));
+  if(!loc)return;
+  let modal=document.getElementById('modal-facture-acompte-locataire');
+  if(modal)modal.remove();
+  modal=document.createElement('div');
+  modal.id='modal-facture-acompte-locataire';
+  modal.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2500;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:26px;width:460px;max-width:96vw;max-height:92vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h2 style="margin:0;font-size:16px">🧾 Facture d'acompte — ${nomCompletLoc(loc)}</h2>
+        <button onclick="document.getElementById('modal-facture-acompte-locataire').remove()" style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer">×</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Formalise un acompte déjà reçu du locataire — rattachable ensuite à la facture finale pour déduction automatique.</div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="font-size:10px">Description</label>
+        <input type="text" id="fla-description" placeholder="ex: Acompte sur remplacement de clé" style="font-size:12px">
+      </div>
+      <div class="form-group" style="margin-bottom:20px">
+        <label style="font-size:10px">Montant reçu (€)</label>
+        <input type="number" id="fla-montant" step="0.01" min="0" style="font-size:14px;font-weight:700">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('modal-facture-acompte-locataire').remove()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text2);font-size:12px;cursor:pointer">Annuler</button>
+        <button onclick="validerFacturationAcompteLocataire('${locId}')" style="background:var(--accent);color:#0a0e1a;border:1px solid var(--accent);border-radius:8px;padding:10px 18px;font-size:12px;font-weight:700;cursor:pointer">✓ Générer la facture d'acompte</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+async function validerFacturationAcompteLocataire(locId){
+  const locs=loadLocataires();
+  const loc=locs.find(l=>String(l.id)===String(locId));
+  if(!loc)return;
+  const description=document.getElementById('fla-description').value.trim()||'Acompte';
+  const montant=+document.getElementById('fla-montant').value||0;
+  if(!montant||montant<=0){alert('Renseigne un montant valide.');return;}
+
+  const list=loadFacturesLocataires();
+  const id='factloc_'+Date.now();
+  const num='ACOMPTE-LOC-'+new Date().getFullYear()+'-'+String(list.filter(f=>f.type==='acompte'&&f.logement===loc.logement).length+1).padStart(3,'0');
+  const facture={id,locId:String(locId),logement:loc.logement,num,type:'acompte',date:todayStr(),motif:description,description:'',montant,statut:'payee',datePaiement:todayStr(),consommee:false};
+
+  const html=construireFactureLocataireHTML(loc,facture);
+  document.getElementById('modal-facture-acompte-locataire')?.remove();
+  openPrintOverlay(html,`${num} — ${nomCompletLoc(loc)}`);
+
+  let lien='';
+  try{
+    const pdfB64=await _htmlDocumentToPdfBase64(html);
+    if(pdfB64){
+      lien=await uploadToDriveGestionLocative(pdfB64,num.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',loc.logement)||'';
+      if(loc.email){
+        const cfg=getCTXConfig();
+        await envoyerEmailImmediat(loc.email,'Facture d\'acompte '+num+' — '+cfg.nom,
+          `Bonjour ${loc.nom||''},\n\nVeuillez trouver ci-joint la facture d'acompte ${num} confirmant la réception de ${fmt(montant)}.\n\nCordialement,\n${cfg.nom}`,
+          {filename:num.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf',base64Data:pdfB64.split(',')[1]||pdfB64});
+      }
+    }
+  }catch(e){console.error('Upload/envoi facture acompte locataire échoué (non bloquant):',e);}
+  facture.lien=lien;
+  list.push(facture);
+  saveFacturesLocataires(list);
+  const glDocs=loadGLDocs();
+  const glId='factureloc_'+Date.now();
+  glDocs.push({id:glId,logement:loc.logement,categorie:'facture_locataire',libelle:num+' — '+description+' ('+fmt(montant)+')',dateCreation:todayStr(),dateExpiration:'',lien,htmlContent:html});
+  saveGLDocs(glDocs);
+  if(lien)_libererCopieLocaleGLDoc(glId);
+  renderLocataires();
 }
 async function validerFacturationLocataire(locId){
   const locs=loadLocataires();
@@ -3051,11 +3149,25 @@ async function validerFacturationLocataire(locId){
   const description=document.getElementById('fl-description').value.trim();
   const montant=+document.getElementById('fl-montant').value||0;
   if(!montant||montant<=0){alert('Renseigne un montant valide.');return;}
+  const acompteFactureId=document.getElementById('fl-acompte-liee')?.value||'';
 
   const list=loadFacturesLocataires();
   const id='factloc_'+Date.now();
   const num='FACT-LOC-'+new Date().getFullYear()+'-'+String(list.filter(f=>f.logement===loc.logement).length+1).padStart(3,'0');
   const facture={id,locId:String(locId),logement:loc.logement,num,date:todayStr(),motif,description,montant,statut:'impayee',datePaiement:''};
+  if(acompteFactureId){
+    const acompteFacture=list.find(f=>f.id===acompteFactureId);
+    if(acompteFacture){
+      facture.acompteFactureId=acompteFactureId;
+      facture.acompteMontant=acompteFacture.montant;
+      facture.acompteFactureNum=acompteFacture.num;
+      facture.acompteFactureDate=acompteFacture.date;
+      facture.netAPayer=Math.max(0,montant-acompteFacture.montant);
+      acompteFacture.consommee=true;
+      acompteFacture.consommeeParFactureId=id;
+      if(facture.netAPayer<=0){facture.statut='payee';facture.datePaiement=todayStr();}
+    }
+  }
 
   const html=construireFactureLocataireHTML(loc,facture);
   document.getElementById('modal-facture-locataire')?.remove();
@@ -3097,12 +3209,13 @@ function construireFactureLocataireHTML(loc,facture){
   const lg=getLogementsActifs().find(x=>x.key===loc.logement);
   const logoB64=getLogoB64();
   const adresseBailleur=CTX_CONFIG[CTX].sousTitre||'';
+  const estAcompte=facture.type==='acompte';
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${facture.num}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',Arial,sans-serif;color:#1a202c;font-size:12px;line-height:1.6;padding:20mm 25mm;max-width:210mm;margin:0 auto}
-    .header-doc{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #5AC8D8;padding-bottom:14px;margin-bottom:20px}
-    .montant-box{background:#ebf8ff;border:1px solid #bee3f8;border-radius:10px;padding:18px 22px;margin:24px 0;text-align:center}
+    .header-doc{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${estAcompte?'#E0A15E':'#5AC8D8'};padding-bottom:14px;margin-bottom:20px}
+    .montant-box{background:${estAcompte?'#fffaf0':'#ebf8ff'};border:1px solid ${estAcompte?'#fbd38d':'#bee3f8'};border-radius:10px;padding:14px 22px;margin:20px 0}
     @media print{@page{size:A4 portrait;margin:15mm 20mm}body{padding:0}}
   </style></head><body>
     <div class="header-doc">
@@ -3114,7 +3227,7 @@ function construireFactureLocataireHTML(loc,facture){
         </div>
       </div>
       <div style="text-align:right;font-size:11px;color:#718096">
-        <div style="font-size:16px;font-weight:900;color:#5AC8D8;margin-bottom:4px">FACTURE</div>
+        <div style="font-size:16px;font-weight:900;color:${estAcompte?'#c05621':'#5AC8D8'};margin-bottom:4px">${estAcompte?"FACTURE D'ACOMPTE":'FACTURE'}</div>
         <div>N° ${facture.num}</div>
         <div>Date : ${fmtDate(facture.date)}</div>
       </div>
@@ -3138,11 +3251,14 @@ function construireFactureLocataireHTML(loc,facture){
     </table>
 
     <div class="montant-box">
-      <div style="font-size:11px;color:#718096;margin-bottom:4px">TOTAL TTC À RÉGLER</div>
-      <div style="font-size:24px;font-weight:900;color:#2b6cb0">${fmt(facture.montant)}</div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#718096"><span>${estAcompte?"MONTANT DE L'ACOMPTE REÇU":'TOTAL TTC'}</span><span>${fmt(facture.montant)}</span></div>
+      ${facture.acompteFactureId?`<div style="display:flex;justify-content:space-between;font-size:12px;color:#c05621;padding:4px 0"><span>Acompte déjà versé</span><span>− ${fmt(facture.acompteMontant)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding-top:8px;margin-top:4px;border-top:1px dashed #bee3f8;font-size:18px;font-weight:900;color:#2b6cb0"><span>RESTE À PAYER</span><span>${fmt(facture.netAPayer)}</span></div>
+      <div style="font-size:10px;color:#718096;margin-top:6px">Déduction faite de la facture d'acompte n° ${facture.acompteFactureNum} du ${fmtDate(facture.acompteFactureDate)}</div>`
+      :(!estAcompte?`<div style="padding-top:8px;margin-top:4px;border-top:1px solid #bee3f8;font-size:22px;font-weight:900;color:#2b6cb0;text-align:center">${fmt(facture.montant)}</div>`:`<div style="font-size:10px;color:#718096;margin-top:6px">Réglé le ${fmtDate(facture.datePaiement)} — sera déduit de la facture finale</div>`)}
     </div>
 
-    <div style="font-size:11px;color:#718096">Merci de bien vouloir procéder au règlement dans les meilleurs délais.</div>
+    <div style="font-size:11px;color:#718096">${estAcompte?"Ce document formalise la réception d'un acompte. Il sera déduit du montant de la facture finale.":'Merci de bien vouloir procéder au règlement dans les meilleurs délais.'}</div>
 
     <div style="margin-top:30px;padding-top:10px;border-top:1px solid rgba(148,163,184,.3);display:flex;align-items:center;justify-content:center;gap:6px;opacity:.6">
       <img src="${NOVIMMO_LOGO_B64}" alt="" style="height:13px;width:13px;border-radius:3px;flex-shrink:0">
@@ -8172,6 +8288,7 @@ function renderLocataires(){
         <button class="btn btn-sm" style="background:rgba(246,135,179,.1);border-color:rgba(246,135,179,.3);color:#f687b3" onclick="ouvrirEdl('${cur.id}','sortie')">🚪 EDL sortie</button>
         <button class="btn btn-sm" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.3);color:var(--accent)" title="Ouvre directement le dossier Drive de ce logement (bail, EDL, avenants, pièces d'identité...)" onclick="ouvrirDossierDriveLocataire('${cur.logement}')">📂 Dossier Drive</button>
         <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirFacturationLocataire('${cur.id}')">🧾 Facturer${(()=>{const n=loadFacturesLocataires().filter(f=>f.locId===String(cur.id)&&f.statut==='impayee').length;return n?` (${n} impayée${n>1?'s':''})`:'';})()}</button>
+        <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirFacturationAcompteLocataire('${cur.id}')" title="Formalise un acompte déjà reçu du locataire, rattachable ensuite à la facture finale">🧾 Facture d'acompte</button>
         <button class="btn btn-sm" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.3);color:var(--orange)" onclick="ouvrirModalIRL('${cur.id}')">📈 Révision IRL</button>
         <button class="btn btn-sm" style="background:rgba(160,174,192,.1);border-color:rgba(160,174,192,.3);color:var(--text2)" onclick="ouvrirModalCourriers('${cur.id}')">✉️ Courriers</button>
         ${Object.values(cur.paiements||{}).some(p=>!p.paye&&!p.vacant)?`<button class="btn btn-sm" style="background:rgba(224,113,107,.1);border-color:rgba(224,113,107,.3);color:var(--red)" onclick="ouvrirModalRelance('${cur.id}')">📧 Relance</button>`:''}
@@ -8193,9 +8310,9 @@ function renderLocataires(){
         <div style="display:flex;flex-direction:column;gap:6px">
           ${facturesLoc.map(f=>`
             <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:7px">
-              <span style="color:var(--text2)">${f.num} — ${f.motif} <span style="color:var(--text3);font-size:10px">(${fmtDate(f.date)})</span></span>
+              <span style="color:var(--text2)">${f.type==='acompte'?`<span style="font-size:9px;font-weight:700;color:var(--orange);background:rgba(224,161,94,.12);padding:2px 7px;border-radius:100px;margin-right:6px">Acompte${f.consommee?' · rattachée':''}</span>`:(f.acompteFactureId?`<span style="font-size:9px;color:var(--text3)">Avec acompte lié · </span>`:'')}${f.num} — ${f.motif} <span style="color:var(--text3);font-size:10px">(${fmtDate(f.date)})</span></span>
               <span style="display:flex;gap:10px;align-items:center">
-                <span style="font-weight:600;color:var(--text)">${fmt(f.montant)}</span>
+                <span style="font-weight:600;color:var(--text)">${fmt(f.type==='acompte'?f.montant:(f.netAPayer!=null?f.netAPayer:f.montant))}</span>
                 ${f.statut==='payee'
                   ?`<span style="color:var(--green);font-size:11px;font-weight:700">✓ Payée le ${fmtDate(f.datePaiement)}</span>`
                   :`<button onclick="marquerFactureLocatairePayee('${f.id}')" style="background:rgba(127,191,158,.12);border:1px solid rgba(127,191,158,.4);border-radius:6px;padding:4px 10px;color:var(--green);font-size:10px;font-weight:600;cursor:pointer">Marquer payée</button>`}
