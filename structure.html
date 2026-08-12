@@ -7,7 +7,16 @@
     alert('ERREUR JS: ' + e.message + '\n(fichier: ' + e.filename + ' ligne ' + e.lineno + ')');
   });
   window.addEventListener('unhandledrejection', function(e){
-    alert('ERREUR PROMESSE: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+    let detail = e.reason;
+    if(detail instanceof Event){
+      // Un Event brut (souvent un échec de chargement <img>/<iframe>/<script>) donne peu
+      // d'info par défaut — on essaie d'extraire la cible et le type pour pouvoir diagnostiquer.
+      const cible = detail.target;
+      detail = 'Event de type "' + detail.type + '"' + (cible ? ' sur <' + cible.tagName + (cible.src ? ' src="' + String(cible.src).slice(0,80) + '..."' : '') + '>' : '');
+    } else if(detail && detail.message){
+      detail = detail.message;
+    }
+    alert('ERREUR PROMESSE: ' + detail);
   });
 </script>
 <meta charset="UTF-8">
@@ -1303,6 +1312,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>Devis associé <span style="font-size:10px;color:var(--text3)">(optionnel)</span></label>
         <select id="f-devis" onchange="appliquerDevisSurFacture()"><option value="">— Aucun —</option></select>
       </div>
+      <div class="form-group" style="grid-column:1/-1;background:rgba(224,161,94,.06);border:1px solid rgba(224,161,94,.25);border-radius:8px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px">
+          <input type="checkbox" id="f-est-acompte" style="width:16px;height:16px">
+          <span>🧾 Cette facture est elle-même un acompte payé au fournisseur (ex: acompte Point P avant réception de commande)</span>
+        </label>
+        <label style="font-size:10px">Facture d'acompte déjà réglée à déduire <span style="color:var(--text3)">(optionnel — pour la facture finale une fois l'acompte connu)</span></label>
+        <select id="f-acompte" onchange="appliquerAcompteSurFacture('f')"><option value="">— Aucune —</option></select>
+      </div>
       <div class="form-group"><label>Statut paiement</label>
         <select id="f-statut">
           <option value="En attente">En attente</option>
@@ -2491,6 +2508,36 @@ function populateDevisSelects(){
     ).join('');
     if(disponibles.some(d=>d.num===keepValue))el.value=keepValue;
   });
+  populateAcompteFactureSelects();
+}
+// Même principe que populateDevisSelects() ci-dessus, pour les factures d'acompte fournisseur
+// (ex: acompte payé à Point P avant réception de la commande) — permet de rattacher la facture
+// finale à l'acompte déjà réglé, pour ne pas compter la dépense en double. Identifiées par leur
+// numéro (comme les devis), donc seules les factures d'acompte AVEC un numéro renseigné
+// apparaissent ici.
+function populateAcompteFactureSelects(){
+  const{factures}=loadData();
+  ['f-acompte','e-acompte'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    const keepValue=el.value;
+    const disponibles=factures.filter(f=>f.type==='acompte'&&f.num&&(!f.consommee||f.num===keepValue));
+    el.innerHTML='<option value="">— Aucune —</option>'+disponibles.map(f=>
+      `<option value="${f.num.replace(/"/g,'&quot;')}">${f.num} — ${f.four} (${fmt(f.ttc)}, le ${fmtDate(f.date)})</option>`
+    ).join('');
+    if(disponibles.some(f=>f.num===keepValue))el.value=keepValue;
+  });
+}
+// Pré-remplit le fournisseur si vide, à partir de la facture d'acompte sélectionnée — pratique
+// cohérence, comme pour le devis associé.
+function appliquerAcompteSurFacture(prefix){
+  const sel=document.getElementById(prefix+'-acompte');
+  if(!sel||!sel.value)return;
+  const{factures}=loadData();
+  const acompte=factures.find(f=>f.num===sel.value);
+  if(!acompte)return;
+  const four=document.getElementById(prefix+'-four');
+  if(four&&!four.value)four.value=acompte.four||'';
 }
 // Pré-remplit les champs vides du formulaire d'ajout de facture depuis le devis sélectionné.
 function appliquerDevisSurFacture(){
@@ -4915,6 +4962,18 @@ async function ajouterFacture(){
     hasPdf:!!pendingPdfB64,
     inclus:true
   };
+  if(document.getElementById('f-est-acompte')?.checked)factureObj.type='acompte';
+  const acompteAssocie=document.getElementById('f-acompte')?document.getElementById('f-acompte').value:'';
+  if(acompteAssocie){
+    const acompteFacture=d.factures.find(f=>f.num===acompteAssocie);
+    if(acompteFacture){
+      factureObj.acompteFactureNum=acompteFacture.num;
+      factureObj.acompteMontant=acompteFacture.ttc;
+      factureObj.desc=(factureObj.desc?factureObj.desc+' — ':'')+`Acompte de ${fmt(acompteFacture.ttc)} déjà réglé (facture ${acompteFacture.num} du ${fmtDate(acompteFacture.date)}) déduit de ce montant.`;
+      acompteFacture.consommee=true;
+      acompteFacture.consommeeParFactureNum=baseNum;
+    }
+  }
   if(isSplit){
     const nbParts=splitLogs.length;
     factureObj.repartition=splitLogs.map(logVal=>({
@@ -4948,6 +5007,9 @@ async function ajouterFacture(){
   document.getElementById('f-regleby').value='';
   document.getElementById('f-cmd').value='';
   if(document.getElementById('f-devis'))document.getElementById('f-devis').value='';
+  if(document.getElementById('f-est-acompte'))document.getElementById('f-est-acompte').checked=false;
+  if(document.getElementById('f-acompte'))document.getElementById('f-acompte').value='';
+  populateAcompteFactureSelects();
   // Nouveau numéro auto pour la prochaine facture
   setTimeout(()=>{const n=document.getElementById('f-num');if(n){n.value=getNextFactureNum();_lastAutoFactureNum=n.value;}},100);
   clearUpload(false);
