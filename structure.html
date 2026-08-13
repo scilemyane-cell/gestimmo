@@ -1319,6 +1319,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         </label>
         <label style="font-size:10px">Facture d'acompte déjà réglée à déduire <span style="color:var(--text3)">(optionnel — pour la facture finale une fois l'acompte connu)</span></label>
         <select id="f-acompte" onchange="appliquerAcompteSurFacture('f')"><option value="">— Aucune —</option></select>
+        <div id="f-acompte-montant" style="display:none;margin-top:8px">
+          <label style="font-size:10px">Montant à déduire de cet acompte (€) <span style="color:var(--text3)">— peut être inférieur au solde si l'acompte couvre aussi de futures livraisons</span></label>
+          <input type="number" id="f-acompte-montant-input" step="0.01" min="0" style="font-size:12px">
+          <div id="f-acompte-solde-texte" style="font-size:10px;color:var(--text3);margin-top:4px"></div>
+        </div>
       </div>
       <div class="form-group"><label>Statut paiement</label>
         <select id="f-statut">
@@ -1677,6 +1682,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         </div>
         <label style="font-size:10px">Facture d'acompte déjà réglée à déduire <span style="color:var(--text3)">(optionnel)</span></label>
         <select id="e-acompte" onchange="appliquerAcompteSurFacture('e')"><option value="">— Aucune —</option></select>
+        <div id="e-acompte-montant" style="display:none;margin-top:8px">
+          <label style="font-size:10px">Montant à déduire de cet acompte (€) <span style="color:var(--text3)">— peut être inférieur au solde si l'acompte couvre aussi de futures livraisons</span></label>
+          <input type="number" id="e-acompte-montant-input" step="0.01" min="0" style="font-size:12px">
+          <div id="e-acompte-solde-texte" style="font-size:10px;color:var(--text3);margin-top:4px"></div>
+        </div>
       </div>
       <div class="form-group"><label>Statut</label>
         <select id="e-statut">
@@ -2523,33 +2533,59 @@ function populateDevisSelects(){
   populateAcompteFactureSelects();
 }
 // Même principe que populateDevisSelects() ci-dessus, pour les factures d'acompte fournisseur
-// (ex: acompte payé à Point P avant réception de la commande) — permet de rattacher la facture
-// finale à l'acompte déjà réglé, pour ne pas compter la dépense en double. Identifiées par leur
-// numéro (comme les devis), donc seules les factures d'acompte AVEC un numéro renseigné
-// apparaissent ici.
+// (ex: acompte payé à Point P avant réception de la commande) — permet de rattacher une facture
+// de livraison à l'acompte déjà réglé, pour ne pas compter la dépense en double. Un acompte peut
+// couvrir PLUSIEURS livraisons successives (comme chez Point P) : on suit donc un vrai solde
+// restant (montant total moins la somme de tous les tirages déjà effectués), pas juste un
+// statut "utilisé/pas utilisé" en bloc. Identifiées par leur numéro (comme les devis), donc
+// seules les factures d'acompte AVEC un numéro renseigné apparaissent ici.
+function soldeRestantAcompte(f){
+  const utilise=Array.isArray(f.tirages)?f.tirages.reduce((s,t)=>s+(+t.montant||0),0):0;
+  return +(f.ttc-utilise).toFixed(2);
+}
 function populateAcompteFactureSelects(){
   const{factures}=loadData();
   ['f-acompte','e-acompte'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
     const keepValue=el.value;
-    const disponibles=factures.filter(f=>f.type==='acompte'&&f.num&&(!f.consommee||f.num===keepValue));
+    // Reste disponible tant que son solde restant est positif (même si déjà partiellement
+    // utilisé par une autre livraison) — ou si c'est déjà celui sélectionné ici, pour ne pas
+    // le faire disparaître de la liste pendant qu'on modifie CETTE facture.
+    const disponibles=factures.filter(f=>f.type==='acompte'&&f.num&&(soldeRestantAcompte(f)>0.01||f.num===keepValue));
     el.innerHTML='<option value="">— Aucune —</option>'+disponibles.map(f=>
-      `<option value="${f.num.replace(/"/g,'&quot;')}">${f.num} — ${f.four} (${fmt(f.ttc)}, le ${fmtDate(f.date)})</option>`
+      `<option value="${f.num.replace(/"/g,'&quot;')}">${f.num} — ${f.four} (solde restant ${fmt(soldeRestantAcompte(f))} sur ${fmt(f.ttc)}, le ${fmtDate(f.date)})</option>`
     ).join('');
     if(disponibles.some(f=>f.num===keepValue))el.value=keepValue;
   });
 }
-// Pré-remplit le fournisseur si vide, à partir de la facture d'acompte sélectionnée — pratique
-// cohérence, comme pour le devis associé.
+// Pré-remplit le fournisseur si vide + le montant à déduire (par défaut : le plus petit entre
+// le solde restant de l'acompte et le montant TTC de cette facture), à partir de la facture
+// d'acompte sélectionnée.
 function appliquerAcompteSurFacture(prefix){
   const sel=document.getElementById(prefix+'-acompte');
-  if(!sel||!sel.value)return;
+  const champMontantDeduit=document.getElementById(prefix+'-acompte-montant');
+  if(!sel||!sel.value){
+    if(champMontantDeduit)champMontantDeduit.style.display='none';
+    return;
+  }
   const{factures}=loadData();
   const acompte=factures.find(f=>f.num===sel.value);
   if(!acompte)return;
   const four=document.getElementById(prefix+'-four');
   if(four&&!four.value)four.value=acompte.four||'';
+  if(champMontantDeduit){
+    const ttcFacture=+document.getElementById(prefix+'-ttc').value||0;
+    const solde=soldeRestantAcompte(acompte);
+    champMontantDeduit.style.display='block';
+    const inputMontant=document.getElementById(prefix+'-acompte-montant-input');
+    if(inputMontant){
+      inputMontant.max=solde;
+      inputMontant.value=Math.min(ttcFacture,solde).toFixed(2);
+    }
+    const soldeTexte=document.getElementById(prefix+'-acompte-solde-texte');
+    if(soldeTexte)soldeTexte.textContent='Solde disponible sur cet acompte : '+fmt(solde);
+  }
 }
 // Libère manuellement une facture d'acompte marquée "consommée" à tort (état orphelin — la
 // facture qui l'utilisait a été modifiée/supprimée sans passer par le rattachement prévu).
@@ -2557,17 +2593,26 @@ function appliquerAcompteSurFacture(prefix){
 // tout rattachement), et l'action est immédiatement enregistrée (pas besoin de cliquer sur
 // "Enregistrer les modifications" en plus).
 function libererAcompteConsomme(){
-  if(!confirm('Libérer ce rattachement ? Cette facture d\'acompte redeviendra disponible pour être rattachée à une autre facture, et recomptera dans tes totaux de dépenses.'))return;
   const d=loadData();
   const f=d.factures[editIdx];
   if(!f)return;
-  f.consommee=false;
-  f.inclus=true;
-  delete f.consommeeParFactureNum;
+  const tirages=Array.isArray(f.tirages)?f.tirages:[];
+  if(!tirages.length)return;
+  if(!confirm('Retirer TOUS les tirages sur cet acompte ('+tirages.length+') ? Les factures concernées ('+tirages.map(t=>t.factureNum).join(', ')+') recompteront dans tes totaux (puisqu\'elles ne seront plus couvertes par cet acompte).'))return;
+  // L'acompte lui-même reste "inclus" (c'est le vrai argent dépensé, jamais touché par les
+  // tirages) — ce sont les factures qui piochaient dedans qu'il faut remettre "incluses".
+  tirages.forEach(t=>{
+    const factureConsommatrice=d.factures.find(x=>x.num===t.factureNum);
+    if(factureConsommatrice){
+      factureConsommatrice.inclus=true;
+      delete factureConsommatrice.acompteFactureNum;
+      delete factureConsommatrice.acompteMontantDeduit;
+    }
+  });
+  f.tirages=[];
   saveFactures(d.factures);
   document.getElementById('e-acompte-consommee-info').style.display='none';
-  document.getElementById('e-inclus').checked=true;
-  alert('✓ Rattachement libéré — cette facture d\'acompte est de nouveau disponible.');
+  alert('✓ Tous les tirages ont été retirés — cet acompte est de nouveau disponible en totalité.');
   renderFactures();
 }
 // Pré-remplit les champs vides du formulaire d'ajout de facture depuis le devis sélectionné.
@@ -4998,16 +5043,17 @@ async function ajouterFacture(){
   if(acompteAssocie){
     const acompteFacture=d.factures.find(f=>f.num===acompteAssocie);
     if(acompteFacture){
+      const soldeDispo=soldeRestantAcompte(acompteFacture);
+      const montantDeduit=Math.min(+document.getElementById('f-acompte-montant-input')?.value||0,soldeDispo,ttcInput);
       factureObj.acompteFactureNum=acompteFacture.num;
-      factureObj.acompteMontant=acompteFacture.ttc;
-      factureObj.desc=(factureObj.desc?factureObj.desc+' — ':'')+`Acompte de ${fmt(acompteFacture.ttc)} déjà réglé (facture ${acompteFacture.num} du ${fmtDate(acompteFacture.date)}) déduit de ce montant.`;
-      acompteFacture.consommee=true;
-      acompteFacture.consommeeParFactureNum=baseNum;
-      // L'acompte est déjà entièrement compté dans le montant TTC de CETTE facture (qui
-      // représente le total de la commande) — le garder "inclus" additionnerait deux fois la
-      // même dépense dans tous les totaux/budgets/catégories de l'app. On l'exclut donc des
-      // sommes (comme "Hors projet"), sans le supprimer : il reste visible et exportable.
-      acompteFacture.inclus=false;
+      factureObj.acompteMontantDeduit=montantDeduit;
+      factureObj.desc=(factureObj.desc?factureObj.desc+' — ':'')+`${fmt(montantDeduit)} déduit de l'acompte déjà réglé (facture ${acompteFacture.num} du ${fmtDate(acompteFacture.date)}).`;
+      if(!Array.isArray(acompteFacture.tirages))acompteFacture.tirages=[];
+      acompteFacture.tirages.push({factureNum:baseNum,montant:montantDeduit});
+      // C'est l'ACOMPTE qui représente le vrai argent déjà sorti de la banque — il doit rester
+      // "inclus" dans les totaux. Cette facture-ci n'est exclue QUE si l'acompte couvre son
+      // montant TTC en entier (sinon le surplus reste une vraie dépense supplémentaire).
+      if(montantDeduit>=ttcInput-0.01)factureObj.inclus=false;
     }
   }
   if(isSplit){
@@ -6605,15 +6651,26 @@ function openEdit(idx){
   populateAcompteFactureSelects();
   const eAcompteSel=document.getElementById('e-acompte');
   if(eAcompteSel)eAcompteSel.value=f.acompteFactureNum||'';
-  // Si CETTE facture est elle-même un acompte déjà consommé (rattaché à une autre facture),
-  // on l'affiche clairement — avec un bouton pour libérer le rattachement en cas d'erreur ou
-  // d'état orphelin (ex: la facture qui l'utilisait a été modifiée sans passer par le bouton
-  // prévu pour ça, laissant cet acompte marqué "utilisé" sans plus être réellement référencé).
+  const eMontantBox=document.getElementById('e-acompte-montant');
+  if(f.acompteFactureNum&&eMontantBox){
+    const acompteLie=factures.find(af=>af.num===f.acompteFactureNum);
+    eMontantBox.style.display='block';
+    document.getElementById('e-acompte-montant-input').value=f.acompteMontantDeduit||f.acompteMontant||0;
+    if(acompteLie)document.getElementById('e-acompte-solde-texte').textContent='Solde disponible sur cet acompte (hors ce tirage) : '+fmt(soldeRestantAcompte(acompteLie)+(f.acompteMontantDeduit||0));
+  } else if(eMontantBox){
+    eMontantBox.style.display='none';
+  }
+  // Si CETTE facture est elle-même un acompte, on affiche son solde et le détail de ses
+  // tirages (chaque livraison qui a déjà pioché dedans) — avec un bouton pour retirer un
+  // tirage en cas d'erreur ou d'état orphelin (ex: la facture qui l'utilisait a été modifiée
+  // sans passer par le bouton prévu pour ça).
   const infoConsommee=document.getElementById('e-acompte-consommee-info');
   if(infoConsommee){
-    if(f.type==='acompte'&&f.consommee){
+    const tirages=Array.isArray(f.tirages)?f.tirages:[];
+    if(f.type==='acompte'&&tirages.length){
       infoConsommee.style.display='flex';
-      document.getElementById('e-acompte-consommee-texte').textContent='⚠ Déjà rattachée à la facture '+(f.consommeeParFactureNum||'?');
+      const solde=soldeRestantAcompte(f);
+      document.getElementById('e-acompte-consommee-texte').innerHTML='Solde restant : <b>'+fmt(solde)+'</b> sur '+fmt(f.ttc)+'<br>'+tirages.map(t=>`${fmt(t.montant)} → facture ${t.factureNum}`).join(' · ');
     } else {
       infoConsommee.style.display='none';
     }
@@ -6720,26 +6777,34 @@ function saveEdit(){
   else delete d.factures[editIdx].type;
   const eAcompteAssocie=document.getElementById('e-acompte')?document.getElementById('e-acompte').value:'';
   // Si cette facture référençait déjà un autre acompte avant modification, et que la sélection
-  // a changé (ou a été retirée), on libère l'ancien acompte (redevient "inclus" dans les totaux
-  // et redisponible pour être rattaché ailleurs) avant d'appliquer le nouveau choix.
+  // a changé (ou a été retirée), on retire l'ancien tirage (le solde redevient disponible sur
+  // cet acompte) avant d'appliquer le nouveau choix.
   if(original.acompteFactureNum&&original.acompteFactureNum!==eAcompteAssocie){
     const ancienAcompte=d.factures.find(f=>f.num===original.acompteFactureNum);
-    if(ancienAcompte){ancienAcompte.consommee=false;ancienAcompte.inclus=true;delete ancienAcompte.consommeeParFactureNum;}
+    if(ancienAcompte&&Array.isArray(ancienAcompte.tirages)){
+      ancienAcompte.tirages=ancienAcompte.tirages.filter(t=>t.factureNum!==ancienNum);
+    }
   }
   if(eAcompteAssocie){
     const acompteFacture=d.factures.find(f=>f.num===eAcompteAssocie);
     if(acompteFacture){
+      // Si on rattache à nouveau au MÊME acompte (montant reconsidéré), on retire d'abord
+      // l'ancien tirage de cette facture pour ne pas le compter deux fois dans le solde.
+      if(Array.isArray(acompteFacture.tirages))acompteFacture.tirages=acompteFacture.tirages.filter(t=>t.factureNum!==ancienNum);
+      const soldeDispo=soldeRestantAcompte(acompteFacture);
+      const montantDeduit=Math.min(+document.getElementById('e-acompte-montant-input')?.value||0,soldeDispo,ttcEdit);
       d.factures[editIdx].acompteFactureNum=acompteFacture.num;
-      d.factures[editIdx].acompteMontant=acompteFacture.ttc;
-      acompteFacture.consommee=true;
-      acompteFacture.consommeeParFactureNum=nouveauNum;
-      // Voir commentaire équivalent à l'ajout : évite de compter l'acompte deux fois dans les
-      // totaux/budgets/catégories, puisqu'il est déjà entièrement inclus dans cette facture-ci.
-      acompteFacture.inclus=false;
+      d.factures[editIdx].acompteMontantDeduit=montantDeduit;
+      if(!Array.isArray(acompteFacture.tirages))acompteFacture.tirages=[];
+      acompteFacture.tirages.push({factureNum:nouveauNum,montant:montantDeduit});
+      // C'est l'ACOMPTE qui représente le vrai argent déjà sorti de la banque — il reste
+      // "inclus" dans les totaux, inchangé. Cette facture-ci n'est exclue QUE si l'acompte
+      // couvre son montant TTC en entier.
+      if(montantDeduit>=ttcEdit-0.01)d.factures[editIdx].inclus=false;
     }
   } else {
     delete d.factures[editIdx].acompteFactureNum;
-    delete d.factures[editIdx].acompteMontant;
+    delete d.factures[editIdx].acompteMontantDeduit;
   }
   saveFactures(d.factures);
   delierDevisDeFacture(ancienNum);
@@ -6876,20 +6941,27 @@ function saveEditAsSplit(){
   const eAcompteAssocieSplit=document.getElementById('e-acompte')?document.getElementById('e-acompte').value:'';
   if(original.acompteFactureNum&&original.acompteFactureNum!==eAcompteAssocieSplit){
     const ancienAcompteSplit=d.factures.find(f=>f.num===original.acompteFactureNum);
-    if(ancienAcompteSplit){ancienAcompteSplit.consommee=false;ancienAcompteSplit.inclus=true;delete ancienAcompteSplit.consommeeParFactureNum;}
+    if(ancienAcompteSplit&&Array.isArray(ancienAcompteSplit.tirages)){
+      ancienAcompteSplit.tirages=ancienAcompteSplit.tirages.filter(t=>t.factureNum!==original.num);
+    }
   }
   if(eAcompteAssocieSplit){
     const acompteFactureSplit=d.factures.find(f=>f.num===eAcompteAssocieSplit);
     if(acompteFactureSplit){
+      if(Array.isArray(acompteFactureSplit.tirages))acompteFactureSplit.tirages=acompteFactureSplit.tirages.filter(t=>t.factureNum!==original.num);
+      const soldeDispoSplit=soldeRestantAcompte(acompteFactureSplit);
+      const montantDeduitSplit=Math.min(+document.getElementById('e-acompte-montant-input')?.value||0,soldeDispoSplit,ttcInput);
       d.factures[editIdx].acompteFactureNum=acompteFactureSplit.num;
-      d.factures[editIdx].acompteMontant=acompteFactureSplit.ttc;
-      acompteFactureSplit.consommee=true;
-      acompteFactureSplit.consommeeParFactureNum=baseNum;
-      acompteFactureSplit.inclus=false;
+      d.factures[editIdx].acompteMontantDeduit=montantDeduitSplit;
+      if(!Array.isArray(acompteFactureSplit.tirages))acompteFactureSplit.tirages=[];
+      acompteFactureSplit.tirages.push({factureNum:baseNum,montant:montantDeduitSplit});
+      // C'est l'acompte qui reste le vrai argent dépensé (inchangé) — cette facture-ci n'est
+      // exclue QUE si l'acompte couvre son montant TTC en entier.
+      if(montantDeduitSplit>=ttcInput-0.01)d.factures[editIdx].inclus=false;
     }
   } else {
     delete d.factures[editIdx].acompteFactureNum;
-    delete d.factures[editIdx].acompteMontant;
+    delete d.factures[editIdx].acompteMontantDeduit;
   }
   const ok=saveFactures(d.factures);
   if(!ok){alert('Erreur de stockage — données trop volumineuses.');return;}
