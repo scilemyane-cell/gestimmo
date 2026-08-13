@@ -1673,7 +1673,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       </div>
       <div class="form-group" style="grid-column:1/-1;background:rgba(224,161,94,.06);border:1px solid rgba(224,161,94,.25);border-radius:8px;padding:10px 12px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px">
-          <input type="checkbox" id="e-est-acompte" style="width:16px;height:16px">
+          <input type="checkbox" id="e-est-acompte" onchange="toggleVerrouInclusAcompte(this.checked)" style="width:16px;height:16px">
           <span>🧾 Cette facture est elle-même un acompte payé au fournisseur</span>
         </label>
         <div id="e-acompte-consommee-info" style="display:none;font-size:11px;color:var(--orange);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(224,113,107,.08);border:1px solid rgba(224,113,107,.25);border-radius:6px;padding:8px 10px">
@@ -1716,6 +1716,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
           <input type="checkbox" id="e-inclus" checked style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent)">
           <span style="font-size:12px;color:var(--text)">Inclure au projet <span style="color:var(--text3);font-size:11px">(décocher pour exclure des totaux tout en gardant la facture dans les exports)</span></span>
         </label>
+        <div id="e-inclus-acompte-note" style="display:none;font-size:10px;color:var(--orange);margin-top:6px;padding-left:26px">🔒 Toujours incluse — c'est une facture d'acompte, elle représente le vrai argent déjà sorti de la banque.</div>
       </div>
     </div>
     <!-- PDF dans édition -->
@@ -2542,6 +2543,23 @@ function populateDevisSelects(){
 function soldeRestantAcompte(f){
   const utilise=Array.isArray(f.tirages)?f.tirages.reduce((s,t)=>s+(+t.montant||0),0):0;
   return +(f.ttc-utilise).toFixed(2);
+}
+// Une facture d'acompte doit TOUJOURS rester comptée dans les totaux (c'est le vrai argent déjà
+// sorti de la banque) — on verrouille donc "Inclure au projet" à coché-et-désactivé dès que
+// "C'est un acompte" est cochée, plutôt que de la reforcer silencieusement en arrière-plan à
+// chaque rechargement (source de confusion : la case semblait se cocher "toute seule").
+function toggleVerrouInclusAcompte(estAcompte){
+  const chkInclus=document.getElementById('e-inclus');
+  const note=document.getElementById('e-inclus-acompte-note');
+  if(!chkInclus)return;
+  if(estAcompte){
+    chkInclus.checked=true;
+    chkInclus.disabled=true;
+    if(note)note.style.display='block';
+  } else {
+    chkInclus.disabled=false;
+    if(note)note.style.display='none';
+  }
 }
 // Répare automatiquement les factures dont le statut "Inclure au projet" a pu être mal réglé
 // par une version antérieure de la logique acompte (avant le renversement correct : c'est
@@ -6283,17 +6301,21 @@ async function validerFactureClientME(){
   document.getElementById('modal-facture-me')?.remove();
   openPrintOverlay(html,`${facture.num} — ${clientNom}`);
 
-  if(clientEmail){
-    try{
-      const pdfB64=await _htmlDocumentToPdfBase64(html);
-      if(pdfB64){
+  // Un seul PDF généré, réutilisé pour Drive et l'email (pas deux fois, ça double juste
+  // l'attente sans raison) — sauvegarde Drive best-effort, ne bloque jamais la facture.
+  try{
+    const pdfB64=await _htmlDocumentToPdfBase64(html);
+    if(pdfB64){
+      const lien=await uploadToDriveFacturationME(pdfB64,facture.num.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf');
+      facture.lien=lien||'';
+      if(clientEmail){
         const cfg=getCTXConfig();
         await envoyerEmailImmediat(clientEmail,'Facture '+facture.num+' — '+cfg.nom,
           `Bonjour,\n\nVeuillez trouver ci-joint la facture ${facture.num} d'un montant de ${fmt(totaux.totalTTC)} TTC.${acompte>0?`\n\nAcompte déjà versé : ${fmt(acompte)}\nReste à payer : ${fmt(netAPayer)}`:''}\n\nMerci de bien vouloir procéder au règlement dans les meilleurs délais.\n\nCordialement,\n${cfg.nom}`,
           {filename:facture.num+'.pdf',base64Data:pdfB64.split(',')[1]||pdfB64});
       }
-    }catch(e){console.error('Envoi email facture client ME échoué (non bloquant):',e);}
-  }
+    }
+  }catch(e){console.error('Drive/email facture client ME échoué (non bloquant):',e);}
 
   if(acompteFactureId){
     // Acompte rattaché à une VRAIE facture d'acompte déjà émise — son montant a déjà été
@@ -6476,17 +6498,19 @@ async function validerFactureAcompteME(){
   document.getElementById('modal-facture-acompte-me')?.remove();
   openPrintOverlay(html,`${num} — ${clientNom}`);
 
-  if(clientEmail){
-    try{
-      const pdfB64=await _htmlDocumentToPdfBase64(html);
-      if(pdfB64){
+  try{
+    const pdfB64=await _htmlDocumentToPdfBase64(html);
+    if(pdfB64){
+      const lien=await uploadToDriveFacturationME(pdfB64,num.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf');
+      facture.lien=lien||'';
+      if(clientEmail){
         const cfg=getCTXConfig();
         await envoyerEmailImmediat(clientEmail,'Facture d\'acompte '+num+' — '+cfg.nom,
           `Bonjour,\n\nVeuillez trouver ci-joint la facture d'acompte ${num} confirmant la réception de ${fmt(montant)}.\n\nCordialement,\n${cfg.nom}`,
           {filename:num+'.pdf',base64Data:pdfB64.split(',')[1]||pdfB64});
       }
-    }catch(e){console.error('Envoi email facture acompte ME échoué (non bloquant):',e);}
-  }
+    }
+  }catch(e){console.error('Drive/email facture acompte ME échoué (non bloquant):',e);}
 
   const caId=meUid();
   data.ca.push({id:caId,date:todayStr(),montant,origine:'Facture d\'acompte '+num+' — '+clientNom});
@@ -6685,6 +6709,7 @@ function openEdit(idx){
   document.getElementById('e-prelauto').checked=!!f.prelevementAuto;
   document.getElementById('e-dateprel').value=f.dateprelevement||'';
   document.getElementById('e-est-acompte').checked=f.type==='acompte';
+  toggleVerrouInclusAcompte(f.type==='acompte');
   populateAcompteFactureSelects();
   const eAcompteSel=document.getElementById('e-acompte');
   if(eAcompteSel)eAcompteSel.value=f.acompteFactureNum||'';
@@ -6719,6 +6744,7 @@ function openEdit(idx){
   document.getElementById('e-cmd').value=f.cmd||'';
   document.getElementById('e-desc').value=f.desc||'';
   document.getElementById('e-inclus').checked=(f.inclus!==false);
+  toggleVerrouInclusAcompte(f.type==='acompte'); // réappliqué en dernier pour ne jamais laisser une vieille donnée (f.inclus:false) déverrouiller/décocher une facture d'acompte
   // PDF actuel
   const hasPdf=!!loadPdf(idx);
   const cur=document.getElementById('e-pdf-current');
@@ -18362,6 +18388,57 @@ async function ouvrirDossierDriveLocataire(logKey){
     console.error('Ouverture dossier Drive locataire échouée:',e);
     alert('Erreur lors de l\'ouverture du dossier Drive.');
   }
+}
+// Version simplifiée pour la Micro-entreprise (pas de notion de logement) — envoie chaque
+// facture client dans <dossier structure> / Facturation. Best-effort : un échec Drive n'empêche
+// jamais l'enregistrement Firestore de la facture, déjà fiable de son côté.
+async function uploadToDriveFacturationME(b64, fileName){
+  await ensureDriveConnected();
+  if(!driveAccessToken) return null;
+  try{
+    const base64Data = b64.split(',')[1];
+    const mimeType = b64.startsWith('data:image') ? (b64.split(';')[0].replace('data:','')||'image/jpeg') : 'application/pdf';
+    const byteChars = atob(base64Data);
+    const byteArr = new Uint8Array(byteChars.length);
+    for(let i=0;i<byteChars.length;i++) byteArr[i]=byteChars.charCodeAt(i);
+    const blob = new Blob([byteArr], {type: mimeType});
+    async function getOrCreateFolderME(name, parentId){
+      const q = parentId
+        ? "name='"+name+"' and mimeType='application/vnd.google-apps.folder' and '"+parentId+"' in parents and trashed=false"
+        : "name='"+name+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const resp = await fetch("https://www.googleapis.com/drive/v3/files?q="+encodeURIComponent(q),{headers:{'Authorization':'Bearer '+driveAccessToken}});
+      const data = await resp.json();
+      if(data.files && data.files.length > 0) return data.files[0].id;
+      const body = {name, mimeType:'application/vnd.google-apps.folder'};
+      if(parentId) body.parents = [parentId];
+      const createResp = await fetch('https://www.googleapis.com/drive/v3/files',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      });
+      const createData = await createResp.json();
+      return createData.id;
+    }
+    const rootFolderName=getCTXConfig().driveFolderName||'Novimmo';
+    const cacheKey=ctxKey('drive_folder_me_facturation');
+    let folderId=localStorage.getItem(cacheKey);
+    if(!folderId){
+      const rootId=await getOrCreateFolderME(rootFolderName,null);
+      folderId=await getOrCreateFolderME('Facturation',rootId);
+      localStorage.setItem(cacheKey,folderId);
+    }
+    const metadata={name:fileName,parents:[folderId]};
+    const form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify(metadata)],{type:'application/json'}));
+    form.append('file',blob);
+    const uploadResp=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+driveAccessToken},
+      body:form
+    });
+    const uploadData=await uploadResp.json();
+    return uploadData.webViewLink||null;
+  }catch(e){console.error('Upload Drive facturation ME échoué (non bloquant):',e);return null;}
 }
 async function uploadToDriveGestionLocative(b64, fileName, logKey){
   await ensureDriveConnected();
