@@ -1671,6 +1671,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
           <input type="checkbox" id="e-est-acompte" style="width:16px;height:16px">
           <span>🧾 Cette facture est elle-même un acompte payé au fournisseur</span>
         </label>
+        <div id="e-acompte-consommee-info" style="display:none;font-size:11px;color:var(--orange);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(224,113,107,.08);border:1px solid rgba(224,113,107,.25);border-radius:6px;padding:8px 10px">
+          <span id="e-acompte-consommee-texte"></span>
+          <button type="button" onclick="libererAcompteConsomme()" style="background:rgba(224,113,107,.15);border:1px solid rgba(224,113,107,.4);border-radius:6px;padding:4px 10px;color:var(--red);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap">🔓 Libérer</button>
+        </div>
         <label style="font-size:10px">Facture d'acompte déjà réglée à déduire <span style="color:var(--text3)">(optionnel)</span></label>
         <select id="e-acompte" onchange="appliquerAcompteSurFacture('e')"><option value="">— Aucune —</option></select>
       </div>
@@ -2546,6 +2550,25 @@ function appliquerAcompteSurFacture(prefix){
   if(!acompte)return;
   const four=document.getElementById(prefix+'-four');
   if(four&&!four.value)four.value=acompte.four||'';
+}
+// Libère manuellement une facture d'acompte marquée "consommée" à tort (état orphelin — la
+// facture qui l'utilisait a été modifiée/supprimée sans passer par le rattachement prévu).
+// Remet consommee à false et inclus à true (redevient comptée dans les totaux, comme avant
+// tout rattachement), et l'action est immédiatement enregistrée (pas besoin de cliquer sur
+// "Enregistrer les modifications" en plus).
+function libererAcompteConsomme(){
+  if(!confirm('Libérer ce rattachement ? Cette facture d\'acompte redeviendra disponible pour être rattachée à une autre facture, et recomptera dans tes totaux de dépenses.'))return;
+  const d=loadData();
+  const f=d.factures[editIdx];
+  if(!f)return;
+  f.consommee=false;
+  f.inclus=true;
+  delete f.consommeeParFactureNum;
+  saveFactures(d.factures);
+  document.getElementById('e-acompte-consommee-info').style.display='none';
+  document.getElementById('e-inclus').checked=true;
+  alert('✓ Rattachement libéré — cette facture d\'acompte est de nouveau disponible.');
+  renderFactures();
 }
 // Pré-remplit les champs vides du formulaire d'ajout de facture depuis le devis sélectionné.
 function appliquerDevisSurFacture(){
@@ -6581,7 +6604,21 @@ function openEdit(idx){
   document.getElementById('e-est-acompte').checked=f.type==='acompte';
   populateAcompteFactureSelects();
   const eAcompteSel=document.getElementById('e-acompte');
-  if(eAcompteSel)eAcompteSel.value=f.acompteFactureNum||'';  document.getElementById('e-dateprel-wrap').style.display=f.prelevementAuto?'block':'none';
+  if(eAcompteSel)eAcompteSel.value=f.acompteFactureNum||'';
+  // Si CETTE facture est elle-même un acompte déjà consommé (rattaché à une autre facture),
+  // on l'affiche clairement — avec un bouton pour libérer le rattachement en cas d'erreur ou
+  // d'état orphelin (ex: la facture qui l'utilisait a été modifiée sans passer par le bouton
+  // prévu pour ça, laissant cet acompte marqué "utilisé" sans plus être réellement référencé).
+  const infoConsommee=document.getElementById('e-acompte-consommee-info');
+  if(infoConsommee){
+    if(f.type==='acompte'&&f.consommee){
+      infoConsommee.style.display='flex';
+      document.getElementById('e-acompte-consommee-texte').textContent='⚠ Déjà rattachée à la facture '+(f.consommeeParFactureNum||'?');
+    } else {
+      infoConsommee.style.display='none';
+    }
+  }
+  document.getElementById('e-dateprel-wrap').style.display=f.prelevementAuto?'block':'none';
   document.getElementById('e-datepay').value=f.datepay||'';
   document.getElementById('e-ttc').value=f.ttc;
   document.getElementById('e-tva').value=f.tva;
