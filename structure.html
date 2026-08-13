@@ -5677,6 +5677,7 @@ async function exporterSelectionBanque(){
     const badges=[
       f.statut?`<span style="display:inline-flex;align-items:baseline;gap:4px;background:${sc==='#276749'?'#f0fff4':sc==='#c05621'?'#fffaf0':'#ebf8ff'};border:1px solid ${sc}44;border-radius:100px;padding:3px 10px;font-size:10px;color:#4a5568;white-space:nowrap"><span style="text-transform:uppercase;letter-spacing:.3px;font-size:8px;color:#a0aec0">Statut</span><span style="font-weight:700;color:${sc}">${f.statut}</span></span>`:'',
       badge('Montant TTC',montant,true),
+      f.acompteFactureNum?badge('Déjà couvert par acompte',new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(f.acompteMontantDeduit||0)+' ('+f.acompteFactureNum+')',false):'',
       badge('Catégorie',(f.cat||'—')+(f.poste?' / '+f.poste:''),false),
       badge('Réglé par',f.regleby,false),
       badge('N° commande',f.cmd,false),
@@ -5725,14 +5726,17 @@ async function exporterSelectionBanque(){
   const items=itemsHtml.join('');
 
   // Récapitulatif par catégorie / sous-catégorie (poste) des factures sélectionnées — vue d'ensemble
-  // utile pour la banque avant le détail facture par facture.
+  // utile pour la banque avant le détail facture par facture. Montant "net" = TTC moins la part
+  // déjà déduite par un acompte (sinon l'acompte et la livraison qui pioche dedans sont comptés
+  // deux fois dans ce total, alors que c'est le même argent).
+  const montantNetFacture=f=>(+f.ttc||0)-(+f.acompteMontantDeduit||0);
   const recapMap={};
   filtered.forEach(f=>{
     const catLabel=getCatDisplayText(f)||'—';
     const posteLabel=f.poste||'';
     const key=catLabel+'|||'+posteLabel;
     if(!recapMap[key])recapMap[key]={cat:catLabel,poste:posteLabel,montant:0,nb:0};
-    recapMap[key].montant+=(+f.ttc||0);
+    recapMap[key].montant+=montantNetFacture(f);
     recapMap[key].nb++;
   });
   const recapRows=Object.values(recapMap).sort((a,b)=>a.cat.localeCompare(b.cat)||a.poste.localeCompare(b.poste));
