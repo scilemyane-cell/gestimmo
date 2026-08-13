@@ -4318,8 +4318,8 @@ function getTabGroups(){
   const mods = getModulesConfig();
   const groups = [];
   if(mods.construction) groups.push({id:'construction',label:'🏗️ Construction prévisionnelle',tabs:['synthese','logements','budget','dashboard']});
-  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['saisie','devis','factures','annuel','charges-recurrentes','banque','compte-courant']});
-  if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite','facturation-loc']});
+  if(mods.comptabilite) groups.push({id:'comptabilite',label:'🧾 Comptabilité',tabs:['saisie','devis','factures','annuel','charges-recurrentes','banque','compte-courant','facturation-loc']});
+  if(mods.locataires) groups.push({id:'locataires',label:'🏠 Locataires',tabs:['locataires','gestion-locative','rentabilite']});
   if(mods.financement) groups.push({id:'financement',label:'💰 Financement',tabs:['projection','financement']});
   // Structure spéciale "Micro-entreprise" : réutilise le module Comptabilité existant (Saisir,
   // Factures, Par année, Charges récurrentes — mêmes fonctionnalités que la SCI/LMNP : OCR IA,
@@ -4344,7 +4344,7 @@ function getTabGroups(){
 function getTabLabels(){return{
   synthese:'Synthèse',logements:'Par logement',budget:'Budget prévisionnel',dashboard:'📊 Dashboard Prév.',
   devis:'📝 Devis',factures:'📋 Factures',saisie:'+ Saisir',annuel:'📅 Par année','charges-recurrentes':'🔁 Charges récurrentes',banque:'🏦 Banque','compte-courant':'🤝 Compte courant',
-  locataires:'Fiches & loyers','gestion-locative':'📁 Gestion locative',rentabilite:'📈 Rentabilité','facturation-loc':'🧾 Facturation',
+  locataires:'Fiches & loyers','gestion-locative':'📁 Gestion locative',rentabilite:'📈 Rentabilité','facturation-loc':'🧾 Facturation locataires',
   projection:'🔭 Projection 20 ans',financement:'💳 Crédit & charges',
   parametres:'⚙️ Paramètres',
   microentreprise:'Micro-entreprise',
