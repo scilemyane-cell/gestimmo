@@ -4980,6 +4980,11 @@ async function ajouterFacture(){
       factureObj.desc=(factureObj.desc?factureObj.desc+' — ':'')+`Acompte de ${fmt(acompteFacture.ttc)} déjà réglé (facture ${acompteFacture.num} du ${fmtDate(acompteFacture.date)}) déduit de ce montant.`;
       acompteFacture.consommee=true;
       acompteFacture.consommeeParFactureNum=baseNum;
+      // L'acompte est déjà entièrement compté dans le montant TTC de CETTE facture (qui
+      // représente le total de la commande) — le garder "inclus" additionnerait deux fois la
+      // même dépense dans tous les totaux/budgets/catégories de l'app. On l'exclut donc des
+      // sommes (comme "Hors projet"), sans le supprimer : il reste visible et exportable.
+      acompteFacture.inclus=false;
     }
   }
   if(isSplit){
@@ -6677,6 +6682,13 @@ function saveEdit(){
   if(document.getElementById('e-est-acompte')?.checked)d.factures[editIdx].type='acompte';
   else delete d.factures[editIdx].type;
   const eAcompteAssocie=document.getElementById('e-acompte')?document.getElementById('e-acompte').value:'';
+  // Si cette facture référençait déjà un autre acompte avant modification, et que la sélection
+  // a changé (ou a été retirée), on libère l'ancien acompte (redevient "inclus" dans les totaux
+  // et redisponible pour être rattaché ailleurs) avant d'appliquer le nouveau choix.
+  if(original.acompteFactureNum&&original.acompteFactureNum!==eAcompteAssocie){
+    const ancienAcompte=d.factures.find(f=>f.num===original.acompteFactureNum);
+    if(ancienAcompte){ancienAcompte.consommee=false;ancienAcompte.inclus=true;delete ancienAcompte.consommeeParFactureNum;}
+  }
   if(eAcompteAssocie){
     const acompteFacture=d.factures.find(f=>f.num===eAcompteAssocie);
     if(acompteFacture){
@@ -6684,6 +6696,9 @@ function saveEdit(){
       d.factures[editIdx].acompteMontant=acompteFacture.ttc;
       acompteFacture.consommee=true;
       acompteFacture.consommeeParFactureNum=nouveauNum;
+      // Voir commentaire équivalent à l'ajout : évite de compter l'acompte deux fois dans les
+      // totaux/budgets/catégories, puisqu'il est déjà entièrement inclus dans cette facture-ci.
+      acompteFacture.inclus=false;
     }
   } else {
     delete d.factures[editIdx].acompteFactureNum;
@@ -6822,6 +6837,10 @@ function saveEditAsSplit(){
   if(document.getElementById('e-est-acompte')?.checked)d.factures[editIdx].type='acompte';
   else delete d.factures[editIdx].type;
   const eAcompteAssocieSplit=document.getElementById('e-acompte')?document.getElementById('e-acompte').value:'';
+  if(original.acompteFactureNum&&original.acompteFactureNum!==eAcompteAssocieSplit){
+    const ancienAcompteSplit=d.factures.find(f=>f.num===original.acompteFactureNum);
+    if(ancienAcompteSplit){ancienAcompteSplit.consommee=false;ancienAcompteSplit.inclus=true;delete ancienAcompteSplit.consommeeParFactureNum;}
+  }
   if(eAcompteAssocieSplit){
     const acompteFactureSplit=d.factures.find(f=>f.num===eAcompteAssocieSplit);
     if(acompteFactureSplit){
@@ -6829,6 +6848,7 @@ function saveEditAsSplit(){
       d.factures[editIdx].acompteMontant=acompteFactureSplit.ttc;
       acompteFactureSplit.consommee=true;
       acompteFactureSplit.consommeeParFactureNum=baseNum;
+      acompteFactureSplit.inclus=false;
     }
   } else {
     delete d.factures[editIdx].acompteFactureNum;
