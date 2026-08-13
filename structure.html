@@ -339,7 +339,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
 .form-group{display:flex;flex-direction:column;gap:5px}
 .form-group label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px}
-.form-group input,.form-group select{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;transition:border-color .2s}
+.form-group input,.form-group select{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;transition:border-color .2s;width:100%;max-width:100%;box-sizing:border-box}
 .form-group input:focus,.form-group select:focus{border-color:var(--accent2)}
 .form-group select option{background:var(--bg3)}
 
@@ -2543,6 +2543,35 @@ function soldeRestantAcompte(f){
   const utilise=Array.isArray(f.tirages)?f.tirages.reduce((s,t)=>s+(+t.montant||0),0):0;
   return +(f.ttc-utilise).toFixed(2);
 }
+// Répare automatiquement les factures dont le statut "Inclure au projet" a pu être mal réglé
+// par une version antérieure de la logique acompte (avant le renversement correct : c'est
+// l'acompte qui doit rester inclus dans les totaux — c'est le vrai argent dépensé — pas la
+// livraison qui pioche dedans). Se déclenche une fois au chargement, sans action manuelle.
+function reparerFacturesAcompteRetroactif(){
+  try{
+    const{factures}=loadData();
+    let corrige=false;
+    factures.forEach(f=>{
+      // Cas 1 : une facture d'acompte (type==='acompte') ne doit JAMAIS être exclue par ce
+      // mécanisme — c'est toujours du vrai argent sorti de la banque.
+      if(f.type==='acompte'&&f.inclus===false){
+        f.inclus=true;
+        corrige=true;
+      }
+      // Cas 2 : ancien format (consommee/consommeeParFactureNum, avant le passage aux
+      // "tirages") — converti en tirage équivalent si aucun tirage n'existe déjà, pour ne pas
+      // perdre le solde déjà utilisé.
+      if(f.type==='acompte'&&f.consommee&&(!Array.isArray(f.tirages)||!f.tirages.length)&&f.consommeeParFactureNum){
+        f.tirages=[{factureNum:f.consommeeParFactureNum,montant:f.ttc}];
+        corrige=true;
+      }
+    });
+    if(corrige){
+      saveFactures(factures);
+      console.log('Factures d\'acompte : correction rétroactive appliquée.');
+    }
+  }catch(e){console.warn('Réparation rétroactive des acomptes échouée (non bloquant):',e);}
+}
 function populateAcompteFactureSelects(){
   const{factures}=loadData();
   ['f-acompte','e-acompte'].forEach(id=>{
@@ -2554,7 +2583,7 @@ function populateAcompteFactureSelects(){
     // le faire disparaître de la liste pendant qu'on modifie CETTE facture.
     const disponibles=factures.filter(f=>f.type==='acompte'&&f.num&&(soldeRestantAcompte(f)>0.01||f.num===keepValue));
     el.innerHTML='<option value="">— Aucune —</option>'+disponibles.map(f=>
-      `<option value="${f.num.replace(/"/g,'&quot;')}">${f.num} — ${f.four} (solde restant ${fmt(soldeRestantAcompte(f))} sur ${fmt(f.ttc)}, le ${fmtDate(f.date)})</option>`
+      `<option value="${f.num.replace(/"/g,'&quot;')}">${f.num} — ${f.four} — solde ${fmt(soldeRestantAcompte(f))}</option>`
     ).join('');
     if(disponibles.some(f=>f.num===keepValue))el.value=keepValue;
   });
@@ -5219,7 +5248,11 @@ function renderBanque(){
   const filtered=getBanqueFiltered(factures);
   const emptyEl=document.getElementById('banque-empty');
   if(emptyEl)emptyEl.style.display=filtered.length?'none':'block';
-  const total=filtered.reduce((s,f)=>s+(+f.ttc||0),0);
+  // Montant "net" = TTC moins la part déjà déduite par un acompte — c'est le montant qui
+  // reste réellement en jeu pour la banque (transmission/paiement), pas le montant brut de la
+  // facture fournisseur qui peut déjà être couvert en tout ou partie.
+  const montantNet=f=>(+f.ttc||0)-(+f.acompteMontantDeduit||0);
+  const total=filtered.reduce((s,f)=>s+montantNet(f),0);
   const countEl=document.getElementById('banque-count');
   if(countEl)countEl.textContent=filtered.length+' facture'+(filtered.length>1?'s':'')+' · '+fmt(total);
 
@@ -5267,7 +5300,7 @@ function renderBanque(){
       <td style="color:var(--text2)">${f.date||'—'}</td>
       <td style="font-weight:500">${f.four||'—'}</td>
       <td>${renderLogBadgeHTML(f)}</td>
-      <td style="text-align:right;font-weight:600">${fmt(f.ttc)}</td>
+      <td style="text-align:right;font-weight:600">${f.acompteFactureNum?`<div>${fmt(montantNet(f))}</div><div style="font-size:9px;color:var(--text3);font-weight:400">(${fmt(f.ttc)} − ${fmt(f.acompteMontantDeduit||0)} acompte ${f.acompteFactureNum})</div>`:fmt(f.ttc)}</td>
       <td style="font-size:11px;color:var(--text2)">${f.statut||'—'}</td>
       <td style="text-align:center">${pdfCell}</td>
       <td style="text-align:center">${actionCell}</td>
@@ -19808,6 +19841,7 @@ window._authReady.then(async () => {
   renderNavigation('synthese');
   initGoogleDrive();
   libererCopiesLocalesGLDocsRetroactif();
+  reparerFacturesAcompteRetroactif();
   // Charger depuis le cloud puis afficher
   if(window._dbReady){
     loadFromCloud().then(()=>{renderSynthese();});
