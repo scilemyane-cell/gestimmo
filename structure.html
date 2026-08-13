@@ -5514,8 +5514,11 @@ function renderCompteCourant(){
     suggestionsEl.innerHTML=tousLesNoms.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('');
   }
 
-  // Factures réglées par les noms cochés
-  const facturesMoi=factures.map((f,i)=>({...f,_ri:i})).filter(f=>nomsMoiNorm.includes(normNom(f.regleby)));
+  // Factures réglées par les noms cochés — on exclut celles couvertes par un acompte déjà
+  // réglé (inclus:false) : elles ne représentent aucun argent personnel supplémentaire, la
+  // structure ne te doit rien de plus pour elles (le remboursement dû est déjà entièrement
+  // capté par la facture d'acompte elle-même).
+  const facturesMoi=factures.map((f,i)=>({...f,_ri:i})).filter(f=>nomsMoiNorm.includes(normNom(f.regleby))&&f.inclus!==false);
   const facturesNonRemb=facturesMoi.filter(f=>!remboursMap[f.num]);
   const totalFacturesNonRemb=facturesNonRemb.reduce((s,f)=>s+(+f.ttc||0),0);
   const showRembFactures=document.getElementById('cca-show-rembourse-factures')?.checked||false;
@@ -5586,7 +5589,7 @@ function exportCompteCourantPDF(){
   const normNom=s=>(s||'').trim().toLowerCase();
   const nomsMoiNorm=nomsMoi.map(normNom);
 
-  const facturesMoi=factures.filter(f=>nomsMoiNorm.includes(normNom(f.regleby))).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const facturesMoi=factures.filter(f=>nomsMoiNorm.includes(normNom(f.regleby))&&f.inclus!==false).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   const virementsMoi=virements.filter(v=>nomsMoiNorm.includes(normNom(v.qui))).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
 
   const totalFacturesTout=facturesMoi.reduce((s,f)=>s+(+f.ttc||0),0);
@@ -5871,6 +5874,7 @@ async function loadDataME(){
     _meCache = snap.exists() ? snap.data() : {};
   }catch(e){
     console.error('Chargement micro-entreprise échoué:',e);
+    alert('⚠ Chargement des données Micro-entreprise échoué : '+(e.code||'')+' '+(e.message||e)+'\n\nTes données ne sont peut-être PAS perdues — vérifie ce message avant de tout resaisir.');
     _meCache = {};
   }
   if(!Array.isArray(_meCache.ca))_meCache.ca=[];
@@ -5889,7 +5893,7 @@ async function saveDataME(data){
     await window._setDoc(meDocRef(), data);
   }catch(e){
     console.error('Sauvegarde micro-entreprise échouée:',e);
-    alert('⚠ La sauvegarde a échoué (problème réseau) — réessaie dans un instant.');
+    alert('⚠ ÉCHEC DE LA SAUVEGARDE Micro-entreprise : '+(e.code||'')+' '+(e.message||e)+'\n\nCe que tu viens de saisir N\'A PAS été enregistré — note ce message et transmets-le pour qu\'on corrige le vrai problème.');
   }
 }
 function meUid(){return 'me_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);}
@@ -6126,7 +6130,7 @@ async function renderFacturation(){
       <td>${f.num}</td>
       <td>${estAcompte?`<span style="font-size:10px;font-weight:700;color:var(--orange);background:rgba(224,161,94,.12);padding:2px 8px;border-radius:100px">Acompte${f.consommee?' · rattachée':''}</span>`:`<span style="font-size:10px;color:var(--text3)">Facture${f.acompteFactureId?' · avec acompte lié':''}</span>`}</td>
       <td>${f.clientNom||'—'}</td>
-      <td style="text-align:right;font-weight:600">${fmt(typeof f.totalTTC==='number'?f.totalTTC:f.montant)}</td>
+      <td style="text-align:right;font-weight:600">${f.acompte>0?`<div>${fmt(typeof f.netAPayer==='number'?f.netAPayer:f.totalTTC)}</div><div style="font-size:9px;color:var(--text3);font-weight:400">(${fmt(f.totalTTC)} − ${fmt(f.acompte)} acompte)</div>`:fmt(typeof f.totalTTC==='number'?f.totalTTC:f.montant)}</td>
       <td>${f.statut==='payee'?`<span style="color:var(--green);font-weight:700;font-size:11px">✓ Payée le ${fmtDate(f.datePaiement)}</span>`:`<span style="color:var(--orange);font-weight:700;font-size:11px">⏳ Impayée</span>`}</td>
       <td style="text-align:right;white-space:nowrap">
         ${(!estAcompte&&f.statut!=='payee')?`<button class="btn-icon" onclick="marquerFactureMEPayee('${f.id}')" title="Marquer payée (ajoute au CA)">✓</button>`:''}
@@ -6259,7 +6263,11 @@ function fmeRenderLignes(){
   const box=document.getElementById('fme-lignes-container');
   if(!box)return;
   box.innerHTML=_fmeLignes.map((l,i)=>`
-    <div style="display:grid;grid-template-columns:1fr 60px 90px 110px 30px;gap:6px;align-items:center;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;padding:8px">
+    <div style="display:grid;grid-template-columns:36px 1fr 60px 90px 110px 30px;gap:6px;align-items:center;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;padding:8px">
+      <div style="display:flex;flex-direction:column;gap:1px">
+        <button type="button" onclick="fmeDeplacerLigne(${i},-1)" ${i===0?'disabled':''} title="Monter" style="background:none;border:none;color:${i===0?'var(--text3)':'var(--accent)'};font-size:12px;cursor:${i===0?'default':'pointer'};line-height:1;padding:2px">▲</button>
+        <button type="button" onclick="fmeDeplacerLigne(${i},1)" ${i===_fmeLignes.length-1?'disabled':''} title="Descendre" style="background:none;border:none;color:${i===_fmeLignes.length-1?'var(--text3)':'var(--accent)'};font-size:12px;cursor:${i===_fmeLignes.length-1?'default':'pointer'};line-height:1;padding:2px">▼</button>
+      </div>
       <input type="text" placeholder="Description de la prestation" value="${l.description.replace(/"/g,'&quot;')}" oninput="fmeMajLigne(${i},'description',this.value)" style="font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text)">
       <input type="number" min="0" step="1" placeholder="Qté" value="${l.quantite}" oninput="fmeMajLigne(${i},'quantite',this.value)" style="font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);width:100%">
       <input type="number" min="0" step="0.01" placeholder="PU HT €" value="${l.prixUnitaireHT}" oninput="fmeMajLigne(${i},'prixUnitaireHT',this.value)" style="font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);width:100%">
@@ -6273,6 +6281,12 @@ function fmeRenderLignes(){
       <button type="button" onclick="fmeSupprimerLigne(${i})" title="Retirer cette ligne" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;justify-self:center">×</button>
     </div>`).join('');
   fmeRenderRecap();
+}
+function fmeDeplacerLigne(i,direction){
+  const j=i+direction;
+  if(j<0||j>=_fmeLignes.length)return;
+  [_fmeLignes[i],_fmeLignes[j]]=[_fmeLignes[j],_fmeLignes[i]];
+  fmeRenderLignes();
 }
 function fmeRenderRecap(){
   const box=document.getElementById('fme-recap');
@@ -7541,10 +7555,10 @@ function exportComptablePDF(){
     return d&&d.slice(0,4)===year;
   });
   const filteredInclus=filtered.filter(f=>f.inclus!==false);
-  const total=filtered.reduce((s,f)=>s+(+f.ttc||0),0);
-  const payees=filtered.filter(f=>f.statut==='Payée').reduce((s,f)=>s+(+f.ttc||0),0);
+  const total=filteredInclus.reduce((s,f)=>s+(+f.ttc||0),0);
+  const payees=filteredInclus.filter(f=>f.statut==='Payée').reduce((s,f)=>s+(+f.ttc||0),0);
   const byCat={};
-  filtered.forEach(f=>{
+  filteredInclus.forEach(f=>{
     if(f.repartition && f.repartition.length){
       const catsVues=new Set();
       getFactureShares(f,[]).forEach(s=>{
@@ -10168,6 +10182,7 @@ function renderCoutRevient(){
   if(!container)return;
   const logsData=cfg.logements.map(lg=>{
     const factLog=factures.filter(f=>{
+      if(f.inclus===false)return false;
       if(f.repartition&&f.repartition.length) return f.repartition.some(r=>r.log===lg.label||r.log===lg.key);
       return f.log===lg.label||f.log===lg.key;
     });
