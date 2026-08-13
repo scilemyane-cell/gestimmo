@@ -1349,7 +1349,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="f-ttc" placeholder="0.00" step="0.01"></div>
       <select id="f-tva" style="display:none"><option value="20">20 %</option><option value="10">10 %</option><option value="5.5">5,5 %</option><option value="0">0 %</option></select>
       <div class="form-group"><label>N° de commande</label><input type="text" id="f-cmd" placeholder="BC-2026-001"></div>
-      <div class="form-group"><label>Description</label><input type="text" id="f-desc" placeholder="Détail de la prestation"></div>
+      <div class="form-group"><label>Description</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="f-desc" placeholder="Détail de la prestation" spellcheck="true" lang="fr" style="flex:1">
+          <button type="button" onclick="corrigerOrthographeIA('f-desc')" title="Corriger l'orthographe et la grammaire avec l'IA" style="background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.3);border-radius:8px;padding:0 12px;color:var(--accent);font-size:14px;cursor:pointer;white-space:nowrap">✓ Aa</button>
+        </div>
+      </div>
     </div>
 
 
@@ -1710,7 +1715,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="e-ttc" step="0.01"></div>
       <select id="e-tva" style="display:none"><option value="20">20 %</option><option value="10">10 %</option><option value="5.5">5,5 %</option><option value="0">0 %</option></select>
       <div class="form-group"><label>N° de commande</label><input type="text" id="e-cmd"></div>
-      <div class="form-group"><label>Description</label><input type="text" id="e-desc"></div>
+      <div class="form-group"><label>Description</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="e-desc" spellcheck="true" lang="fr" style="flex:1">
+          <button type="button" onclick="corrigerOrthographeIA('e-desc')" title="Corriger l'orthographe et la grammaire avec l'IA" style="background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.3);border-radius:8px;padding:0 12px;color:var(--accent);font-size:14px;cursor:pointer;white-space:nowrap">✓ Aa</button>
+        </div>
+      </div>
       <div class="form-group" style="grid-column:1/-1">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
           <input type="checkbox" id="e-inclus" checked style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent)">
@@ -2543,6 +2553,29 @@ function populateDevisSelects(){
 function soldeRestantAcompte(f){
   const utilise=Array.isArray(f.tirages)?f.tirages.reduce((s,t)=>s+(+t.montant||0),0):0;
   return +(f.ttc-utilise).toFixed(2);
+}
+// Corrige l'orthographe et la grammaire d'un champ texte via Gemini (déjà utilisé ailleurs
+// pour lire les factures) — complète le correcteur natif du navigateur (souligné rouge en
+// temps réel) par une vraie relecture, y compris les tournures et la grammaire.
+async function corrigerOrthographeIA(champId){
+  const champ=document.getElementById(champId);
+  if(!champ||!champ.value.trim())return;
+  if(!getGeminiKeys().length){alert('Ajoute une clé API Gemini dans Paramètres pour utiliser la correction IA (le soulignement rouge du navigateur reste actif sans ça).');return;}
+  const texteOriginal=champ.value;
+  champ.disabled=true;
+  try{
+    const data=await callGeminiAPI('gemini-3.1-flash-lite',{
+      contents:[{parts:[{text:`Corrige uniquement l'orthographe et la grammaire du texte suivant, en français. Ne change rien d'autre (pas de reformulation, pas d'ajout, garde le même style et la même longueur). Réponds UNIQUEMENT avec le texte corrigé, sans aucun commentaire ni guillemets.\n\nTexte : ${texteOriginal}`}]}],
+      generationConfig:{temperature:0}
+    });
+    const corrige=data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if(corrige)champ.value=corrige;
+  }catch(e){
+    console.error('Correction orthographe IA échouée:',e);
+    alert('Correction indisponible pour le moment — réessaie plus tard.');
+  }finally{
+    champ.disabled=false;
+  }
 }
 // Une facture d'acompte doit TOUJOURS rester comptée dans les totaux (c'est le vrai argent déjà
 // sorti de la banque) — on verrouille donc "Inclure au projet" à coché-et-désactivé dès que
