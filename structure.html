@@ -197,9 +197,18 @@ onAuthStateChanged(auth, async (user) => {
         badgeAbo.style.color=joursRestants<=7?'var(--orange)':'var(--accent)';
         badgeAbo.title='Ton essai gratuit se termine le '+new Date(prof2.trialEnd).toLocaleDateString('fr-FR');
       } else if(abonnementValide2){
-        badgeAbo.textContent='✓ Abonnement actif';
+        let texteAbo='✓ Abonnement actif';
+        const periodEnd=prof2.subscription.currentPeriodEnd;
+        if(periodEnd){
+          const dateRenouv=new Date(periodEnd*1000);
+          const joursAvantRenouv=Math.max(0,Math.ceil((dateRenouv-new Date())/86400000));
+          texteAbo+=' · renouvellement dans '+joursAvantRenouv+' j';
+          badgeAbo.title='Prochain renouvellement le '+dateRenouv.toLocaleDateString('fr-FR');
+        } else {
+          badgeAbo.title='Merci pour ton abonnement !';
+        }
+        badgeAbo.textContent=texteAbo;
         badgeAbo.style.color='var(--green)';
-        badgeAbo.title='Merci pour ton abonnement !';
       }
     }
   }catch(e){console.error('Affichage badge abonnement échoué:',e);}
