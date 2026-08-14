@@ -8173,12 +8173,13 @@ async function syncToCloud(){
       updated:updatedAt
     });
     // Sync séparée des biens patrimoine — document indépendant, isolé dans son propre try/catch :
-    // son échec (ex: pas de règle Firestore dédiée pour /patrimoine/data) ne doit JAMAIS faire
-    // passer la sync en erreur alors que les données importantes (budget, factures, devis) ci-dessus
-    // viennent d'être enregistrées avec succès.
+    // son échec (ex: pas de règle Firestore dédiée) ne doit JAMAIS faire passer la sync en erreur
+    // alors que les données importantes (budget, factures, devis) ci-dessus viennent d'être
+    // enregistrées avec succès. Stocké sous users/{uid}/patrimoine/data (scindé par utilisateur) —
+    // et non sous un chemin global partagé, qui exposerait les données de tous les abonnés entre eux.
     try{
       const biensPatrimoine=loadBiensPatrimoine();
-      await window._setDoc(window._doc(window._db,'patrimoine','data'),{
+      await window._setDoc(window._doc(window._db,'users',window._currentUid,'patrimoine','data'),{
         biensPatrimoine,updated:new Date().toISOString()
       });
     }catch(ePatrimoine){
@@ -8266,9 +8267,9 @@ async function loadFromCloud(){
         if(d.updated)localStorage.setItem(ctxKey('last_synced_at'),d.updated);
       }
     }
-    // Charger aussi les biens patrimoine (document séparé, indépendant du contexte)
+    // Charger aussi les biens patrimoine (document séparé, propre à cet utilisateur — voir syncToCloud)
     try{
-      const snapPatr=await window._getDoc(window._doc(window._db,'patrimoine','data'));
+      const snapPatr=await window._getDoc(window._doc(window._db,'users',window._currentUid,'patrimoine','data'));
       if(snapPatr.exists()){
         const dp=snapPatr.data();
         if(dp.biensPatrimoine)localStorage.setItem('patrimoine_biens_manuels',JSON.stringify(dp.biensPatrimoine));
@@ -15304,18 +15305,19 @@ async function archiverQuittanceDrivePrive(locId, mk, html){
 // Publie la quittance sur une page de consultation dédiée du SITE lui-même (pas Drive) : un
 // document Firestore à lecture publique, dans une collection séparée (quittances_publiques),
 // accessible uniquement en connaissant son identifiant exact (non listable, non devinable).
-// Le QR pointe vers cette page (quittance.html?id=...) — jamais vers Drive.
+// Le QR pointe vers cette page (quittance.html?id=...) — jamais vers Drive. ownerUid enregistré
+// pour que seul le propriétaire de la structure puisse révoquer sa propre quittance (règle Firestore).
 async function publierQuittancePublique(id, html){
   if(!window._db)return;
   try{
     await window._setDoc(window._doc(window._db,'quittances_publiques',id),{
-      html, structureId:window._structureId, createdAt:new Date().toISOString()
+      html, structureId:window._structureId, ownerUid:window._currentUid, createdAt:new Date().toISOString()
     });
   }catch(e){console.error('Publication de la quittance publique échouée:',e);}
 }
 // Révoque (supprime) une quittance publiée — le lien/QR déjà distribué au locataire cesse alors de
-// fonctionner (page "introuvable"). Nécessite que la règle Firestore autorise la suppression par
-// le propriétaire connecté (allow delete: if request.auth != null;).
+// fonctionner (page "introuvable"). La règle Firestore restreint la suppression au propriétaire de
+// la quittance (champ ownerUid posé à la publication ci-dessus).
 async function supprimerQuittancePublique(id){
   if(!window._db||!id)return;
   try{
