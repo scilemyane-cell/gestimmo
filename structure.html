@@ -183,6 +183,27 @@ onAuthStateChanged(auth, async (user) => {
     // que de bloquer un client payant à cause d'un souci technique ponctuel.
   }
 
+  // Badge visible du statut d'abonnement (jours d'essai restants / abonnement actif)
+  try{
+    const badgeAbo=document.getElementById('badge-abonnement');
+    if(badgeAbo){
+      const profSnap2=await getDoc(doc(db,'users',window._currentUid));
+      const prof2=profSnap2.exists()?profSnap2.data():{};
+      const essaiEnCours2=prof2.plan==='trial' && prof2.trialEnd && new Date(prof2.trialEnd)>new Date();
+      const abonnementValide2=prof2.subscription && ['trialing','active'].includes(prof2.subscription.status);
+      if(essaiEnCours2){
+        const joursRestants=Math.max(0,Math.ceil((new Date(prof2.trialEnd)-new Date())/86400000));
+        badgeAbo.textContent='🎁 '+joursRestants+' jour'+(joursRestants>1?'s':'')+' d\'essai restant'+(joursRestants>1?'s':'');
+        badgeAbo.style.color=joursRestants<=7?'var(--orange)':'var(--accent)';
+        badgeAbo.title='Ton essai gratuit se termine le '+new Date(prof2.trialEnd).toLocaleDateString('fr-FR');
+      } else if(abonnementValide2){
+        badgeAbo.textContent='✓ Abonnement actif';
+        badgeAbo.style.color='var(--green)';
+        badgeAbo.title='Merci pour ton abonnement !';
+      }
+    }
+  }catch(e){console.error('Affichage badge abonnement échoué:',e);}
+
   // Charge les infos de la structure (nom, adresse, type) pour personnaliser l'app
   try {
     const structSnap = await getDoc(doc(db, 'users', window._currentUid, 'structures', window._structureId));
@@ -567,6 +588,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
   </div>
   <div class="header-right" style="align-items:center">
     <div class="badge" id="badge-date"></div>
+    <div class="badge" id="badge-abonnement" style="cursor:default"></div>
     <div class="badge" onclick="toggleTheme()" id="btn-theme-toggle" title="Changer le thème" style="cursor:pointer">🌙 Sombre</div>
     <div class="badge" id="sync-status" style="color:var(--accent);cursor:pointer" onclick="handleSyncStatusClick()" title="Cliquer pour forcer la synchronisation">☁ Cloud</div>
     <div class="badge" id="drive-status" onclick="disconnectDrive()" style="color:var(--green);cursor:pointer;display:none" title="Cliquer pour déconnecter / changer de compte Google">📁 Drive</div>
