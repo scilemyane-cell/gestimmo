@@ -9903,14 +9903,14 @@ window.inviterUtilisateur=async function(){
     return;
   }
   try{
-    await window._setDoc(window._doc(window._db,'invitations', window._structureId+'_'+email.replace(/[^a-z0-9]/g,'_')), {
+    await window._setDoc(window._doc(window._db,'invitations', window._structureId+'_'+email), {
       email, ownerUid: window._currentUid, structureId: window._structureId,
       structureNom: (getCTXConfig()?.nom)||'Structure', role,
       dateCreation: window._serverTimestamp(), statut: 'en_attente'
     });
     emailInput.value='';
     const structureNom=(getCTXConfig()?.nom)||'Structure';
-    const lien='https://novimmo.immo/index.html?invite='+encodeURIComponent(window._structureId+'_'+email.replace(/[^a-z0-9]/g,'_'))+'&email='+encodeURIComponent(email)+'&structure='+encodeURIComponent(structureNom);
+    const lien='https://novimmo.immo/index.html?invite='+encodeURIComponent(window._structureId+'_'+email)+'&email='+encodeURIComponent(email)+'&structure='+encodeURIComponent(structureNom);
     status.style.display='block';status.style.color='var(--green)';
     status.innerHTML='✓ Invitation créée. Envoie ce lien à la personne (par SMS, WhatsApp, email...) :<br><div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input type="text" readonly value="'+lien+'" id="invite-link-output" style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text2);font-size:11px"><button class="btn btn-sm" onclick="copierLienInvitation()" style="flex-shrink:0">📋 Copier</button></div>';
     renderCollaborateursEtInvitations();
@@ -12485,6 +12485,20 @@ function exportLoyersPDF(years, logKeys){
 // Construit le HTML de la quittance pour le locataire/mois donnés.
 // forPrint=true ajoute le script d'auto-impression (utilisé par l'aperçu) ; forPrint=false
 // produit un document "propre" destiné à être converti en PDF (pour l'envoi par mail).
+// Échappe les caractères spéciaux HTML — indispensable avant d'insérer une donnée saisie par
+// l'utilisateur (nom de locataire, adresse...) dans un document HTML généré côté client, en
+// particulier quand ce document est ensuite affiché tel quel à des tiers (quittance publique,
+// bail envoyé au locataire) : sans ça, un champ contenant "<script>" s'exécuterait chez
+// quiconque ouvre le document, y compris sur des pages publiques sans compte.
+function escapeHtml(s){
+  if(s===null||s===undefined)return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
 async function buildQuittanceHTML(locId,mk,forPrint,isDuplicate,publicUrl){
   const l=loadLocataires().find(x=>String(x.id)===String(locId));
   if(!l)return null;
@@ -12571,9 +12585,9 @@ async function buildQuittanceHTML(locId,mk,forPrint,isDuplicate,publicUrl){
         <img src="${logoB64}" alt="Logo" style="height:72px;width:auto;object-fit:contain;flex-shrink:0">
         <div>
           <h1>QUITTANCE DE LOYER</h1>
-          <p style="font-weight:600;font-size:12px">${nomBailleur}</p>
-          <p>${adresseBailleur}</p>
-          <p>${emailBailleur}</p>
+          <p style="font-weight:600;font-size:12px">${escapeHtml(nomBailleur)}</p>
+          <p>${escapeHtml(adresseBailleur)}</p>
+          <p>${escapeHtml(emailBailleur)}</p>
           ${siret?`<p style="font-size:10px;color:#718096">${siret}</p>`:''}
         </div>
       </div>
@@ -12585,10 +12599,10 @@ async function buildQuittanceHTML(locId,mk,forPrint,isDuplicate,publicUrl){
         ${isDuplicate?`<p style="color:#c53030;font-weight:700;font-size:12px;margin-top:4px">DUPLICATA</p>`:''}
       </div>
     </div>
-    <p style="margin-bottom:14px"><b>${nomBailleur}</b>, propriétaire du logement désigné ci-dessous, déclare avoir reçu de :</p>
+    <p style="margin-bottom:14px"><b>${escapeHtml(nomBailleur)}</b>, propriétaire du logement désigné ci-dessous, déclare avoir reçu de :</p>
     <div class="box">
-      <div class="row"><span>Locataire</span><span><b>${l.nom||'—'}</b></span></div>
-      <div class="row"><span>Logement</span><span>${adresseLogement}</span></div>
+      <div class="row"><span>Locataire</span><span><b>${escapeHtml(l.nom)||'—'}</b></span></div>
+      <div class="row"><span>Logement</span><span>${escapeHtml(adresseLogement)}</span></div>
       <div class="row"><span>Loyer hors charges</span><span>${fmt(montantLoyer)}</span></div>
       <div class="row"><span>Provision pour charges</span><span>${fmt(montantCharges)}</span></div>
       ${totalReel!==totalTheo?`<div class="row"><span>Montant théorique</span><span style="text-decoration:line-through;color:#718096">${fmt(totalTheo)}</span></div>`:''}
@@ -12602,7 +12616,7 @@ async function buildQuittanceHTML(locId,mk,forPrint,isDuplicate,publicUrl){
         <p>Fait le ${fmtDate(todayStr())}</p>
         ${sigB64?`<img src="${sigB64}" alt="Signature" style="height:80px;width:auto;object-fit:contain;margin-top:8px">`:'<div style="height:80px"></div>'}
         <div style="border-top:1px solid #2d3748;padding-top:8px;min-width:220px;text-align:center">
-          <p style="font-size:11px;color:#4a5568">Le bailleur — ${nomBailleur}</p>
+          <p style="font-size:11px;color:#4a5568">Le bailleur — ${escapeHtml(nomBailleur)}</p>
         </div>
       </div>
     </div>

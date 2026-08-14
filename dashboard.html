@@ -813,6 +813,20 @@ function renderOrbit(structures){
   });
 }
 
+// Échappe les caractères spéciaux HTML — indispensable avant d'insérer nom/adresse d'une
+// structure dans le DOM, en particulier pour les structures PARTAGÉES : ces champs sont
+// définis par le PROPRIÉTAIRE de la structure, mais affichés dans le dashboard d'un
+// collaborateur invité — sans échappement, un nom de structure piégé s'exécuterait chez
+// n'importe quel collaborateur invité.
+function escapeHtml(s){
+  if(s===null||s===undefined)return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
 async function chargerStructures(uid){
   const grid = document.getElementById('structures-grid');
   try {
@@ -906,12 +920,12 @@ async function chargerStructures(uid){
               ${s._partagee ? `<span title="Partagée avec toi (rôle : ${s._monRole})" style="padding:0 4px;color:var(--text3)">👥</span>` : `
               <span title="Glisser pour réorganiser" style="cursor:grab;padding:0 4px;color:var(--text3)">⠿</span>
               <button onclick="event.stopPropagation();ouvrirModalStructure('${s.id}')" title="Modifier">✎</button>
-              <button class="danger" onclick="event.stopPropagation();ouvrirModalSuppression('${s.id}','${(s.nom||'').replace(/'/g,"\\'")}')" title="Supprimer">🗑</button>
+              <button class="danger" onclick="event.stopPropagation();ouvrirModalSuppression('${s.id}','${escapeHtml(s.nom||'')}')" title="Supprimer">🗑</button>
               `}
             </div>
           </div>
-          <div class="structure-name">${s.nom}</div>
-          <div class="structure-meta">${s.adresse||'Adresse non renseignée'}</div>
+          <div class="structure-name">${escapeHtml(s.nom)}</div>
+          <div class="structure-meta">${escapeHtml(s.adresse)||'Adresse non renseignée'}</div>
           <div class="structure-stats">${statsBlock}
           </div>
         </div>`;
