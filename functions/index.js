@@ -134,4 +134,211 @@ exports.createCheckoutSession = onCall(async (request) => {
 // ── Créer une session du portail client Stripe (gérer/résilier l'abonnement) ──
 exports.createPortalSession = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("unauthenticated",
+    throw new HttpsError("unauthenticated", "Connecte-toi d'abord.");
+  }
+  const uid = request.auth.uid;
+  const userSnap = await db.collection("users").doc(uid).get();
+  const stripeCustomerId = userSnap.exists ? userSnap.data().stripeCustomerId : null;
+  if (!stripeCustomerId) {
+    throw new HttpsError("failed-precondition", "Aucun abonnement Stripe associé à ce compte.");
+  }
+  const portalSession = await stripe.billingPortal.sessions.create({
+    customer: stripeCustomerId,
+    return_url: "https://novimmo.immo/dashboard.html",
+  });
+  return { url: portalSession.url };
+});
+
+// ── Webhook Stripe : reçoit les événements et met à jour Firestore ─────────
+exports.stripeWebhook = onRequest(
+  { cors: false, rawBody: true },
+  async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.rawBody,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET
+      );
+    } catch (err) {
+      console.error("Signature webhook invalide:", err.message);
+      res.status(400).send(`Webhook signature invalide: ${err.message}`);
+      return;
+    }
+
+    try {
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const session = event.data.object;
+          const uid = session.client_reference_id || session.metadata?.uid;
+          const plan = session.metadata?.plan;
+          if (uid) {
+            const subscription = await stripe.subscriptions.retrieve(session.subscription);
+            const champ = isAddon(plan) ? "subscriptionAddonIA" : "subscription";
+            await db.collection("users").doc(uid).set(
+              {
+                stripeCustomerId: session.customer,
+                [champ]: {
+                  status: subscription.status,
+                  plan: plan || null,
+                  priceId: subscription.items.data[0]?.price?.id || null,
+                  stripeSubscriptionId: subscription.id,
+                  currentPeriodEnd: subscription.current_period_end || null,
+                  trialEnd: subscription.trial_end || null,
+                  cancelAtPeriodEnd: subscription.cancel_at_period_end || null,
+                },
+              },
+              { merge: true }
+            );
+          }
+          break;
+        }
+        case "customer.subscription.updated":
+        case "customer.subscription.created": {
+          const subscription = event.data.object;
+          const uid = subscription.metadata?.uid;
+          if (uid) {
+            const plan = subscription.metadata?.plan || getPlanFromPriceId(subscription.items.data[0]?.price?.id);
+            const champ = isAddon(plan) ? "subscriptionAddonIA" : "subscription";
+            await db.collection("users").doc(uid).set(
+              {
+                [champ]: {
+                  status: subscription.status,
+                  plan: plan || null,
+                  priceId: subscription.items.data[0]?.price?.id || null,
+                  stripeSubscriptionId: subscription.id,
+                  currentPeriodEnd: subscription.current_period_end || null,
+                  trialEnd: subscription.trial_end || null,
+                  cancelAtPeriodEnd: subscription.cancel_at_period_end || null,
+                },
+              },
+              { merge: true }
+            );
+          }
+          break;
+        }
+        case "customer.subscription.deleted": {
+          const subscription = event.data.object;
+          const uid = subscription.metadata?.uid;
+          if (uid) {
+            const plan = subscription.metadata?.plan || getPlanFromPriceId(subscription.items.data[0]?.price?.id);
+            const champ = isAddon(plan) ? "subscriptionAddonIA" : "subscription";
+            await db.collection("users").doc(uid).set(
+              {
+                [champ]: {
+                  status: "canceled",
+                  plan: null,
+                  priceId: null,
+                  stripeSubscriptionId: subscription.id,
+                  currentPeriodEnd: subscription.current_period_end || null,
+                  cancelAtPeriodEnd: true,
+                },
+              },
+              { merge: true }
+            );
+          }
+          break;
+        }
+        case "invoice.paid": {
+          // Paiement réellement encaissé (premier paiement à la fin de l'essai gratuit, ou
+          // renouvellement annuel) — alimente automatiquement le suivi Micro-entreprise.
+          const invoice = event.data.object;
+          await enregistrerEncaissementME(invoice);
+          break;
+        }
+        default:
+          // Événement non géré, on ignore silencieusement.
+          break;
+      }
+      res.status(200).send("ok");
+    } catch (err) {
+      console.error("Erreur traitement webhook:", err);
+      res.status(500).send("Erreur interne");
+    }
+  }
+);
+
+// ── Envoyer un email via Resend (remplace Gmail pour l'OTP et le lien de signature) ──
+// Accepte optionnellement UNE pièce jointe (pieceJointe: {filename, base64Data}) OU PLUSIEURS
+// (piecesJointes: [{filename, base64Data}, ...] — ex: bail signé + DPE + état des risques
+// ensemble), et un corps HTML (html) en plus du texte brut (corps) pour afficher un vrai
+// bouton de signature plutôt qu'un lien brut.
+//
+// IMPORTANT (sécurité) : sans vérification, n'importe quel compte connecté (même un essai
+// gratuit tout juste créé) pourrait envoyer un email arbitraire à n'importe qui depuis
+// no-reply@novimmo.immo — un relais d'envoi ouvert, exploitable pour du spam/phishing et
+// risquant de faire blacklister le domaine (cassant du même coup les emails légitimes).
+// L'appelant doit donc préciser le structureId concerné, et on vérifie ici — avec les droits
+// admin Firebase, qui contournent les règles Firestore côté client — qu'il en est bien
+// propriétaire ou collaborateur avant d'envoyer quoi que ce soit.
+async function verifierAccesStructure(uid, ownerUid, structureId) {
+  if (uid === ownerUid) return true;
+  try {
+    const collabSnap = await db
+      .collection("users").doc(ownerUid)
+      .collection("structures").doc(structureId)
+      .collection("collaborateurs").doc(uid)
+      .get();
+    return collabSnap.exists;
+  } catch (e) {
+    return false;
+  }
+}
+
+exports.envoyerEmailResend = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Connexion requise.");
+  }
+  const { destinataire, sujet, corps, pieceJointe, piecesJointes, html, ownerUid, structureId } = request.data || {};
+  if (!destinataire || !sujet || !corps) {
+    throw new HttpsError("invalid-argument", "destinataire, sujet et corps sont requis.");
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinataire)) {
+    throw new HttpsError("invalid-argument", "Adresse email invalide.");
+  }
+  if (!ownerUid || !structureId) {
+    throw new HttpsError("invalid-argument", "ownerUid et structureId sont requis.");
+  }
+  const autorise = await verifierAccesStructure(request.auth.uid, ownerUid, structureId);
+  if (!autorise) {
+    throw new HttpsError("permission-denied", "Tu n'as pas accès à cette structure.");
+  }
+  const body = {
+    from: "Novimmo <no-reply@novimmo.immo>",
+    to: [destinataire],
+    subject: sujet,
+    text: corps,
+  };
+  if (html) {
+    body.html = html;
+  }
+  // Piste plusieurs pièces jointes si fourni, sinon retombe sur l'unique pieceJointe (rétro-
+  // compatible avec les appels existants qui n'envoient qu'un seul fichier).
+  const listePieces = Array.isArray(piecesJointes) && piecesJointes.length
+    ? piecesJointes
+    : (pieceJointe ? [pieceJointe] : []);
+  const attachmentsValides = listePieces.filter((p) => p && p.filename && p.base64Data);
+  if (attachmentsValides.length) {
+    body.attachments = attachmentsValides.map((p) => ({ filename: p.filename, content: p.base64Data }));
+  }
+  try {
+    const resp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error("Resend API error:", errText);
+      throw new HttpsError("internal", "Échec de l'envoi de l'email.");
+    }
+    return { ok: true };
+  } catch (e) {
+    console.error("envoyerEmailResend error:", e);
+    throw new HttpsError("internal", "Échec de l'envoi de l'email.");
+  }
+});
