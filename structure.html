@@ -15585,10 +15585,13 @@ function toBase64Std(str){
 // signature de bail ET pour le lien de signature à distance : le message doit partir tout
 // de suite, sans dépendre d'un compte Gmail connecté côté bailleur (donc pas d'écran
 // "application non vérifiée" pour tes abonnés). Passe par une Cloud Function serveur
-// (envoyerEmailResend) qui envoie via Resend depuis no-reply@novimmo.immo.
+// (envoyerEmailResend) qui envoie via Resend depuis no-reply@novimmo.immo. ownerUid/structureId
+// sont exigés par la Cloud Function pour vérifier côté serveur que l'appelant a bien accès à
+// cette structure avant d'envoyer quoi que ce soit — sans ça, n'importe quel compte connecté
+// pourrait envoyer un email arbitraire depuis le domaine de Novimmo.
 async function envoyerEmailImmediat(destinataire,sujet,corps,attachment,html){
   try{
-    const payload={destinataire,sujet,corps};
+    const payload={destinataire,sujet,corps,ownerUid:window._currentUid,structureId:window._structureId};
     // "attachment" peut être un seul objet {filename,base64Data} (usage historique) ou un
     // tableau de plusieurs pièces jointes (ex: bail signé + DPE + état des risques ensemble).
     const liste=Array.isArray(attachment)?attachment:(attachment?[attachment]:[]);
