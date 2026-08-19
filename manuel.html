@@ -86,6 +86,11 @@
   </div>
 
   <div class="grp">
+    <div class="grp-title">🏛️ Patrimoine</div>
+    <a class="tab-link" href="#patrimoine">Vue consolidée</a>
+  </div>
+
+  <div class="grp">
     <div class="grp-title">⚙️ Paramètres</div>
     <a class="tab-link" href="#parametres">Tous les réglages</a>
   </div>
@@ -96,7 +101,7 @@
   <div class="subtitle">Un guide pour chaque onglet de l'application, et pour l'écran Paramètres.</div>
 
   <div class="intro">
-    Novimmo est organisé en <b>4 blocs de fonctionnalités</b> (Construction prévisionnelle, Comptabilité, Locataires, Financement), chacun activable ou désactivable indépendamment selon vos besoins — voir <a href="#parametres">Paramètres → Modules de l'application</a>. Chaque bloc regroupe plusieurs onglets accessibles via le sous-menu qui apparaît quand vous cliquez dessus dans le menu principal.
+    Novimmo est organisé en <b>4 blocs de fonctionnalités</b> (Construction prévisionnelle, Comptabilité, Locataires, Financement), chacun activable ou désactivable indépendamment selon vos besoins — voir <a href="#parametres">Paramètres → Modules de l'application</a>. Chaque bloc regroupe plusieurs onglets accessibles via le sous-menu qui apparaît quand vous cliquez dessus dans le menu principal. Le bandeau en haut de l'application affiche en permanence l'état de votre abonnement (jours d'essai restants, ou date de renouvellement une fois abonné).
   </div>
 
   <!-- ============ CONSTRUCTION ============ -->
@@ -299,15 +304,41 @@
   <section class="tab" id="gestion-locative">
     <h3>📁 Gestion locative</h3>
     <div class="path">Locataires → Gestion locative</div>
-    <p>Le classement des documents administratifs liés à la location, stockés sur Google Drive (dossier dédié, distinct de celui des factures).</p>
+    <p>Le classement des documents administratifs liés à la location, stockés sur Google Drive (dossier dédié, distinct de celui des factures) — et le cœur du parcours de signature électronique du bail.</p>
     <h4>Ce que vous pouvez faire</h4>
     <ul>
       <li>Consulter la <b>synthèse</b> tous logements confondus</li>
-      <li>Choisir un <b>logement</b> dans le sélecteur pour voir son détail, organisé par catégorie : <b>Bail</b>, <b>État des lieux</b>, <b>Assurance</b>, <b>DPE</b>, <b>Autre</b></li>
+      <li>Choisir un <b>logement</b> dans le sélecteur pour voir son détail, organisé par catégorie : <b>Bail</b>, <b>Avenant</b>, <b>État des lieux</b>, <b>Pièce d'identité</b>, <b>Assurance</b>, <b>DPE</b>, <b>Autre</b></li>
       <li><b>Ajouter un document</b> et lui donner une <b>date d'expiration</b> pour être alerté automatiquement quand elle approche</li>
       <li>Pour chaque document : l'<b>ouvrir</b>, l'<b>envoyer par mail</b>, le <b>modifier</b> ou le <b>supprimer</b></li>
     </ul>
     <div class="info">Statuts d'expiration affichés automatiquement : ✓ Valide, ⚡ À renouveler, ⚠ Expiré.</div>
+
+    <h4>✍️ Signature électronique du bail</h4>
+    <ul>
+      <li>Le bail se génère automatiquement à partir des informations du locataire et du logement (avec fiche technique — surface, pièces, chauffage — et clauses légales : résolutoire de plein droit, solidarité entre colocataires)</li>
+      <li><b>Deux façons de signer</b> : sur place, directement sur un pavé tactile (tablette/écran), ou <b>à distance</b> via un lien envoyé par email au locataire, sécurisé par un <b>code de vérification (OTP)</b></li>
+      <li>Le locataire lit le <b>texte complet du bail</b> avant de signer</li>
+      <li>Possibilité de <b>signer le bail et l'état des lieux d'entrée en une seule fois</b></li>
+      <li><b>Deux titulaires</b> (colocation, couple) : chacun a son propre pavé de signature, son propre lien à distance et son propre code — le bail n'est considéré signé que lorsque tous les titulaires ont signé</li>
+      <li>Pièce d'identité demandée au moment de la signature (recto/verso), stockée en document privé, jamais imprimée sur le bail ni envoyée par email</li>
+      <li>Une <b>copie PDF du bail signé</b> est envoyée automatiquement au(x) locataire(s) par email, avec en pièces jointes le <b>DPE</b> et l'<b>état des risques</b> si disponibles dans Gestion locative</li>
+    </ul>
+
+    <h4>📝 États des lieux</h4>
+    <ul>
+      <li><b>État des lieux d'entrée</b> interactif, pièce par pièce, avec état et observations</li>
+      <li>L'<b>état des lieux de sortie</b> reprend automatiquement les éléments de l'entrée et l'affiche en référence pour comparer</li>
+      <li>Le nombre de pièces proposées s'adapte automatiquement à la fiche technique du logement (chambres, salles d'eau, WC)</li>
+      <li>Un <b>brouillon est sauvegardé automatiquement</b> pendant la saisie — fermer la fenêtre par erreur ne fait rien perdre</li>
+    </ul>
+
+    <h4>📎 Avenants au bail</h4>
+    <ul>
+      <li>4 modèles disponibles : <b>clé supplémentaire</b>, <b>animal</b>, <b>ajout d'occupant</b>, <b>texte libre</b></li>
+      <li>Utilise la même infrastructure de signature que le bail (pavé tactile, lien à distance, OTP, copie PDF automatique)</li>
+      <li>Le signataire de l'avenant peut être différent du titulaire du bail (ex : ajout d'un nouvel occupant)</li>
+    </ul>
   </section>
 
   <section class="tab" id="rentabilite">
@@ -322,6 +353,27 @@
       <li>Générer un <b>récapitulatif fiscal</b></li>
       <li>Générer un rapport de <b>rentabilité nette</b> (cumul multi-années possible avec détail année par année)</li>
     </ul>
+  </section>
+
+  <!-- ============ PATRIMOINE ============ -->
+  <div class="group-header">
+    <h2>🏛️ Patrimoine</h2>
+    <p>La vue consolidée de tous vos biens, toutes structures confondues (SCI, LMNP, nom propre...), pour connaître votre patrimoine réel en un coup d'œil.</p>
+  </div>
+
+  <section class="tab" id="patrimoine">
+    <h3>🏛️ Vue consolidée</h3>
+    <div class="path">Bouton 🏛️ dans l'en-tête, accessible depuis n'importe quel onglet</div>
+    <p>Regroupe automatiquement tous les logements de toutes vos structures ouvertes sur cet appareil, plus les biens que vous ajoutez manuellement (résidence principale, biens non gérés dans l'application...).</p>
+    <h4>Ce que vous pouvez faire</h4>
+    <ul>
+      <li>Consulter automatiquement, pour chaque logement géré dans l'application : <b>coût de revient</b> (issu du budget de construction) et frais de structure associés</li>
+      <li><b>Ajouter un bien manuel</b> (non géré dans l'application) : nom, valeur d'achat, valeur de marché estimée</li>
+      <li><b>Modifier</b> ou <b>supprimer</b> un bien ajouté manuellement</li>
+      <li>Voir la <b>plus-value latente</b> globale (valeur de marché estimée moins coût de revient)</li>
+      <li><b>Exporter le patrimoine en PDF</b></li>
+    </ul>
+    <div class="info">Cette vue est propre à votre compte : elle n'apparaît jamais aux collaborateurs invités sur une structure, et vos biens manuels ne sont visibles que par vous.</div>
   </section>
 
   <!-- ============ FINANCEMENT ============ -->
@@ -382,6 +434,7 @@
     <h4>🏠 Logements</h4>
     <ul>
       <li><b>Ajouter un logement</b>, avec nom, adresse, couleur, référence PDL (électricité) et compteur d'eau</li>
+      <li><b>Fiche technique</b> : surface habitable, nombre de pièces, chambres, salles d'eau, WC, chauffage — utilisée automatiquement sur le bail (obligation légale, loi Boutin) et pour générer les bonnes pièces dans l'état des lieux</li>
       <li><b>Modifier</b>, <b>réordonner</b> (monter/descendre), <b>masquer</b> ou <b>supprimer</b> un logement</li>
       <li>Un logement masqué garde ses données mais disparaît des listes actives</li>
     </ul>
