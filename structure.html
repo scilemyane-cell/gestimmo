@@ -1990,8 +1990,26 @@ function loadLogements(){
   saveLogements(defaults);
   return defaults;
 }
+// Neutralise les caractères < et > dans tous les champs texte d'un objet/tableau, en profondeur
+// — appliquée à la SOURCE (au moment de la sauvegarde), pas à chaque endroit d'affichage.
+// Sans ça, un nom de locataire ou une adresse de logement contenant "<script>" resterait stocké
+// tel quel et pourrait s'exécuter partout où cette donnée est réaffichée (bail, EDL, quittance,
+// dashboard d'un collaborateur...) — trop d'endroits d'affichage dans un fichier de cette taille
+// pour garantir qu'aucun n'a été oublié. Neutraliser une fois à l'entrée protège tous les usages
+// futurs, y compris ceux qu'on n'a pas encore audités. N'affecte jamais une chaîne base64 (photo,
+// signature) car l'alphabet base64 ne contient jamais < ni >.
+function sanitizeStrings(val){
+  if(typeof val==='string')return val.replace(/</g,'‹').replace(/>/g,'›');
+  if(Array.isArray(val))return val.map(sanitizeStrings);
+  if(val && typeof val==='object'){
+    const out={};
+    for(const k in val)out[k]=sanitizeStrings(val[k]);
+    return out;
+  }
+  return val;
+}
 function saveLogements(logs){
-  if(!safeSetItem(ctxKey('logements_config'),JSON.stringify(logs)))return false;
+  if(!safeSetItem(ctxKey('logements_config'),JSON.stringify(sanitizeStrings(logs))))return false;
   return true;
 }
 function getLogementsActifs(){
@@ -3213,7 +3231,7 @@ function loadLocataires(){
   return l?JSON.parse(l):[];
 }
 function saveLocataires(locs){
-  if(!safeSetItem(ctxKey('locataires'),JSON.stringify(locs)))return false;
+  if(!safeSetItem(ctxKey('locataires'),JSON.stringify(sanitizeStrings(locs))))return false;
   syncToCloud();
   return true;
 }

@@ -205,7 +205,7 @@ window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform &
     </div>
     <div class="user-menu">
       <span class="hud-clock" id="hud-clock"></span>
-      <button id="btn-test-abonnement" onclick="testerAbonnementEssentiel()" title="TEST — lance le paiement Stripe pour l'offre Essentiel (mode test)" style="background:rgba(214,158,46,.12);border:1px solid rgba(214,158,46,.4);border-radius:8px;color:#d69e2e;cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">🧪 <span class="btn-label-full">Tester abonnement</span><span class="btn-label-short" style="display:none">Test</span></button>
+      <button id="btn-test-abonnement" onclick="testerAbonnementEssentiel()" title="TEST — lance le paiement Stripe pour l'offre Essentiel (mode test)" style="display:none;background:rgba(214,158,46,.12);border:1px solid rgba(214,158,46,.4);border-radius:8px;color:#d69e2e;cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">🧪 <span class="btn-label-full">Tester abonnement</span><span class="btn-label-short" style="display:none">Test</span></button>
       <button id="btn-mes-factures" onclick="ouvrirPortailFacturation()" title="Télécharger tes factures d'abonnement Novimmo (portail sécurisé Stripe)" style="background:rgba(90,200,216,.1);border:1px solid rgba(90,200,216,.35);border-radius:8px;color:var(--cyan,#5AC8D8);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">📄 <span class="btn-label-full">Mes factures</span><span class="btn-label-short" style="display:none">Factures</span></button>
       <button id="btn-connect-drive-backup" onclick="connectDriveDashboard()" title="Envoyer les sauvegardes automatiquement sur Google Drive au lieu d'un fichier local" style="display:none;background:rgba(104,211,145,.1);border:1px solid rgba(104,211,145,.35);border-radius:8px;color:#68d391;cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">🔗 <span class="btn-label-full">Activer sauvegarde Drive</span><span class="btn-label-short" style="display:none">Drive</span></button>
       <button id="btn-manual-backup" onclick="exporterSauvegardeManuelle()" title="Télécharger/envoyer une sauvegarde complète de toutes tes données" style="display:none;background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.35);border-radius:8px;color:var(--cyan,#63b3ed);cursor:pointer;font-size:11px;font-weight:600;padding:7px 12px;font-family:var(--font-mono)">💾 <span class="btn-label-full">Sauvegarder</span></button>
@@ -453,6 +453,7 @@ async function chargerDashboard(user){
   const estAdminBackup = !!(user.email && ADMIN_BACKUP_EMAILS.includes(user.email.toLowerCase()));
   if(estAdminBackup){
     document.getElementById('btn-manual-backup').style.display = 'inline-flex';
+    document.getElementById('btn-test-abonnement').style.display = 'inline-flex';
   }
 
   const profileRef = doc(db, 'users', user.uid);
@@ -981,6 +982,20 @@ async function persisterOrdreStructures(order){
   }
 }
 
+// Neutralise les caractères < et > dans les champs texte — à la SOURCE, avant sauvegarde.
+// Ces champs (nom, adresse...) sont ensuite réaffichés à plusieurs endroits (ce dashboard,
+// mais aussi structure.html, les documents générés — bail, quittance...) : neutraliser une
+// fois ici protège tous ces usages sans devoir échapper individuellement chaque affichage.
+function sanitizeStrings(val){
+  if(typeof val==='string')return val.replace(/</g,'‹').replace(/>/g,'›');
+  if(Array.isArray(val))return val.map(sanitizeStrings);
+  if(val && typeof val==='object'){
+    const out={};
+    for(const k in val)out[k]=sanitizeStrings(val[k]);
+    return out;
+  }
+  return val;
+}
 window.sauvegarderStructure = async function(){
   const nom = document.getElementById('struct-nom').value.trim();
   if(!nom){ alert('Le nom de la structure est obligatoire.'); return; }
@@ -989,14 +1004,14 @@ window.sauvegarderStructure = async function(){
   const btn = document.getElementById('btn-save-structure');
   btn.disabled = true; btn.textContent = window._editingStructureId ? '⏳ Enregistrement...' : '⏳ Création...';
   try {
-    const data = {
+    const data = sanitizeStrings({
       nom,
       type,
       couleur,
       adresse: document.getElementById('struct-adresse').value.trim(),
       siret: document.getElementById('struct-siret').value.trim(),
       email: document.getElementById('struct-email').value.trim(),
-    };
+    });
     if(window._editingStructureId){
       await updateDoc(doc(db, 'users', currentUser.uid, 'structures', window._editingStructureId), data);
     } else {
