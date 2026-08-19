@@ -273,10 +273,13 @@ window.isAppAndroid = !!(window.Capacitor && window.Capacitor.isNativePlatform &
         <div class="type-option" data-type="LMP" onclick="selectionnerType(this)"><div class="type-icon">💼</div>LMP</div>
         <div class="type-option" data-type="NU_IR" onclick="selectionnerType(this)"><div class="type-icon">📋</div>Location nue</div>
         <div class="type-option" data-type="NOM_PROPRE" onclick="selectionnerType(this)"><div class="type-icon">👤</div>Nom propre</div>
-        <div class="type-option" data-type="HOLDING" onclick="selectionnerType(this)"><div class="type-icon">🏛️</div>Holding</div>
         <div class="type-option" id="type-option-micro" data-type="MICRO" onclick="selectionnerType(this)" style="display:none"><div class="type-icon">🧾</div>Micro-entreprise</div>
       </div>
     </div>
+
+    <!-- Type "HOLDING" temporairement retiré (suspendu pour une prochaine mise à jour) : ni
+         création, ni affichage des holdings déjà existantes sur le dashboard. Les données ne
+         sont pas supprimées côté Firestore, juste masquées ici. -->
 
     <div class="form-group">
       <label>Nom de la structure</label>
@@ -859,9 +862,24 @@ async function chargerStructures(uid){
       return;
     }
     const structures = [];
-    snap.forEach(d => structures.push({ id: d.id, ...d.data(), _ownerUid: uid, _partagee: false }));
+    // Type "HOLDING" temporairement suspendu (voir création plus haut) : on filtre les
+    // holdings déjà existantes pour qu'elles n'apparaissent plus sur le dashboard, sans
+    // toucher à leurs données Firestore (rien n'est supprimé, juste masqué ici).
+    snap.forEach(d => { const s=d.data(); if(s.type!=='HOLDING') structures.push({ id: d.id, ...s, _ownerUid: uid, _partagee: false }); });
     structures.sort((a,b)=>(a.ordre??9999)-(b.ordre??9999));
-    structures.push(...structuresPartagees);
+    structures.push(...structuresPartagees.filter(s=>s.type!=='HOLDING'));
+    if(!structures.length){
+      grid.innerHTML = `
+        <div class="empty-state" style="grid-column:1/-1">
+          <div class="icon">🛰️</div>
+          <div class="mono">Aucun signal détecté</div>
+          <h3>Aucune structure pour l'instant</h3>
+          <p>Créez votre première structure (SCI, LMNP, LMP...) pour commencer à gérer vos logements et locataires.</p>
+          <button class="btn-add" style="margin:0 auto" onclick="ouvrirModalStructure()">+ Créer ma première structure</button>
+        </div>`;
+      renderOrbit([]);
+      return;
+    }
     window._currentStructuresOrder = structures.filter(s=>!s._partagee).map(s=>s.id);
     renderOrbit(structures);
 
