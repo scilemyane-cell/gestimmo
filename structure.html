@@ -1797,7 +1797,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
       <div class="form-group" style="grid-column:1/-1">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
           <input type="checkbox" id="e-inclus" checked style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent)">
-          <span style="font-size:12px;color:var(--text)">Inclure au projet <span style="color:var(--text3);font-size:11px">(décocher = hors projet : reste visible ici, mais exclue des totaux et des exports banque / comptable)</span></span>
+          <span style="font-size:12px;color:var(--text)">Inclure au projet <span style="color:var(--text3);font-size:11px">(décocher pour exclure des totaux tout en gardant la facture dans les exports)</span></span>
         </label>
         <div id="e-inclus-acompte-note" style="display:none;font-size:10px;color:var(--orange);margin-top:6px;padding-left:26px">🔒 Toujours incluse — c'est une facture d'acompte, elle représente le vrai argent déjà sorti de la banque.</div>
       </div>
@@ -5426,10 +5426,6 @@ function toggleBanqueSelection(idx,checked){
   if(checked)banqueSelection.add(idx);else banqueSelection.delete(idx);
   renderBanque();
 }
-// Facture « hors projet » = décochée volontairement (case Projet). Visible dans l'app, mais
-// jamais envoyée à la banque ni au comptable. Les factures couvertes par un acompte sont aussi
-// en inclus:false, mais ce sont de vraies pièces comptables : elles restent exportées.
-function estHorsProjet(f){ return f&&f.inclus===false&&!f.acompteFactureNum&&f.type!=='acompte'; }
 function getBanqueFiltered(factures){
   const anneeF=document.getElementById('banque-filter-annee')?.value||'';
   const logF=document.getElementById('banque-filter-log')?.value||'';
@@ -5440,7 +5436,7 @@ function getBanqueFiltered(factures){
     const matchLog=!logF||(f.repartition&&f.repartition.length?f.repartition.some(r=>r.log===logF):f.log===logF);
     const matchSearch=!searchF||(f.four||'').toLowerCase().includes(searchF)||(f.num||'').toLowerCase().includes(searchF);
     const matchTransmis=showAll||!f.banque;
-    return matchAnnee&&matchLog&&matchSearch&&matchTransmis&&!estHorsProjet(f);
+    return matchAnnee&&matchLog&&matchSearch&&matchTransmis;
   }).sort((a,b)=>{
     const na=a.num||'';const nb=b.num||'';
     const ma=na.match(/FAC-(\d{4})-(\d+)/i);
@@ -5925,7 +5921,7 @@ async function exporterSelectionBanque(){
   const cfg=getCTXConfig();
   const ids=Array.from(banqueSelection).filter(idx=>factures[idx]);
   if(ids.length===0){alert('Sélectionne au moins une facture.');return;}
-  const filtered=ids.map(idx=>({...factures[idx],_idx:idx})).filter(f=>!estHorsProjet(f));
+  const filtered=ids.map(idx=>({...factures[idx],_idx:idx}));
 
   const aBesoinDrive=filtered.some(f=>!loadPdf(f._idx)&&f.driveLink);
   await ensureDriveConnected();
@@ -7789,7 +7785,6 @@ function exportComptablePDF(){
   const year=document.getElementById('annuel-year')?.value||new Date().getFullYear();
   const type=document.getElementById('annuel-type')?.value||'reception';
   const filtered=factures.filter(f=>{
-    if(estHorsProjet(f))return false;
     const d=type==='paiement'?(f.datepay||f.date):f.date;
     return d&&d.slice(0,4)===year;
   });
@@ -8135,7 +8130,6 @@ async function exportZipFactures(){
   const year=yearEl?.value||new Date().getFullYear().toString();
 
   const filtered=factures.map((f,i)=>({...f,_idx:i})).filter(f=>{
-    if(estHorsProjet(f))return false;
     const d=f.date||f.datepay||'';
     return !yearEl||d.slice(0,4)===year;
   }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
