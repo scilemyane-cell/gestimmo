@@ -5426,6 +5426,12 @@ function toggleBanqueSelection(idx,checked){
   if(checked)banqueSelection.add(idx);else banqueSelection.delete(idx);
   renderBanque();
 }
+// Facture « hors projet » = case Projet décochée volontairement. Exclue des totaux DANS L'APP
+// uniquement : pour la banque et le comptable elle fait partie du projet, donc exportée et
+// comptée normalement, sans aucune mention « hors projet ». (Les factures couvertes par un
+// acompte sont aussi en inclus:false, mais elles restent exclues des totaux pour ne pas
+// compter deux fois l'argent déjà versé via l'acompte.)
+function estHorsProjet(f){ return !!f&&f.inclus===false&&!f.acompteFactureNum&&f.type!=='acompte'; }
 function getBanqueFiltered(factures){
   const anneeF=document.getElementById('banque-filter-annee')?.value||'';
   const logF=document.getElementById('banque-filter-log')?.value||'';
@@ -5538,7 +5544,7 @@ function renderBanque(){
     const ri=f._ri;
     const hasPdf=!!loadPdf(ri);
     const checked=banqueSelection.has(ri)?'checked':'';
-    const horsProjet=f.inclus===false?' <span style="font-size:9px;color:var(--orange);border:1px solid #E0A15E;border-radius:3px;padding:1px 4px" title="Facture exclue du projet mais toujours disponible ici pour transmission bancaire">Hors projet</span>':'';
+    const horsProjet=''; // plus de mention « hors projet » côté banque : la facture fait partie du projet pour elle
     const pdfCell=`${hasPdf?`<button class="btn-pdf-view" onclick="viewPdf(${ri},'${(f.four||'Facture').replace(/'/g,"\\'")}')">📄 Voir</button>`:''}
         ${f.driveLink?`<a href="${f.driveLink}" target="_blank" style="background:rgba(127,191,158,.1);border:1px solid rgba(127,191,158,.35);border-radius:6px;color:var(--green);cursor:pointer;font-size:10px;font-weight:600;padding:4px 9px;text-decoration:none;display:inline-block;margin-left:3px">☁ Drive</a>`:''}
         ${!hasPdf&&!f.driveLink?`<button class="btn btn-sm" onclick="lierDriveLink(${ri})" style="background:rgba(90,200,216,.1);border-color:rgba(90,200,216,.35);color:var(--accent);font-size:10px;padding:4px 9px" title="Rattacher un lien Google Drive existant">🔗 Lier Drive</button>`:''}`;
@@ -7788,7 +7794,7 @@ function exportComptablePDF(){
     const d=type==='paiement'?(f.datepay||f.date):f.date;
     return d&&d.slice(0,4)===year;
   });
-  const filteredInclus=filtered.filter(f=>f.inclus!==false);
+  const filteredInclus=filtered.filter(f=>f.inclus!==false||estHorsProjet(f));
   const total=filteredInclus.reduce((s,f)=>s+(+f.ttc||0),0);
   const payees=filteredInclus.filter(f=>f.statut==='Payée').reduce((s,f)=>s+(+f.ttc||0),0);
   const byCat={};
@@ -16792,7 +16798,7 @@ function exportComptableAnnuel(){
 
   // Charges déductibles (factures de l'année)
   const factAnnee=factures.filter(f=>{
-    if(f.inclus===false)return false;
+    if(f.inclus===false&&!estHorsProjet(f))return false;
     const y=+(f.date||f.dateFacture||'').slice(0,4);
     return y===annee;
   });
