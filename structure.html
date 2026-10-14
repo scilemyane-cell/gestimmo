@@ -1117,6 +1117,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         <option value="oui">Avec PDF</option>
         <option value="non">Sans PDF</option>
       </select>
+      <select class="filter-select" id="filter-projet" onchange="renderFactures()">
+        <option value="">Projet + hors projet</option>
+        <option value="inclus">Incluses au projet</option>
+        <option value="hors">Hors projet</option>
+      </select>
       <div style="flex:1"></div>
       <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
       <button class="btn-export" style="background:rgba(224,161,94,.1);border-color:rgba(224,161,94,.4);color:var(--orange)" onclick="exportPDF()">Exporter PDF</button>
@@ -1130,7 +1135,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div class="section-title" style="margin-bottom:0">Liste des factures</div>
-      <div id="filter-count" style="font-size:11px;color:var(--text3)"></div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end">
+        <div id="factures-totaux-projet" style="font-size:12px"></div>
+        <div id="filter-count" style="font-size:11px;color:var(--text3)"></div>
+      </div>
     </div>
     <div class="table-wrap">
       <table class="factures-table">
@@ -5185,6 +5193,7 @@ function renderFactures(){
   const regleF=document.getElementById('filter-regleby')?.value||'';
   const searchF=(document.getElementById('filter-search')?.value||'').toLowerCase().trim();
   const aCompleterF=document.getElementById('filter-acompleter')?.value||'';
+  const projetF=document.getElementById('filter-projet')?.value||'';
   // Créer tableau avec index original puis filtrer et trier
   const indexedFactures=factures.map((f,i)=>({...f,_ri:i}));
   const filtered=indexedFactures.filter((f)=>{
@@ -5192,7 +5201,7 @@ function renderFactures(){
     const matchSearch=!searchF||(f.four||'').toLowerCase().includes(searchF)||(f.num||'').toLowerCase().includes(searchF)||(f.desc||'').toLowerCase().includes(searchF)||(f.cat||'').toLowerCase().includes(searchF);
     const matchACompleter=!aCompleterF||(aCompleterF==='oui'&&f.gmailId&&(!f.ttc||f.ttc==0));
     const matchAnnee=!anneeF||(f.date&&f.date.slice(0,4)===anneeF);
-    return(!catF||f.cat===catF||(f.repartition&&f.repartition.length&&f.repartition.some(r=>r.cat===catF)))&&(!logF||(f.repartition&&f.repartition.length?f.repartition.some(r=>r.log===logF):f.log===logF))&&(!stF||f.statut===stF)&&(!pdfF||(pdfF==='oui'?hasPdf:!hasPdf))&&(!regleF||f.regleby===regleF)&&matchSearch&&matchACompleter&&matchAnnee;
+    return(!catF||f.cat===catF||(f.repartition&&f.repartition.length&&f.repartition.some(r=>r.cat===catF)))&&(!logF||(f.repartition&&f.repartition.length?f.repartition.some(r=>r.log===logF):f.log===logF))&&(!stF||f.statut===stF)&&(!pdfF||(pdfF==='oui'?hasPdf:!hasPdf))&&(!regleF||f.regleby===regleF)&&matchSearch&&matchACompleter&&matchAnnee&&(!projetF||(projetF==='hors'?f.inclus===false:f.inclus!==false));
   }).sort((a,b)=>{
     const na=a.num||'';const nb=b.num||'';
     const ma=na.match(/FAC-(\d{4})-(\d+)/i);
@@ -5205,6 +5214,15 @@ function renderFactures(){
     return nb.localeCompare(na);
   });
   document.getElementById('empty-factures').style.display=filtered.length?'none':'block';
+  // Totaux TTC de la liste affichée (respecte les filtres) : inclus au projet vs hors projet
+  const totauxEl=document.getElementById('factures-totaux-projet');
+  if(totauxEl){
+    const hors=filtered.filter(f=>f.inclus===false);
+    const totHors=hors.reduce((s,f)=>s+(+f.ttc||0),0);
+    const totProjet=filtered.filter(f=>f.inclus!==false).reduce((s,f)=>s+(+f.ttc||0),0);
+    totauxEl.innerHTML=`<span style="color:var(--text2)">Projet : <b style="color:var(--text)">${fmt(totProjet)}</b></span>`
+      +` <span style="color:var(--text3)">·</span> <span style="color:var(--text2)">Hors projet : <b style="color:var(--orange)">${fmt(totHors)}</b> <span style="color:var(--text3);font-size:11px">(${hors.length})</span></span>`;
+  }
   const countEl=document.getElementById('filter-count');
   if(countEl){
     const total=factures.length;
