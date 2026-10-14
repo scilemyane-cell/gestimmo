@@ -133,6 +133,7 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   window._authUid = user.uid; // La personne réellement connectée (peut différer du propriétaire des données)
+  if(typeof window.majVisibiliteEcheancier==='function') window.majVisibiliteEcheancier();
   window._currentUserEmail = user.email;
   const ownerParam = _params.get('owner');
   window._currentUid = ownerParam || user.uid; // Propriétaire des données à afficher
@@ -1377,6 +1378,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
           <input type="date" id="f-dateprel">
         </div>
       </div>
+      <div class="form-group" id="f-ech-box" style="grid-column:1/-1;display:none;background:rgba(90,200,216,.05);border:1px solid rgba(90,200,216,.25);border-radius:8px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+          <input type="checkbox" id="f-ech-toggle" onchange="toggleEcheancier('f')" style="width:16px;height:16px">
+          <span>📅 Paiement en plusieurs fois (échéancier)</span>
+        </label>
+        <div id="f-ech-wrap" style="display:none;margin-top:10px">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:var(--text3)">
+            Générer <input type="number" id="f-ech-nb" value="3" min="2" max="36" style="width:60px;font-size:12px"> échéances mensuelles à partir du
+            <input type="date" id="f-ech-debut" style="font-size:12px;width:auto">
+            <button type="button" onclick="genererEcheances('f')" style="background:rgba(90,200,216,.12);border:1px solid rgba(90,200,216,.4);border-radius:6px;padding:5px 10px;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer">⚡ Générer</button>
+          </div>
+          <div id="f-ech-list" style="display:flex;flex-direction:column;gap:6px"></div>
+          <button type="button" onclick="ajouterLigneEcheance('f')" style="margin-top:8px;background:none;border:1px dashed var(--border);border-radius:6px;padding:5px 10px;color:var(--text2);font-size:11px;cursor:pointer">+ Ajouter une échéance</button>
+          <div id="f-ech-total" style="font-size:11px;margin-top:8px"></div>
+        </div>
+      </div>
       <div class="form-group"><label>Date de paiement</label><input type="date" id="f-datepay"></div>
       <div class="form-group"><label>Montant TTC (€)</label><input type="number" id="f-ttc" placeholder="0.00" step="0.01"></div>
       <select id="f-tva" style="display:none"><option value="20">20 %</option><option value="10">10 %</option><option value="5.5">5,5 %</option><option value="0">0 %</option></select>
@@ -1741,6 +1758,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
         <div id="e-dateprel-wrap" style="display:none;margin-top:8px">
           <label style="font-size:10px">Date de prélèvement (pour être alerté avant, éviter un découvert)</label>
           <input type="date" id="e-dateprel">
+        </div>
+      </div>
+      <div class="form-group" id="e-ech-box" style="grid-column:1/-1;display:none;background:rgba(90,200,216,.05);border:1px solid rgba(90,200,216,.25);border-radius:8px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+          <input type="checkbox" id="e-ech-toggle" onchange="toggleEcheancier('e')" style="width:16px;height:16px">
+          <span>📅 Paiement en plusieurs fois (échéancier)</span>
+        </label>
+        <div id="e-ech-wrap" style="display:none;margin-top:10px">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:var(--text3)">
+            Générer <input type="number" id="e-ech-nb" value="3" min="2" max="36" style="width:60px;font-size:12px"> échéances mensuelles à partir du
+            <input type="date" id="e-ech-debut" style="font-size:12px;width:auto">
+            <button type="button" onclick="genererEcheances('e')" style="background:rgba(90,200,216,.12);border:1px solid rgba(90,200,216,.4);border-radius:6px;padding:5px 10px;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer">⚡ Générer</button>
+          </div>
+          <div id="e-ech-list" style="display:flex;flex-direction:column;gap:6px"></div>
+          <button type="button" onclick="ajouterLigneEcheance('e')" style="margin-top:8px;background:none;border:1px dashed var(--border);border-radius:6px;padding:5px 10px;color:var(--text2);font-size:11px;cursor:pointer">+ Ajouter une échéance</button>
+          <div id="e-ech-total" style="font-size:11px;margin-top:8px"></div>
         </div>
       </div>
       <div class="form-group"><label>Date de paiement</label><input type="date" id="e-datepay"></div>
@@ -4521,14 +4554,133 @@ function destroyChart(ref){if(ref)ref.destroy();return null;}
 // une date de prélèvement dans les 15 prochains jours ou déjà dépassée. Réutilisable sur
 // plusieurs onglets (Synthèse du budget ET onglet Factures) — charge ses propres données
 // pour ne dépendre d'aucune variable locale de la fonction appelante.
+// ── ÉCHÉANCIER (paiement d'une facture en plusieurs fois) ──────────────────
+// Une facture = une seule pièce comptable, mais réglée en plusieurs échéances
+// (ex: honoraires comptables prélevés en 3 fois). Stocké dans f.echeances =
+// [{date,montant,payee}]. Le statut (En attente / Partiel / Payée), la date de
+// paiement et la prochaine date de prélèvement sont DÉDUITS de l'échéancier.
+// Phase de test : visible uniquement pour les comptes de Valentin.
+const ECHEANCIER_BETA_UIDS=['dFhEx33SAKfKvcRCUt1ZABTsLfv2','DXYOdh2na5UHdnKOdqdeT6xKqIs2'];
+function echeancierAutorise(){ return ECHEANCIER_BETA_UIDS.includes(window._authUid); }
+function majVisibiliteEcheancier(){
+  const ok=echeancierAutorise();
+  ['f','e'].forEach(p=>{const b=document.getElementById(p+'-ech-box');if(b)b.style.display=ok?'block':'none';});
+}
+window.majVisibiliteEcheancier=majVisibiliteEcheancier;
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',majVisibiliteEcheancier);else setTimeout(majVisibiliteEcheancier,0);
+function toggleEcheancier(p){
+  const on=document.getElementById(p+'-ech-toggle').checked;
+  document.getElementById(p+'-ech-wrap').style.display=on?'block':'none';
+  if(on&&!document.querySelectorAll('#'+p+'-ech-list .ech-row').length){
+    const deb=document.getElementById(p+'-ech-debut');
+    if(deb&&!deb.value)deb.value=document.getElementById(p+'-dateprel')?.value||document.getElementById(p+'-date')?.value||todayStr();
+  }
+  majTotalEcheancier(p);
+}
+function ajouterLigneEcheance(p,e){
+  e=e||{};
+  const row=document.createElement('div');
+  row.className='ech-row';
+  row.style.cssText='display:flex;gap:6px;align-items:center';
+  row.innerHTML=`<input type="date" class="ech-date" value="${e.date||''}" style="flex:1;font-size:12px" oninput="majTotalEcheancier('${p}')">
+    <input type="number" class="ech-mt" step="0.01" min="0" placeholder="€" value="${e.montant!=null?e.montant:''}" style="width:100px;font-size:12px" oninput="majTotalEcheancier('${p}')">
+    <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);cursor:pointer;margin:0;white-space:nowrap"><input type="checkbox" class="ech-paye" ${e.payee?'checked':''} onchange="majTotalEcheancier('${p}')" style="width:15px;height:15px"> Payée</label>
+    <button type="button" onclick="this.parentElement.remove();majTotalEcheancier('${p}')" title="Supprimer" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button>`;
+  document.getElementById(p+'-ech-list').appendChild(row);
+  majTotalEcheancier(p);
+}
+function remplirEcheancier(p,list){
+  const box=document.getElementById(p+'-ech-list');if(!box)return;
+  box.innerHTML='';
+  const on=Array.isArray(list)&&list.length>0;
+  document.getElementById(p+'-ech-toggle').checked=on;
+  document.getElementById(p+'-ech-wrap').style.display=on?'block':'none';
+  if(on)list.forEach(e=>ajouterLigneEcheance(p,e));
+  else document.getElementById(p+'-ech-total').innerHTML='';
+}
+function _ajouterMois(iso,n){
+  const[y,m,d]=iso.split('-').map(Number);
+  const dt=new Date(Date.UTC(y,m-1+n,1));
+  const dernier=new Date(Date.UTC(dt.getUTCFullYear(),dt.getUTCMonth()+1,0)).getUTCDate();
+  dt.setUTCDate(Math.min(d,dernier));
+  return dt.toISOString().slice(0,10);
+}
+function genererEcheances(p){
+  const ttc=parseFloat(document.getElementById(p+'-ttc').value)||0;
+  const n=Math.max(2,Math.min(36,parseInt(document.getElementById(p+'-ech-nb').value)||0));
+  const debut=document.getElementById(p+'-ech-debut').value;
+  if(!ttc){alert('Renseigne d\'abord le montant TTC de la facture.');return;}
+  if(!debut){alert('Choisis la date de la première échéance.');return;}
+  if(document.querySelectorAll('#'+p+'-ech-list .ech-row').length&&!confirm('Remplacer les échéances déjà saisies ?'))return;
+  const base=Math.floor(ttc*100/n)/100;
+  const dernier=+(ttc-base*(n-1)).toFixed(2);
+  const list=[];
+  for(let i=0;i<n;i++)list.push({date:_ajouterMois(debut,i),montant:i===n-1?dernier:base,payee:false});
+  remplirEcheancier(p,list);
+}
+function _lireLignesEcheancier(p){
+  return Array.from(document.querySelectorAll('#'+p+'-ech-list .ech-row')).map(r=>({
+    date:r.querySelector('.ech-date').value,
+    montant:+(parseFloat(r.querySelector('.ech-mt').value)||0).toFixed(2),
+    payee:r.querySelector('.ech-paye').checked
+  })).filter(e=>e.date||e.montant);
+}
+function majTotalEcheancier(p){
+  const el=document.getElementById(p+'-ech-total');if(!el)return;
+  const list=_lireLignesEcheancier(p);
+  if(!list.length){el.innerHTML='';return;}
+  const ttc=parseFloat(document.getElementById(p+'-ttc').value)||0;
+  const total=list.reduce((s,e)=>s+e.montant,0);
+  const paye=list.filter(e=>e.payee).reduce((s,e)=>s+e.montant,0);
+  const ok=Math.abs(total-ttc)<=0.02;
+  el.innerHTML=`<span style="color:${ok?'var(--green)':'var(--red)'};font-weight:600">Total échéances : ${fmt(total)} ${ok?'✓':'≠ TTC '+fmt(ttc)}</span>
+    <span style="color:var(--text3)"> · Déjà réglé : ${fmt(paye)} · Statut calculé automatiquement</span>`;
+}
+// Retourne {mode:'skip'} (fonction non disponible pour ce compte : on ne touche à rien),
+// {mode:'off'}, {mode:'on',list} ou {erreur}.
+function lireEcheancier(p,ttc){
+  if(!echeancierAutorise())return{mode:'skip'};
+  if(!document.getElementById(p+'-ech-toggle')?.checked)return{mode:'off'};
+  const list=_lireLignesEcheancier(p);
+  if(list.length<2)return{erreur:'Échéancier : saisis au moins 2 échéances, ou décoche « Paiement en plusieurs fois ».'};
+  if(list.some(e=>!e.date||!e.montant))return{erreur:'Échéancier : chaque échéance doit avoir une date et un montant.'};
+  const total=list.reduce((s,e)=>s+e.montant,0);
+  if(Math.abs(total-ttc)>0.02)return{erreur:'Échéancier : le total des échéances ('+total.toFixed(2)+' €) ne correspond pas au montant TTC ('+ttc.toFixed(2)+' €).'};
+  list.sort((a,b)=>a.date.localeCompare(b.date));
+  return{mode:'on',list};
+}
+function appliquerEcheancier(f,ech){
+  if(!ech||ech.mode==='skip')return;
+  if(ech.mode==='off'){delete f.echeances;return;}
+  f.echeances=ech.list;
+  const nbPayees=ech.list.filter(e=>e.payee).length;
+  if(nbPayees===ech.list.length){
+    f.statut='Payée';
+    if(!f.datepay)f.datepay=ech.list[ech.list.length-1].date;
+  } else {
+    f.statut=nbPayees?'Partiel':'En attente';
+  }
+  const prochaine=ech.list.find(e=>!e.payee);
+  if(f.prelevementAuto)f.dateprelevement=prochaine?prochaine.date:ech.list[ech.list.length-1].date;
+}
+function badgeEcheancierHTML(f){
+  if(!Array.isArray(f.echeances)||!f.echeances.length)return'';
+  const n=f.echeances.length,p=f.echeances.filter(e=>e.payee).length;
+  const detail=f.echeances.map(e=>fmtDate(e.date)+' : '+fmt(e.montant)+(e.payee?' ✓':'')).join('\n');
+  return ` <span title="${detail.replace(/"/g,'&quot;')}" style="font-size:9px;background:rgba(90,200,216,.12);color:var(--accent);border:1px solid rgba(90,200,216,.4);border-radius:3px;padding:1px 5px;font-weight:700">📅 ${p}/${n}</span>`;
+}
+
 function renderAlertesPrelevements(elId){
   const{factures}=loadData();
   const today=todayStr();
   const prelevs=factures
-    .filter(f=>f.prelevementAuto&&f.dateprelevement&&f.statut!=='Payée'&&f.inclus!==false)
-    .map(f=>{
-      const diff=Math.round((new Date(f.dateprelevement)-new Date(today))/86400000);
-      return{f,diff};
+    .filter(f=>f.prelevementAuto&&f.statut!=='Payée'&&f.inclus!==false)
+    .flatMap(f=>{
+      // Échéancier : une alerte par échéance non réglée (montant de l'échéance, pas le TTC total)
+      const items=Array.isArray(f.echeances)&&f.echeances.length
+        ?f.echeances.map((e,i)=>({e,i})).filter(x=>!x.e.payee&&x.e.date).map(x=>({date:x.e.date,montant:x.e.montant,suffixe:' · éch. '+(x.i+1)+'/'+f.echeances.length}))
+        :(f.dateprelevement?[{date:f.dateprelevement,montant:f.ttc,suffixe:''}]:[]);
+      return items.map(it=>({f,...it,diff:Math.round((new Date(it.date)-new Date(today))/86400000)}));
     })
     .filter(x=>x.diff<=15)
     .sort((a,b)=>a.diff-b.diff);
@@ -4538,7 +4690,7 @@ function renderAlertesPrelevements(elId){
     elAlerte.innerHTML='';
     return;
   }
-  const totalPrelevs=prelevs.reduce((s,x)=>s+(+x.f.ttc||0),0);
+  const totalPrelevs=prelevs.reduce((s,x)=>s+(+x.montant||0),0);
   elAlerte.innerHTML=`
   <div style="background:rgba(224,113,107,.08);border:1px solid rgba(224,113,107,.35);border-radius:12px;padding:14px 18px;margin-bottom:20px">
     <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">🏦 ${prelevs.length} prélèvement${prelevs.length>1?'s':''} automatique${prelevs.length>1?'s':''} à venir — ${fmt(totalPrelevs)} au total</div>
@@ -4549,10 +4701,10 @@ function renderAlertesPrelevements(elId){
         const label=enRetard?'En retard de '+Math.abs(x.diff)+' j':(x.diff===0?"Aujourd'hui":'Dans '+x.diff+' j');
         const couleur=enRetard||x.diff<=3?'var(--red)':'var(--orange)';
         return`<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:7px">
-          <span style="color:var(--text2)">${f.four||'—'} ${f.num?'('+f.num+')':''}</span>
+          <span style="color:var(--text2)">${f.four||'—'} ${f.num?'('+f.num+')':''}${x.suffixe}</span>
           <span style="display:flex;gap:10px;align-items:center">
-            <span style="font-weight:600;color:var(--text)">${fmt(f.ttc)}</span>
-            <span style="color:${couleur};font-weight:700;font-size:11px">${label} · ${fmtDate(f.dateprelevement)}</span>
+            <span style="font-weight:600;color:var(--text)">${fmt(x.montant)}</span>
+            <span style="color:${couleur};font-weight:700;font-size:11px">${label} · ${fmtDate(x.date)}</span>
           </span>
         </div>`;
       }).join('')}
@@ -5064,7 +5216,8 @@ function renderFactures(){
     const excluStyle=f.inclus===false?'opacity:0.5;':'';
     // Calcul alerte retard paiement
     let alertClass='';let alertBadge='';
-    if(f.statut!=='Payée'&&f.date){
+    const _echEnCours=Array.isArray(f.echeances)&&f.echeances.length&&!f.echeances.some(e=>!e.payee&&e.date<todayStr());
+    if(f.statut!=='Payée'&&f.date&&!_echEnCours){
       const daysDiff=Math.floor((Date.now()-new Date(f.date).getTime())/(1000*60*60*24));
       if(daysDiff>60){alertClass='row-alert-danger';alertBadge='<span style="font-size:9px;background:rgba(224,113,107,.2);color:var(--red);border:1px solid rgba(224,113,107,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⚠ +'+daysDiff+'j</span>';}
       else if(daysDiff>30){alertClass='row-alert-warn';alertBadge='<span style="font-size:9px;background:rgba(224,161,94,.2);color:var(--orange);border:1px solid rgba(224,161,94,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⏰ '+daysDiff+'j</span>';}
@@ -5075,7 +5228,7 @@ function renderFactures(){
     return`<tr class="${alertClass}" style="${excluStyle}">
       <td class="hover-pdf-trigger" style="color:var(--accent);font-weight:500" onmouseenter="showHoverPreview(event,'facture',${ri})" onmouseleave="hideHoverPreview()" title="Survoler pour voir la facture">${f.num||'—'}${f.inclus===false?' <span style="font-size:9px;color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px">EXCLU</span>':''}${f.type==='acompte'?` <span style="font-size:9px;color:var(--orange);border:1px solid rgba(224,161,94,.4);border-radius:3px;padding:1px 4px" title="Facture d'acompte">🧾 solde ${fmt(soldeRestantAcompte(f))}</span>`:''}${f.acompteFactureNum?` <span style="font-size:9px;color:var(--text3);border:1px solid var(--border);border-radius:3px;padding:1px 4px" title="Couverte par l'acompte ${f.acompteFactureNum}">↩ acompte ${f.acompteFactureNum}</span>`:''}${isDup?` <span onclick="confirmerPasDoublon(${ri})" title="Cliquer pour confirmer que ce n'est PAS un doublon" style="cursor:pointer;font-size:9px;background:rgba(224,113,107,.25);color:var(--red);border:1px solid #E0716B;border-radius:3px;padding:1px 4px;font-weight:700">⚠ DOUBLON — ✓ Confirmer que non</span>`:''}${f.gmailId&&(!f.ttc||f.ttc==0)?' <span style="font-size:9px;color:var(--orange);border:1px solid #E0A15E;border-radius:3px;padding:1px 4px">📧 À compléter</span>':''}</td>
       <td style="color:var(--text2)">${f.date||'—'}</td>
-      <td style="font-weight:500">${f.four||'—'}${f.sourceCertifiee?' <span title="Facture électronique certifiée (Factur-X) — données garanties exactes, aucune lecture IA" style="font-size:9px;background:rgba(90,200,216,.15);color:#5AC8D8;border:1px solid rgba(90,200,216,.4);border-radius:3px;padding:1px 5px;font-weight:700">🔷 CERTIFIÉE</span>':''}${f.prelevementAuto?` <span title="Prélèvement automatique${f.dateprelevement?' le '+fmtDate(f.dateprelevement):''}" style="font-size:9px;background:rgba(224,161,94,.15);color:var(--orange);border:1px solid rgba(224,161,94,.4);border-radius:3px;padding:1px 5px;font-weight:700">🏦 PRÉLÈVEMENT</span>`:''}</td>
+      <td style="font-weight:500">${f.four||'—'}${f.sourceCertifiee?' <span title="Facture électronique certifiée (Factur-X) — données garanties exactes, aucune lecture IA" style="font-size:9px;background:rgba(90,200,216,.15);color:#5AC8D8;border:1px solid rgba(90,200,216,.4);border-radius:3px;padding:1px 5px;font-weight:700">🔷 CERTIFIÉE</span>':''}${f.prelevementAuto?` <span title="Prélèvement automatique${f.dateprelevement?' le '+fmtDate(f.dateprelevement):''}" style="font-size:9px;background:rgba(224,161,94,.15);color:var(--orange);border:1px solid rgba(224,161,94,.4);border-radius:3px;padding:1px 5px;font-weight:700">🏦 PRÉLÈVEMENT</span>`:''}${badgeEcheancierHTML(f)}</td>
       <td style="color:var(--text2);font-size:11px">${getCatDisplayText(f)}</td>
       <td>${renderLogBadgeHTML(f)}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(f.ttc)}</td>
@@ -5168,6 +5321,9 @@ async function ajouterFacture(){
     hasPdf:!!pendingPdfB64,
     inclus:true
   };
+  const echF=lireEcheancier('f',ttcInput);
+  if(echF.erreur){alert(echF.erreur);return;}
+  appliquerEcheancier(factureObj,echF);
   if(document.getElementById('f-est-acompte')?.checked)factureObj.type='acompte';
   const acompteAssocie=document.getElementById('f-acompte')?document.getElementById('f-acompte').value:'';
   if(acompteAssocie){
@@ -5218,6 +5374,7 @@ async function ajouterFacture(){
   ['f-num','f-date','f-datepay','f-four','f-ttc','f-desc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-regleby').value='';
   document.getElementById('f-cmd').value='';
+  remplirEcheancier('f',[]);
   if(document.getElementById('f-devis'))document.getElementById('f-devis').value='';
   if(document.getElementById('f-est-acompte'))document.getElementById('f-est-acompte').checked=false;
   if(document.getElementById('f-acompte'))document.getElementById('f-acompte').value='';
@@ -6837,6 +6994,8 @@ function openEdit(idx){
   document.getElementById('e-dateprel-wrap').style.display=f.prelevementAuto?'block':'none';
   document.getElementById('e-datepay').value=f.datepay||'';
   document.getElementById('e-ttc').value=f.ttc;
+  majVisibiliteEcheancier();
+  remplirEcheancier('e',f.echeances||[]);
   document.getElementById('e-tva').value=f.tva;
   document.getElementById('e-cmd').value=f.cmd||'';
   document.getElementById('e-desc').value=f.desc||'';
@@ -6897,6 +7056,8 @@ function saveEdit(){
   if(editIdx===null)return;
   if(document.getElementById('e-split-toggle').checked){ saveEditAsSplit(); return; }
   const ttcEdit=parseFloat(document.getElementById('e-ttc').value)||0;
+  const echE=lireEcheancier('e',ttcEdit);
+  if(echE.erreur){alert(echE.erreur);return;}
   const tva=parseFloat(document.getElementById('e-tva').value)||20;
   const ht=+(ttcEdit/(1+tva/100)).toFixed(2);
   const d=loadData();
@@ -6933,6 +7094,7 @@ function saveEdit(){
     inclus:document.getElementById('e-inclus').checked,
     hasPdf:editPdfB64?true:hadPdf
   };
+  appliquerEcheancier(d.factures[editIdx],echE);
   if(document.getElementById('e-est-acompte')?.checked)d.factures[editIdx].type='acompte';
   else delete d.factures[editIdx].type;
   const eAcompteAssocie=document.getElementById('e-acompte')?document.getElementById('e-acompte').value:'';
@@ -7042,6 +7204,8 @@ window.updateEditSplitTotal=function(){
 // Remplace la facture éditée par plusieurs lignes séparées (une par logement coché)
 function saveEditAsSplit(){
   const ttcInput=parseFloat(document.getElementById('e-ttc').value)||0;
+  const echS=lireEcheancier('e',ttcInput);
+  if(echS.erreur){alert(echS.erreur);return;}
   const tva=parseFloat(document.getElementById('e-tva').value)||20;
   const splitLogs=Array.from(document.querySelectorAll('.e-split-log:checked')).map(el=>el.value);
   if(splitLogs.length<2){alert('Coche au moins 2 logements pour diviser cette facture, ou décoche la case pour l\'enregistrer normalement.');return;}
@@ -7096,6 +7260,7 @@ function saveEditAsSplit(){
     inclus:document.getElementById('e-inclus').checked,
     repartition
   };
+  appliquerEcheancier(d.factures[editIdx],echS);
   if(document.getElementById('e-est-acompte')?.checked)d.factures[editIdx].type='acompte';
   else delete d.factures[editIdx].type;
   const eAcompteAssocieSplit=document.getElementById('e-acompte')?document.getElementById('e-acompte').value:'';
@@ -7575,7 +7740,8 @@ function renderAnnuel(){
     const excluStyle=f.inclus===false?'opacity:0.5;':'';
     // Calcul alerte retard paiement
     let alertClass='';let alertBadge='';
-    if(f.statut!=='Payée'&&f.date){
+    const _echEnCours=Array.isArray(f.echeances)&&f.echeances.length&&!f.echeances.some(e=>!e.payee&&e.date<todayStr());
+    if(f.statut!=='Payée'&&f.date&&!_echEnCours){
       const daysDiff=Math.floor((Date.now()-new Date(f.date).getTime())/(1000*60*60*24));
       if(daysDiff>60){alertClass='row-alert-danger';alertBadge='<span style="font-size:9px;background:rgba(224,113,107,.2);color:var(--red);border:1px solid rgba(224,113,107,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⚠ +'+daysDiff+'j</span>';}
       else if(daysDiff>30){alertClass='row-alert-warn';alertBadge='<span style="font-size:9px;background:rgba(224,161,94,.2);color:var(--orange);border:1px solid rgba(224,161,94,.4);border-radius:4px;padding:1px 5px;margin-left:5px">⏰ '+daysDiff+'j</span>';}
