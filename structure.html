@@ -1068,7 +1068,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 <div class="content" id="tab-budget">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
     <div class="section-title" style="margin:0">Budget prévisionnel — saisie par poste</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button onclick="exporterBudgetPrevisionnelPDF()" style="background:var(--accent3);border:1px solid var(--accent2);border-radius:8px;padding:7px 14px;color:var(--text);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">🖨 Récapitulatif PDF</button>
     <button onclick="toggleGestionCategoriesBudget()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">🗂 Personnaliser les catégories</button>
+    </div>
   </div>
   <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Les catégories de <b>travaux</b> pertinentes pour ce projet sont affichées ci-dessous — masque celles dont tu n'as pas besoin via "🗂 Personnaliser les catégories". Ajoute en plus une charge de <b>fonctionnement</b> future si tu veux déjà la prévoir (ex: taxe foncière, assurance...) :</div>
   <div id="budget-gestion-cats" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:18px"></div>
@@ -5030,6 +5033,120 @@ function renderBudget(){
     </div>`;
   }).join('');
 }
+// ── EXPORT PDF DU BUDGET PRÉVISIONNEL ─────────────────────────────────────
+// Vue d'ensemble papier : synthèse par logement (prévu / engagé devis / réel factures) puis
+// détail de chaque poste par catégorie. Inclut aussi les catégories masquées à l'écran (signalées)
+// pour que le papier reflète TOUT ce qui est saisi en base. Lecture seule, ne modifie rien.
+window.exporterBudgetPrevisionnelPDF=function(){
+  refreshLOGS();
+  const{budget,factures}=loadData();
+  const devisAll=loadDevis();
+  const reelPoste=sumByPosteLog(factures,f=>f.inclus!==false);
+  const engPoste=sumByPosteLog(devisAll,d=>d.statut==='Accepté');
+  const matrix=getReelMatrix(factures);
+  const hidden=loadHiddenBudgetCats();
+  const cfg=getCTXConfig();
+  const esc=s=>escapeHtml(s==null?'':String(s));
+  const eur=n=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);
+  const eurOuTiret=n=>(Math.abs(n||0)<0.5?'<span style="color:#cbd5e0">—</span>':eur(n));
+  const pct=(a,b)=>b>0?Math.round(a/b*100)+' %':'—';
+  const buckets=LOGS.map(l=>({key:l.prevKey,label:l.key}));
+  buckets.push({key:'com',label:'Commun'});
+
+  // Somme réel/engagé d'un poste sur tous les logements
+  const sumPoste=(map,cat,desc)=>{
+    if(!desc)return 0;
+    const pref=cat+'|||'+desc.trim()+'|||';
+    return Object.keys(map).filter(k=>k.startsWith(pref)).reduce((s,k)=>s+map[k],0);
+  };
+  const sumBucket=(map,label)=>Object.keys(map).filter(k=>k.endsWith('|||'+label)).reduce((s,k)=>s+map[k],0);
+
+  // Catégories à imprimer : toutes celles qui ont un montant prévu ou réel (catégories connues
+  // d'abord dans l'ordre de l'app, puis d'éventuelles clés inconnues restées en base).
+  const connues=CATEGORIES.map(c=>c.name);
+  const nomsCats=[...connues,...Object.keys(budget).filter(k=>!connues.includes(k))];
+  const blocs=[];
+  let totPrevu=0,totReel=0,totEng=0;
+  nomsCats.forEach(name=>{
+    const cat=CATEGORIES.find(c=>c.name===name)||{name,color:'#a0aec0',type:'travaux'};
+    if(cat.type==='hors_rentabilite')return;
+    const rows=(budget[name]||[]).map(r=>{
+      const parBucket=buckets.map(b=>+r[b.key]||0);
+      const prevu=parBucket.reduce((s,v)=>s+v,0);
+      return{desc:r.desc||'',parBucket,prevu,reel:sumPoste(reelPoste,name,r.desc),eng:sumPoste(engPoste,name,r.desc)};
+    }).filter(r=>r.prevu>0||r.reel>0||r.eng>0||r.desc);
+    const reelCat=matrix[name]?matrix[name].total:0;
+    const prevuCat=rows.reduce((s,r)=>s+r.prevu,0);
+    if(prevuCat<=0&&reelCat<=0)return;
+    const reelPostes=rows.reduce((s,r)=>s+r.reel,0);
+    const engCat=rows.reduce((s,r)=>s+r.eng,0);
+    totPrevu+=prevuCat;totReel+=reelCat;totEng+=engCat;
+    blocs.push({cat,rows,prevuCat,reelCat,engCat,nonAffecte:Math.max(0,reelCat-reelPostes),masquee:hidden.includes(name),inconnue:!connues.includes(name)});
+  });
+
+  // ── Synthèse par logement
+  const synth=buckets.map(b=>{
+    const prevu=nomsCats.reduce((s,n)=>s+(budget[n]||[]).reduce((ss,r)=>ss+(+r[b.key]||0),0),0);
+    if(b.key==='com')return{label:b.label,prevu,eng:null,reel:null};
+    const reel=CATEGORIES.filter(c=>c.type!=='hors_rentabilite').reduce((s,c)=>s+((matrix[c.name]&&matrix[c.name][b.key])||0),0);
+    return{label:b.label,prevu,eng:sumBucket(engPoste,b.label),reel};
+  }).filter(r=>r.prevu>0||r.reel>0);
+
+  const th='padding:6px 8px;font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#2c5282;border-bottom:2px solid #bee3f8;text-align:right';
+  const td='padding:5px 8px;font-size:10.5px;border-bottom:1px solid #edf2f7;text-align:right;white-space:nowrap';
+  const synthHtml='<table><thead><tr><th style="'+th+';text-align:left">Logement</th><th style="'+th+'">Prévu</th><th style="'+th+'">Engagé (devis acceptés)</th><th style="'+th+'">Réel (factures)</th><th style="'+th+'">Reste prévu</th><th style="'+th+'">Avancement</th></tr></thead><tbody>'
+    +synth.map(r=>'<tr><td style="'+td+';text-align:left;font-weight:600">'+esc(r.label)+'</td><td style="'+td+'">'+eur(r.prevu)+'</td>'
+      +(r.reel===null?'<td style="'+td+';color:#a0aec0" colspan="4">Factures communes réparties sur les logements ci-dessus</td>'
+        :'<td style="'+td+'">'+eurOuTiret(r.eng)+'</td><td style="'+td+'">'+eurOuTiret(r.reel)+'</td><td style="'+td+'">'+eur(r.prevu-r.reel)+'</td><td style="'+td+'">'+pct(r.reel,r.prevu)+'</td>')+'</tr>').join('')
+    +'<tr style="background:#ebf8ff;font-weight:800"><td style="'+td+';text-align:left">TOTAL</td><td style="'+td+'">'+eur(totPrevu)+'</td><td style="'+td+'">'+eurOuTiret(totEng)+'</td><td style="'+td+'">'+eur(totReel)+'</td><td style="'+td+'">'+eur(totPrevu-totReel)+'</td><td style="'+td+'">'+pct(totReel,totPrevu)+'</td></tr>'
+    +'</tbody></table>';
+
+  // ── Détail par catégorie
+  const head='<tr><th style="'+th+';text-align:left">Poste</th>'+buckets.map(b=>'<th style="'+th+'">'+esc(b.label)+'</th>').join('')
+    +'<th style="'+th+'">Total prévu</th><th style="'+th+'">Engagé</th><th style="'+th+'">Réel</th><th style="'+th+'">Écart</th></tr>';
+  const nbCols=buckets.length+5;
+  const detailHtml='<table><thead>'+head+'</thead><tbody>'+blocs.map(bl=>{
+    const tag=(bl.masquee?' <span class="tag">masquée à l\'écran</span>':'')+(bl.inconnue?' <span class="tag">ancienne catégorie</span>':'');
+    const ecartCat=bl.prevuCat-bl.reelCat;
+    let h='<tr class="cat"><td style="'+td+';text-align:left" colspan="'+(buckets.length+1)+'"><span class="dot" style="background:'+bl.cat.color+'"></span>'+esc(bl.cat.name)+tag+'</td>'
+      +'<td style="'+td+'">'+eur(bl.prevuCat)+'</td><td style="'+td+'">'+eurOuTiret(bl.engCat)+'</td><td style="'+td+'">'+eurOuTiret(bl.reelCat)+'</td>'
+      +'<td style="'+td+';color:'+(ecartCat<0?'#c53030':'#2f855a')+'">'+(bl.prevuCat>0?eur(ecartCat):'—')+'</td></tr>';
+    h+=bl.rows.map(r=>{
+      const ec=r.prevu-r.reel;
+      return '<tr><td style="'+td+';text-align:left;padding-left:20px;white-space:normal">'+(esc(r.desc)||'<i style="color:#a0aec0">Sans nom</i>')+'</td>'
+        +r.parBucket.map(v=>'<td style="'+td+'">'+eurOuTiret(v)+'</td>').join('')
+        +'<td style="'+td+';font-weight:600">'+eurOuTiret(r.prevu)+'</td><td style="'+td+'">'+eurOuTiret(r.eng)+'</td><td style="'+td+'">'+eurOuTiret(r.reel)+'</td>'
+        +'<td style="'+td+';color:'+(ec<0&&r.prevu>0?'#c53030':'#4a5568')+'">'+(r.prevu>0?eur(ec):'—')+'</td></tr>';
+    }).join('');
+    if(bl.nonAffecte>=0.5)h+='<tr><td style="'+td+';text-align:left;padding-left:20px;color:#718096;font-style:italic" colspan="'+(nbCols-2)+'">Factures de la catégorie non rattachées à un poste</td><td style="'+td+';color:#718096">'+eur(bl.nonAffecte)+'</td><td style="'+td+'"></td></tr>';
+    return h;
+  }).join('')+'</tbody></table>';
+
+  const logoB64=getLogoB64();
+  const title=cfg.nom+' — Budget prévisionnel travaux';
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>'
+    +'*{box-sizing:border-box}body{margin:0;padding:24px 30px;font-family:\'Segoe UI\',Arial,sans-serif;color:#1a202c;background:#fff;font-size:12px}'
+    +'table{width:100%;border-collapse:collapse;margin-bottom:22px}tr{page-break-inside:avoid}thead{display:table-header-group}'
+    +'tr.cat td{background:#f7fafc;font-weight:700;border-top:1px solid #cbd5e0}'
+    +'.dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:7px;vertical-align:middle}'
+    +'.tag{font-size:8.5px;font-weight:600;color:#975a16;background:#fefcbf;border-radius:8px;padding:1px 6px;margin-left:6px}'
+    +'h2{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#2c5282;margin:6px 0 10px}'
+    +'.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2b6cb0;padding-bottom:12px;margin-bottom:18px}'
+    +'.header h1{font-size:16px;color:#2b6cb0;margin:0 0 3px;font-weight:800}.header p{font-size:11px;color:#718096;margin:2px 0}'
+    +'.note{font-size:9.5px;color:#718096;line-height:1.5;margin-top:-10px}'
+    +'@media print{@page{size:A4 landscape;margin:10mm}body{padding:0}.no-print{display:none}}'
+    +'</style></head><body>'
+    +'<div class="header"><div style="display:flex;align-items:center;gap:12px"><img src="'+logoB64+'" alt="" style="height:48px;width:auto">'
+    +'<div><h1>BUDGET PRÉVISIONNEL TRAVAUX</h1><p style="font-weight:600;color:#1a202c">'+esc(cfg.nom)+'</p></div></div>'
+    +'<div style="text-align:right"><p>Édité le '+new Date().toLocaleDateString('fr-FR')+'</p>'
+    +'<button class="no-print" onclick="window.print()" style="margin-top:8px;background:#2b6cb0;border:none;border-radius:6px;color:#fff;padding:7px 16px;font-size:12px;cursor:pointer;font-weight:600">🖨 Imprimer / Sauvegarder PDF</button></div></div>'
+    +'<h2>Synthèse par logement</h2>'+synthHtml
+    +'<h2>Détail par poste</h2>'+(blocs.length?detailHtml:'<p>Aucun poste saisi pour l\'instant.</p>')
+    +'<p class="note">Montants TTC. <b>Engagé</b> = devis au statut « Accepté » rattachés au poste. <b>Réel</b> = factures incluses au projet. <b>Écart</b> = prévu − réel (rouge si dépassement). Un réel à « — » signifie qu\'aucune facture n\'est encore rattachée à ce poste, pas que le poste est absent du budget.</p>'
+    +'<div style="margin-top:18px;text-align:center;font-size:9px;color:#94a3b8">Document généré avec Novimmo</div>'
+    +'</body></html>';
+  openPrintOverlay(html,title);
+};
 window.toggleBudgetCat=function(key){
   _budgetExpanded[key]=!_budgetExpanded[key];
   renderBudget();
