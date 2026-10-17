@@ -5081,7 +5081,19 @@ window.exporterBudgetPrevisionnelPDF=function(){
     const reelPostes=rows.reduce((s,r)=>s+r.reel,0);
     const engCat=rows.reduce((s,r)=>s+r.eng,0);
     totPrevu+=prevuCat;totReel+=reelCat;totEng+=engCat;
-    blocs.push({cat,rows,prevuCat,reelCat,engCat,nonAffecte:Math.max(0,reelCat-reelPostes),masquee:hidden.includes(name),inconnue:!connues.includes(name)});
+    // Factures de cette catégorie qui ne tombent sur aucun poste du budget (poste vide, ou nom
+    // de poste différent de celui saisi dans le budget) — listées une par une dans le PDF.
+    const descs=rows.map(r=>(r.desc||'').trim()).filter(Boolean);
+    const orphelines=[];
+    factures.forEach(f=>{
+      if(f.inclus===false)return;
+      const posteF=(f.poste||'').trim();
+      if(posteF&&descs.includes(posteF))return;
+      const montant=getFactureShares(f,cfg.logements).filter(sh=>sh.cat===name).reduce((s2,sh)=>s2+sh.montant,0);
+      if(montant>=0.5)orphelines.push({date:f.date,four:f.four,num:f.num,poste:posteF,montant});
+    });
+    orphelines.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    blocs.push({cat,rows,prevuCat,reelCat,engCat,orphelines,nonAffecte:Math.max(0,reelCat-reelPostes),masquee:hidden.includes(name),inconnue:!connues.includes(name)});
   });
 
   // ── Synthèse par logement
@@ -5118,7 +5130,13 @@ window.exporterBudgetPrevisionnelPDF=function(){
         +'<td style="'+td+';font-weight:600">'+eurOuTiret(r.prevu)+'</td><td style="'+td+'">'+eurOuTiret(r.eng)+'</td><td style="'+td+'">'+eurOuTiret(r.reel)+'</td>'
         +'<td style="'+td+';color:'+(ec<0&&r.prevu>0?'#c53030':'#4a5568')+'">'+(r.prevu>0?eur(ec):'—')+'</td></tr>';
     }).join('');
-    if(bl.nonAffecte>=0.5)h+='<tr><td style="'+td+';text-align:left;padding-left:20px;color:#718096;font-style:italic" colspan="'+(nbCols-2)+'">Factures de la catégorie non rattachées à un poste</td><td style="'+td+';color:#718096">'+eur(bl.nonAffecte)+'</td><td style="'+td+'"></td></tr>';
+    if(bl.nonAffecte>=0.5){
+      h+='<tr><td style="'+td+';text-align:left;padding-left:20px;color:#718096;font-style:italic" colspan="'+(nbCols-2)+'">Factures de la catégorie non rattachées à un poste du budget :</td><td style="'+td+';color:#718096">'+eur(bl.nonAffecte)+'</td><td style="'+td+'"></td></tr>';
+      h+=bl.orphelines.map(o=>'<tr><td style="'+td+';text-align:left;padding-left:34px;color:#718096;font-size:9.5px;white-space:normal" colspan="'+(nbCols-2)+'">'
+        +(o.date?fmtDate(o.date)+' · ':'')+esc(o.four||'Fournisseur ?')+(o.num?' · N° '+esc(o.num):'')
+        +(o.poste?' · <span style="color:#c05621">poste « '+esc(o.poste)+' » introuvable dans le budget</span>':' · <span style="color:#c05621">aucun poste choisi</span>')
+        +'</td><td style="'+td+';color:#718096;font-size:9.5px">'+eur(o.montant)+'</td><td style="'+td+'"></td></tr>').join('');
+    }
     return h;
   }).join('')+'</tbody></table>';
 
